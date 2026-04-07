@@ -19,7 +19,7 @@ use std::time::Instant;
 use crate::extractors::registry::ExtractorResult;
 use anyhow::Result;
 use scraper::Html;
-use types::{DistillerOptions, DistillerResponse, ParseMode};
+use types::{DistillerOptions, DistillerResponse};
 
 pub async fn extract_url(url: &str, opts: DistillerOptions) -> Result<DistillerResponse> {
     observability::debug(opts.debug, "pipeline.start", format!("url={url}"));
@@ -43,7 +43,7 @@ pub async fn extract_url(url: &str, opts: DistillerOptions) -> Result<DistillerR
             "no async extractor match"
         },
     );
-    let llm_markdown = if opts.llm && opts.mode != ParseMode::Html {
+    let llm_markdown = if opts.llm {
         extraction::llm::extract_via_llm(&html, url, opts.debug).await
     } else {
         None
@@ -252,11 +252,7 @@ fn parse_internal(
     content_html = sanitize::sanitize_html(&content_html);
     let word_count = dom::count_words(&dom::strip_tags(&content_html));
 
-    let mut md = if opts.mode == ParseMode::Html {
-        None
-    } else {
-        Some(markdown_ast::html_to_markdown(&content_html, url))
-    };
+    let mut md = Some(markdown_ast::html_to_markdown(&content_html, url));
 
     let md_title_hint = md.as_ref().and_then(|m| markdown::guess_title(m));
 

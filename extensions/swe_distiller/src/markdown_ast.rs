@@ -149,30 +149,41 @@ fn render_inline_children(el: &ElementRef<'_>) -> String {
                 "a" => {
                     let href = child_el.value().attr("href").unwrap_or("#");
                     let text = render_inline_children(&child_el);
-                    out.push_str(&format!("[{}]({href})", text.trim()));
+                    let trimmed = text.trim();
+                    // Skip anchor permalink links (href="#..." with only
+                    // punctuation/symbol text like "#", "§", "🔗", etc.)
+                    if href.starts_with('#')
+                        && !trimmed.is_empty()
+                        && trimmed
+                            .chars()
+                            .all(|c| c.is_ascii_punctuation() || !c.is_alphanumeric())
+                    {
+                        continue;
+                    }
+                    push_inline_markup(&mut out, &format!("[{}]({href})", trimmed));
                 }
                 "strong" | "b" => {
                     let text = render_inline_children(&child_el);
                     if !text.trim().is_empty() {
-                        out.push_str(&format!("**{}**", text.trim()));
+                        push_inline_markup(&mut out, &format!("**{}**", text.trim()));
                     }
                 }
                 "em" | "i" => {
                     let text = render_inline_children(&child_el);
                     if !text.trim().is_empty() {
-                        out.push_str(&format!("*{}*", text.trim()));
+                        push_inline_markup(&mut out, &format!("*{}*", text.trim()));
                     }
                 }
                 "code" => {
                     let text = collect_text(&child_el);
                     if !text.trim().is_empty() {
-                        out.push_str(&format!("`{}`", text.trim()));
+                        push_inline_markup(&mut out, &format!("`{}`", text.trim()));
                     }
                 }
                 "img" => {
                     let src = child_el.value().attr("src").unwrap_or_default();
                     let alt = child_el.value().attr("alt").unwrap_or_default();
-                    out.push_str(&format!("![{alt}]({src})"));
+                    push_inline_markup(&mut out, &format!("![{alt}]({src})"));
                 }
                 "br" => out.push('\n'),
                 _ => out.push_str(&render_inline_children(&child_el)),
@@ -265,6 +276,15 @@ fn push_block(out: &mut String, block: &str) {
     }
     out.push_str(block.trim());
     out.push_str("\n\n");
+}
+
+/// Ensure a space before inline markup (links, bold, etc.) when preceding
+/// text doesn't already end with whitespace.
+fn push_inline_markup(out: &mut String, markup: &str) {
+    if !out.is_empty() && !out.ends_with([' ', '\n']) {
+        out.push(' ');
+    }
+    out.push_str(markup);
 }
 
 fn push_inline(out: &mut String, text: &str) {

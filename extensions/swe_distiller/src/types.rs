@@ -4,7 +4,6 @@ use serde::Serialize;
 pub enum ParseMode {
     #[default]
     Markdown,
-    Html,
     Json,
 }
 

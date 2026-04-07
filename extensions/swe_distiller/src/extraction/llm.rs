@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use crate::extraction::checks::{passes_safety_checks, structure_noise_score};
 use crate::observability;
 
-const DEFAULT_PROVIDERS: &str = "jina,reader-lm:1.5b,gemma4:31b-cloud";
-const DEFAULT_TIMEOUT_MS: u64 = 12_000;
+const DEFAULT_PROVIDERS: &str = "gemma4:31b-cloud,reader-lm:1.5b,jina";
+const DEFAULT_TIMEOUT_MS: u64 = 60_000;
 const DEFAULT_MAX_INPUT_CHARS: usize = 60_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +38,8 @@ pub async fn extract_via_llm(html: &str, source_url: &str, debug_enabled: bool) 
         ),
     );
 
+    let mut best_fallback: Option<(String, i32)> = None;
+
     for provider in providers {
         let candidate = if provider.eq_ignore_ascii_case("jina") {
             run_jina_provider(source_url).await
@@ -50,10 +52,20 @@ pub async fn extract_via_llm(html: &str, source_url: &str, debug_enabled: bool) 
         if markdown.trim().is_empty() {
             continue;
         }
+
+        let candidate_score = structure_noise_score(&markdown);
+
+        // Track best candidate by noise score for fallback
+        if best_fallback
+            .as_ref()
+            .map_or(true, |(_, s)| candidate_score < *s)
+        {
+            best_fallback = Some((markdown.clone(), candidate_score));
+        }
+
         if !passes_safety_checks(&baseline_markdown, &markdown) {
             continue;
         }
-        let candidate_score = structure_noise_score(&markdown);
         if candidate_score > baseline_score + 2 {
             continue;
         }
@@ -63,6 +75,18 @@ pub async fn extract_via_llm(html: &str, source_url: &str, debug_enabled: bool) 
             format!("provider={provider} accepted_noise={candidate_score}"),
         );
         return Some(markdown);
+    }
+
+    // When --llm was explicitly requested, use the best candidate even if it
+    // didn't pass the quality gates rather than silently falling back to
+    // heuristic parsing.
+    if let Some((md, score)) = best_fallback {
+        observability::debug(
+            debug_enabled,
+            "pipeline.llm.provider",
+            format!("best_fallback_noise={score}"),
+        );
+        return Some(md);
     }
 
     None
