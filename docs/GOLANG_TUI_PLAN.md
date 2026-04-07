@@ -1,1110 +1,1117 @@
-# Building a Golang TUI Agent using Agent-Client-Protocol
-## Learning-Oriented Implementation Plan
+# Harness: A Go Agent Framework
+
+> *Inspired by [pi-mono](https://github.com/badlogic/pi-mono). Distilled. Faster. Simpler.*
 
 ---
 
-## Executive Summary
+## Philosophy
 
-You'll build a fully-featured Golang Terminal User Interface (TUI) that implements the Agent-Client-Protocol (ACP) to communicate with AI coding agents. This project is structured as a progressive learning journey covering core software engineering, systems programming, distributed systems, networking, and concurrent messaging patterns.
+The cheapest, fastest, and most reliable component is the one that does not exist.
 
-**Tech Stack:**
-- Go 1.21+ (concurrency, channels, goroutines)
-- Bubble Tea (TUI framework, inspired by Elm architecture)
-- JSON-RPC 2.0 (protocol layer)
-- stdio/IPC (process communication)
-- Optional: gRPC for future extensions
+**Harness** is a minimal, composable agent framework in Go. It takes the layered modularity of pi-mono — `pi-ai → pi-agent-core → pi-coding-agent → pi-tui` — and reframes it as a single, zero-dependency core that everything else plugs into.
 
----
+Where pi-mono is a TypeScript monorepo of npm packages with EventEmitters, dynamic extension loading, and runtime type checking, Harness is:
 
-## Phase 1: Foundations & Protocol Basics (Weeks 1-2)
+- **A Go multi-module workspace** — each module compiles independently, imports are explicit
+- **Interface-driven** — plugin contracts are Go interfaces, not registration APIs
+- **Goroutine-native** — no async/await, no callback chains, just goroutines and channels
+- **Single binary** — no runtime, no node_modules, no interpreter
+- **Zero-dependency core** — the harness itself uses only Go stdlib
 
-### Learning Goals
-- Go project structure & module management
-- JSON-RPC 2.0 protocol fundamentals
-- stdin/stdout as transport layer
-- Basic process spawning & IPC
+The CLI tools (X search, web→markdown, PDF parsing, codebase research) and AST services (tree-sitter, zoekt, ast-grep, semgrep) described in the project docs are not part of the core. They are **extensions** — first-class citizens that demonstrate the harness's power through composition.
 
-### Milestone 1.1: JSON-RPC 2.0 Message Handler
-**What You'll Build:**
-```
-codex-go/
-├── go.mod
-├── cmd/
-│   └── codex-client/
-│       └── main.go          # Entry point
-├── pkg/
-│   ├── jsonrpc/
-│   │   ├── message.go       # Request/Response/Notification types
-│   │   ├── codec.go         # JSON encoding/decoding
-│   │   └── codec_test.go
-│   └── transport/
-│       ├── stdio.go         # stdin/stdout transport
-│       └── stdio_test.go
-```
+### What pi-mono Gets Right
 
-**Key Concepts:**
-- Go structs with JSON tags (`json:"jsonrpc"`)
-- Interface design for transport abstraction
-- `io.Reader` and `io.Writer` interfaces
-- Newline-delimited JSON parsing
-- Error handling patterns (errors.Is, errors.As)
+| Principle | pi-mono | Harness |
+|-----------|---------|---------|
+| Layered modularity | npm packages with clear dependencies | Go modules with `go.work` |
+| Unified LLM abstraction | `streamFn()` + `ModelRegistry` | `Provider` interface + `Registry` |
+| Extension system | `pi.registerTool()`, `pi.on()` | Go interfaces (implicit satisfaction) |
+| Event streaming | EventEmitter with typed events | Typed channels with `context.Context` |
+| Message queuing | `steeringQueue` + `followUpQueue` | Channel-based priority queue |
+| Tool execution | parallel/sequential + before/after hooks | Same model, goroutine-native |
+| State management | `AgentState` with mutators | Immutable snapshots + state machine |
 
-**Tasks:**
-1. Define JSON-RPC message types (Request, Response, Notification, Error)
-2. Implement `Codec` interface for encoding/decoding
-3. Build `StdioTransport` with newline-delimited JSON
-4. Write unit tests using Go's testing package
-5. Handle malformed JSON gracefully
+### What Claude Code Proves Works (Credit: Anthropic)
 
-**System Engineering Concepts:**
-- **Transport layer abstraction**: Why stdin/stdout? (Language-agnostic, cross-platform)
-- **Framing protocols**: Newline-delimited vs. length-prefixed messages
-- **Buffered I/O**: `bufio.Scanner` for line-by-line reading
+Analysis of Claude Code's source (~512K LoC, ~1900 files) reveals production-hardened patterns that Harness should adopt and improve upon:
+
+| Pattern | Claude Code Implementation | Harness Enhancement |
+|---------|---------------------------|---------------------|
+| **Permission system** | Multi-layer: bash classifier → rule matching → mode dispatch → UI prompt. Battle-tested across thousands of edge cases. | Promote to core `Approver` interface. Decouple from UI. Make rules first-class data, not code. |
+| **Tool concurrency partitioning** | `toolOrchestration.ts` classifies tools as read-only (parallel) or write (serial). Context modifiers queue and apply in order. | Native via goroutines + `errgroup`. Tool interface gains `ReadOnly() bool`. |
+| **Startup prefetch** | MDM settings, keychain reads, API preconnect fire as side-effects before heavy module evaluation. Cuts ~200ms. | Parallel prefetch in `main.go` before Bubble Tea mounts. Config, API preconnect, cache warming. |
+| **Multi-strategy compaction** | 4 strategies: auto-compact, micro-compact, API-side compact, session-memory-compact. Extracts memories before truncating. | `Compactor` interface in core with pluggable strategies. Memory extraction is a core event hook. |
+| **Structured diff rendering** | Unified diffs with syntax highlighting in terminal. | Port the UX pattern to Bubble Tea via lipgloss. |
+| **Session persistence** | Session save/restore, cross-project resume, session discovery. | Core `Session` type with atomic persistence. Extensions add resume UI. |
+
+### Where Harness Improves
+
+1. **No GC pressure** — Go's GC is simpler than V8's; goroutines are lighter than Promises
+2. **Compile-time contracts** — interfaces checked at compile time, not runtime `instanceof`
+3. **Natural concurrency** — `go func()` + channels vs `async/await` + `Promise.all`
+4. **Startup in milliseconds** — no JIT warmup, no module resolution
+5. **Content-addressable caching** — built into the core, not bolted on
+6. **Single binary deployment** — `GOOS=linux go build` and ship
 
 ---
 
-### Milestone 1.2: ACP Type System
-**What You'll Build:**
+## Architecture
+
 ```
-pkg/
-├── acp/
-│   ├── types.go           # Core ACP types
-│   ├── content.go         # ContentBlock types
-│   ├── session.go         # Session types
-│   ├── toolcall.go        # ToolCall types
-│   └── capabilities.go    # Capability negotiation
+┌─────────────────────────────────────────────────────────────────┐
+│                        FRONTENDS                                 │
+│                                                                  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐    │
+│  │  TUI     │  │  Web UI  │  │  RPC     │  │  Print/Pipe  │    │
+│  │ (Bubble  │  │ (future) │  │  Server  │  │  (stdout)    │    │
+│  │  Tea)    │  │          │  │          │  │              │    │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └──────┬───────┘    │
+│       │              │              │               │            │
+│       └──────────────┴──────┬───────┴───────────────┘            │
+│                             │                                    │
+│                      Frontend interface                          │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │
+┌─────────────────────────────┴───────────────────────────────────┐
+│                     HARNESS CORE                                 │
+│                     (zero external deps)                         │
+│                                                                  │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌─────────────┐  │
+│  │ Agent     │  │ Event     │  │ State     │  │ Transport   │  │
+│  │ Loop      │  │ Bus       │  │ Machine   │  │ Layer       │  │
+│  │           │  │           │  │           │  │             │  │
+│  │ - turns   │  │ - typed   │  │ - session │  │ - stdio     │  │
+│  │ - tools   │  │ - fan-out │  │ - history │  │ - jsonrpc   │  │
+│  │ - steer   │  │ - context │  │ - persist │  │ - framing   │  │
+│  │ - follow  │  │ - backpr. │  │ - snaps   │  │             │  │
+│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └──────┬──────┘  │
+│        │              │              │               │          │
+│        └──────────────┴──────┬───────┴───────────────┘          │
+│                              │                                   │
+│                     Protocol Types (ACP)                         │
+│                     - messages, content blocks                   │
+│                     - tool calls, capabilities                   │
+│                     - discriminated unions via iota               │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+                     Provider / Tool / Analyzer
+                          interfaces
+                               │
+┌──────────────────────────────┴──────────────────────────────────┐
+│                       EXTENSIONS                                 │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  LLM Providers                                          │    │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │    │
+│  │  │ OpenAI   │ │Anthropic │ │ Ollama   │ │  vLLM     │  │    │
+│  │  └──────────┘ └──────────┘ └──────────┘ └───────────┘  │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Tools                                                   │    │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │    │
+│  │  │ File I/O │ │ Terminal │ │ Browser  │ │ Approval  │  │    │
+│  │  └──────────┘ └──────────┘ └──────────┘ └───────────┘  │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  CLI Plugins                                             │    │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │    │
+│  │  │ X Search │ │ Web→MD   │ │ PDF Parse│ │ Code Resch│  │    │
+│  │  └──────────┘ └──────────┘ └──────────┘ └───────────┘  │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Analyzers (AST / Code Intelligence)                     │    │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │    │
+│  │  │TreeSitter│ │ Zoekt    │ │ ast-grep │ │ Semgrep   │  │    │
+│  │  └──────────┘ └──────────┘ └──────────┘ └───────────┘  │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**Key Concepts:**
-- Go struct embedding for polymorphism
-- JSON unmarshaling with discriminated unions
-- Enum patterns in Go (iota, string constants)
-- Builder pattern for complex types
+### The Inversion
 
-**Tasks:**
-1. Translate ACP TypeScript/Rust types to Go
-2. Implement `ContentBlock` as a discriminated union:
-   - Text, Image, Audio, ResourceLink, Resource
-3. Define `ToolCall` with status lifecycle (pending → in_progress → completed/failed)
-4. Create `SessionMode` enum (ask, code, architect)
-5. Add custom `UnmarshalJSON` for union types
+pi-mono builds up: `pi-ai` is a library, `pi-agent-core` wraps it, `pi-coding-agent` wraps that, `pi-tui` renders it.
 
-**Distributed Systems Concepts:**
-- **Capability negotiation**: How clients/servers discover features
-- **Protocol versioning**: Forward/backward compatibility
-- **Schema evolution**: Adding fields without breaking changes
+Harness inverts: the **core is the orchestrator**. Providers, tools, frontends, and analyzers all plug into it. Nothing wraps the core — the core calls out to extensions via interfaces.
+
+This means:
+- Swap `OpenAI` for `Ollama` by changing one line
+- Replace the TUI with a web frontend without touching agent logic
+- Add a new tool by implementing a 3-method interface
+- Integrate an AST analyzer as a specialized tool
 
 ---
 
-### Milestone 1.3: Initialization Handshake
-**What You'll Build:**
+## Core Interfaces
+
+These are the contracts. The entire system is defined by these five interfaces plus the event types.
+
+```go
+package harness
+
+// Provider streams LLM completions.
+// Equivalent to pi-mono's streamFn() — but as an interface, not a function.
+type Provider interface {
+    // Stream sends messages to an LLM and returns a channel of events.
+    // The channel closes when the response is complete.
+    // Errors are delivered as events, never as Go errors (pi-mono contract).
+    Stream(ctx context.Context, req *StreamRequest) (<-chan StreamEvent, error)
+
+    // Models returns available models from this provider.
+    Models(ctx context.Context) ([]Model, error)
+}
+
+// Tool executes actions in the environment.
+// Equivalent to pi-mono's custom tool registration.
+//
+// ReadOnly signals whether a tool only observes (read files, search, glob)
+// or mutates (write files, run commands). The agent loop uses this to
+// partition concurrent execution — read-only tools run in parallel,
+// mutating tools serialize. Pattern proven by Claude Code's
+// toolOrchestration.ts, adapted for goroutines.
+type Tool interface {
+    Name() string
+    Description() string
+    Schema() json.RawMessage        // JSON Schema for arguments
+    ReadOnly() bool                 // true = safe for concurrent execution
+    Execute(ctx context.Context, args json.RawMessage) (*ToolResult, error)
+}
+
+// Approver decides whether a tool invocation should proceed.
+//
+// This is the safety boundary — the most important interface in the system.
+// Claude Code's permission system (bashClassifier, dangerousPatterns,
+// pathValidation, rule-based allow/deny) is its most battle-tested
+// component. Harness promotes it to a core interface so it cannot be
+// bypassed by extensions.
+//
+// Implementations:
+//   - InteractiveApprover: prompt user via Frontend (default)
+//   - AutoApprover: classify command safety automatically
+//   - AlwaysApprover: bypass for trusted environments (CI, sandboxes)
+//   - RuleApprover: glob-based allow/deny rules
+//   - ChainApprover: compose multiple approvers (rules first, then interactive)
+type Approver interface {
+    // Approve returns an ApprovalResult for a pending tool invocation.
+    // The Approver sees the tool name and arguments but NOT the full
+    // application state — this is the key difference from Claude Code's
+    // ToolUseContext which carries ~60 fields of product state.
+    Approve(ctx context.Context, req *ApprovalRequest) (*ApprovalResult, error)
+}
+
+// ApprovalRequest is what the Approver sees.
+type ApprovalRequest struct {
+    ToolName    string
+    Args        json.RawMessage
+    SessionID   string
+    WorkDir     string              // workspace root
+    ReadOnly    bool                // from Tool.ReadOnly()
+}
+
+// ApprovalResult is what the Approver returns.
+type ApprovalResult struct {
+    Decision    Decision            // Allow, Deny, Ask
+    Reason      string              // human-readable explanation
+    Rule        string              // which rule matched (for audit)
+}
+
+type Decision int
+const (
+    Allow Decision = iota
+    Deny
+    Ask                             // escalate to Frontend for user input
+)
+
+// Frontend renders agent state and captures user input.
+// pi-mono couples TUI into the agent; Harness decouples it.
+type Frontend interface {
+    // Run starts the frontend event loop. Blocks until ctx is cancelled.
+    Run(ctx context.Context, bus *EventBus, state *StateReader) error
+}
+
+// Analyzer provides code intelligence over a set of files.
+// This is the interface for AST services, zoekt, ast-grep, semgrep.
+type Analyzer interface {
+    Name() string
+    Analyze(ctx context.Context, files []FileRef) (*Analysis, error)
+    Query(ctx context.Context, q *AnalysisQuery) (*AnalysisResult, error)
+}
 ```
-pkg/
-├── acp/
-│   ├── client.go          # Client-side ACP implementation
-│   └── handshake.go       # Initialize request/response
-├── agent/
-│   └── spawn.go           # Agent process spawner
-```
 
-**Key Concepts:**
-- Process spawning with `os/exec`
-- Bidirectional pipe communication
-- Context cancellation for timeouts
-- Structured logging (slog or zap)
+**Why interfaces, not registration functions:**
 
-**Tasks:**
-1. Implement `AgentProcess` struct to manage spawned agent
-2. Create `Initialize()` method with capability negotiation
-3. Add timeout handling with `context.WithTimeout`
-4. Verify protocol version compatibility
-5. Log initialization steps
+pi-mono requires `pi.registerTool({ name, schema, execute })` — runtime registration, dynamic dispatch, no compile-time checks. In Go, you implement the `Tool` interface and pass it to the harness. The compiler verifies the contract. No ceremony.
 
-**Systems Engineering Concepts:**
-- **Process lifecycle**: spawn → initialize → session → shutdown
-- **Timeouts & deadlocks**: Why every network call needs a timeout
-- **Graceful shutdown**: Signal handling (SIGTERM, SIGINT)
+**Why Approver is in core, not in extensions:**
+
+Claude Code's permission system lives in `utils/permissions/` and `hooks/toolPermission/` — deep in the utility layer, not in the architectural surface. This means extensions CAN bypass it by calling tool execution directly. In Harness, the agent loop calls `Approver.Approve()` before every `Tool.Execute()`. It is not optional. It cannot be circumvented. The safety boundary is structural, not conventional.
 
 ---
 
-## Phase 2: Core Agent Communication (Weeks 3-4)
+## Module Layout
 
-### Learning Goals
-- Concurrent programming with goroutines & channels
-- Request/response correlation (request ID tracking)
-- Event-driven architecture
-- Stateful connection management
-
-### Milestone 2.1: Bidirectional Connection Manager
-**What You'll Build:**
 ```
-pkg/
-├── connection/
-│   ├── manager.go         # Connection state machine
-│   ├── dispatcher.go      # Route requests/responses
-│   └── correlation.go     # Match responses to requests
-```
-
-**Key Concepts:**
-- Goroutine per connection for reading/writing
-- Channels for message passing
-- `sync.Mutex` for shared state
-- `sync.WaitGroup` for goroutine coordination
-- Request ID generation (UUID or atomic counter)
-
-**Tasks:**
-1. Create `Connection` struct with read/write goroutines
-2. Implement request correlation table (`map[string]chan Response`)
-3. Build notification dispatcher (publish-subscribe pattern)
-4. Handle connection errors and reconnection logic
-5. Add metrics: requests sent/received, latency
-
-**Concurrent Programming Concepts:**
-- **Producer-consumer pattern**: Writer goroutine consumes from send channel
-- **Fan-out pattern**: Single reader goroutine dispatches to multiple handlers
-- **Synchronization primitives**: When to use channels vs. mutexes
-- **Deadlock prevention**: Never hold a lock while waiting on a channel
-
-**Networking Concepts:**
-- **Full-duplex communication**: Both sides can initiate requests
-- **Head-of-line blocking**: Why multiplexing matters
-- **Flow control**: Buffered channels as backpressure mechanism
-
----
-
-### Milestone 2.2: Session Management
-**What You'll Build:**
-```
-pkg/
-├── session/
-│   ├── session.go         # Session state
-│   ├── history.go         # Conversation history
-│   └── persistence.go     # Save/load sessions
-```
-
-**Key Concepts:**
-- Stateful vs. stateless design
-- JSON serialization for persistence
-- File I/O and atomic writes
-- CRUD operations in memory
-
-**Tasks:**
-1. Define `Session` struct with conversation history
-2. Implement `session/new` request handling
-3. Add `session/prompt` for user messages
-4. Store session state in `~/.codex-go/sessions/`
-5. Implement atomic file writes (write temp → rename)
-
-**Distributed Systems Concepts:**
-- **State management**: Where does state live? (Client vs. agent)
-- **Durability**: Write-ahead logging for crash recovery
-- **Idempotency**: Handling duplicate requests safely
-
----
-
-### Milestone 2.3: Event Stream Processing
-**What You'll Build:**
-```
-pkg/
-├── events/
-│   ├── stream.go          # SSE-style event handling
-│   ├── handlers.go        # Event type handlers
-│   └── subscriber.go      # Event subscription system
-```
-
-**Key Concepts:**
-- Observer pattern
-- Type-safe event dispatching
-- Buffered channels to prevent blocking
-
-**Tasks:**
-1. Define event types (session/update, agent_message_chunk, tool_call, etc.)
-2. Implement `EventStream` with subscription API
-3. Create handlers for each event type
-4. Add filtering by session ID
-5. Handle slow consumers (drop or buffer?)
-
-**Messaging Concepts:**
-- **Pub/Sub architecture**: Decoupling producers from consumers
-- **At-most-once vs. at-least-once delivery**: Trade-offs
-- **Message ordering**: FIFO guarantees within a session
-- **Backpressure handling**: What happens when consumer is slow?
-
----
-
-## Phase 3: TUI Development (Weeks 5-6)
-
-### Learning Goals
-- Event-driven UI architecture (Elm/Redux pattern)
-- Terminal rendering & layout
-- State management in UI layer
-- Reactive programming patterns
-
-### Milestone 3.1: Bubble Tea Foundation
-**What You'll Build:**
-```
-cmd/
-├── codex-client/
-│   └── main.go
-internal/
-├── tui/
-│   ├── app.go             # Main Bubble Tea model
-│   ├── update.go          # Event handlers
-│   ├── view.go            # Rendering logic
-│   └── commands.go        # Side effects (I/O)
-```
-
-**Key Concepts:**
-- Model-View-Update (MVU) architecture
-- Immutable state updates
-- Commands as side effects
-- Messages as events
-
-**Tasks:**
-1. Set up Bubble Tea application skeleton
-2. Define `Model` struct with application state
-3. Implement `Init()`, `Update()`, and `View()` methods
-4. Handle keyboard input (tea.KeyMsg)
-5. Render basic UI with lipgloss for styling
-
-**UI Architecture Concepts:**
-- **Unidirectional data flow**: Events → Update → Model → View
-- **Pure functions**: View should be deterministic
-- **Command pattern**: Wrapping side effects
-- **Component composition**: Nesting sub-models
-
----
-
-### Milestone 3.2: Layout & Component System
-**What You'll Build:**
-```
-internal/
-├── tui/
+harness/
+├── go.work                          # Go workspace (links all modules)
+│
+├── core/                            # THE HARNESS — zero external deps
+│   ├── go.mod                       # module github.com/user/harness/core
+│   ├── harness.go                   # Harness struct, wire everything
+│   ├── interfaces.go                # Provider, Tool, Approver, Frontend, Analyzer
+│   ├── agent/
+│   │   ├── loop.go                  # Agent loop (turn → stream → approve → tools → repeat)
+│   │   ├── state.go                 # AgentState, immutable snapshots
+│   │   ├── queue.go                 # Steering + follow-up message queues
+│   │   ├── session.go               # Session lifecycle, persistence
+│   │   ├── budget.go                # Token budget tracking, compaction triggers
+│   │   ├── compact.go               # Compaction interface + memory extraction hooks
+│   │   └── spawn.go                 # Child agent spawning (multi-agent)
+│   ├── bus/
+│   │   ├── bus.go                   # Typed event bus (channels, fan-out)
+│   │   ├── events.go                # All event types (agent, turn, message, tool)
+│   │   └── subscriber.go            # Subscription with filters
+│   ├── transport/
+│   │   ├── transport.go             # Transport interface
+│   │   ├── stdio.go                 # stdin/stdout + newline-delimited JSON
+│   │   └── framing.go               # Length-prefixed and newline framing
+│   ├── protocol/
+│   │   ├── jsonrpc.go               # JSON-RPC 2.0 request/response/notification
+│   │   ├── acp.go                   # ACP types (ContentBlock, ToolCall, Session)
+│   │   ├── codec.go                 # Marshal/unmarshal with discriminated unions
+│   │   └── capabilities.go          # Capability negotiation
+│   ├── cache/
+│   │   ├── cache.go                 # Content-addressable cache interface
+│   │   ├── memory.go                # In-process LRU (L1)
+│   │   └── disk.go                  # On-disk with hash keys (L2)
+│   └── process/
+│       ├── spawn.go                 # Spawn agent subprocess
+│       ├── lifecycle.go             # Init → session → shutdown
+│       └── signal.go                # SIGTERM/SIGINT handling
+│
+├── provider/                        # LLM provider extensions
+│   ├── go.mod                       # module github.com/user/harness/provider
+│   ├── openai/
+│   │   └── openai.go                # implements harness.Provider
+│   ├── anthropic/
+│   │   └── anthropic.go             # implements harness.Provider
+│   ├── ollama/
+│   │   └── ollama.go                # implements harness.Provider
+│   └── registry.go                  # ModelRegistry (like pi-mono's ModelRegistry)
+│
+├── tools/                           # Built-in tool extensions
+│   ├── go.mod                       # module github.com/user/harness/tools
+│   ├── filesystem/
+│   │   └── fs.go                    # Read, write, list, search — implements Tool
+│   ├── terminal/
+│   │   ├── exec.go                  # Command execution — implements Tool
+│   │   └── safety.go                # Command classification, dangerous patterns,
+│   │                                # path validation (adapted from Claude Code's
+│   │                                # bashSecurity.ts, sedValidation.ts, pathValidation.ts)
+│   ├── browser/
+│   │   └── browse.go                # Web fetch, screenshot — implements Tool
+│   └── approval/                    # Approver implementations
+│       ├── rules.go                 # Glob-based allow/deny rules — implements Approver
+│       ├── auto.go                  # Auto-classify command safety — implements Approver
+│       ├── interactive.go           # Prompt user via Frontend — implements Approver
+│       └── chain.go                 # Compose approvers (rules → auto → interactive)
+│
+├── tui/                             # Terminal UI frontend
+│   ├── go.mod                       # module github.com/user/harness/tui
+│   ├── app.go                       # Bubble Tea model — implements Frontend
+│   ├── update.go                    # Elm-architecture update loop
+│   ├── view.go                      # Rendering
 │   ├── components/
-│   │   ├── chatview.go    # Message display
-│   │   ├── inputbox.go    # User input
-│   │   ├── statusbar.go   # Bottom status
-│   │   ├── toolcall.go    # Tool execution UI
-│   │   └── approval.go    # Permission prompts
-│   └── layout/
-│       └── flexbox.go     # Flexible layout
-```
-
-**Key Concepts:**
-- Component-based architecture
-- Nested state management
-- Event bubbling and delegation
-- Viewport for scrolling content
-
-**Tasks:**
-1. Implement scrollable chat view with message history
-2. Create multi-line input box with syntax highlighting
-3. Build status bar with session info & connection state
-4. Add tool call cards with progress indicators
-5. Design approval prompt modal for permissions
-
-**Rendering Concepts:**
-- **Retained mode vs. immediate mode**: Terminal is immediate mode
-- **Dirty regions**: Only re-render what changed
-- **Layout algorithms**: Flexbox-style sizing
-- **ANSI escape sequences**: Colors, cursor control
-
----
-
-### Milestone 3.3: Streaming Message Display
-**What You'll Build:**
-```
-internal/
-├── tui/
+│   │   ├── chat.go                  # Message display with markdown
+│   │   ├── input.go                 # User input with history
+│   │   ├── status.go                # Status bar, model info
+│   │   ├── toolview.go              # Tool execution display
+│   │   └── filetree.go              # File browser
 │   ├── markdown/
-│   │   ├── renderer.go    # Markdown → ANSI
-│   │   └── codeblock.go   # Syntax highlighting
+│   │   └── render.go                # Glamour-based markdown rendering
 │   └── streaming/
-│       └── buffer.go      # Incremental rendering
-```
-
-**Key Concepts:**
-- Incremental parsing
-- Markdown rendering (glamour library)
-- Syntax highlighting (chroma library)
-- Double buffering for flicker-free updates
-
-**Tasks:**
-1. Parse markdown incrementally as chunks arrive
-2. Render inline code, bold, italics, headers
-3. Add syntax highlighting for code blocks (Go, Python, Bash, etc.)
-4. Implement word wrapping and reflow
-5. Handle ANSI color codes from agent
-
-**Real-Time Systems Concepts:**
-- **Latency vs. throughput**: Prioritize low latency for UX
-- **Buffering strategies**: Line buffering vs. byte streaming
-- **Frame rate limiting**: Don't redraw faster than 60 FPS
-
-**Terminal Rendering Deep Dive:**
-Learn how high-performance TUI frameworks optimize rendering:
-- **Double buffering**: Maintain previous and current frame buffers
-- **Diff-based updates**: Only output ANSI codes for changed cells
-- **Cell-based buffers**: Store (char, fg_color, bg_color, attributes) per cell
-- **Zero-copy techniques**: Reuse buffers to minimize allocations
-- **ANSI optimization**: Batch cursor movements, minimize escape sequences
-
-*Reference*: Study OpenTUI's architecture (opentui/ARCHITECTURE.md) which uses:
-- TypeScript → Zig FFI for zero-copy buffer sharing
-- OptimizedBuffer with typed arrays (Uint32Array for chars, Float32Array for colors)
-- Native Zig renderer for ANSI generation and screen diffing
-
----
-
-## Phase 4: Tool Execution & Permissions (Weeks 7-8)
-
-### Learning Goals
-- Implementing agent capabilities
-- Security & sandboxing
-- File system operations
-- Command execution patterns
-
-### Milestone 4.1: File System Operations
-**What You'll Build:**
-```
-pkg/
-├── tools/
-│   ├── filesystem.go      # fs/read_text_file, fs/write_text_file
-│   ├── validation.go      # Path validation
-│   └── sandbox.go         # Path restrictions
-```
-
-**Key Concepts:**
-- Path traversal prevention
-- Atomic file operations
-- Permission checks
-- Diff generation
-
-**Tasks:**
-1. Implement `fs/read_text_file` handler
-2. Add `fs/write_text_file` with atomic writes
-3. Generate unified diffs (go-diff library)
-4. Validate paths against workspace root
-5. Reject paths outside sandbox (no `../` escapes)
-
-**Security Engineering Concepts:**
-- **Least privilege principle**: Only grant necessary permissions
-- **Path canonicalization**: Resolve symlinks and `.` / `..`
-- **TOCTOU vulnerabilities**: Time-of-check-to-time-of-use races
-- **Defense in depth**: Multiple layers of validation
-
----
-
-### Milestone 4.2: Terminal Operations
-**What You'll Build:**
-```
-pkg/
-├── tools/
-│   ├── terminal.go        # Process management
-│   └── output_buffer.go   # Command output capture
-```
-
-**Key Concepts:**
-- Process lifecycle management
-- stdout/stderr multiplexing
-- Exit code handling
-- Timeout enforcement
-
-**Tasks:**
-1. Implement `terminal/create` to spawn processes
-2. Capture output with `io.MultiWriter`
-3. Add `terminal/output` to poll captured output
-4. Implement `terminal/wait_for_exit` with timeouts
-5. Handle `terminal/kill` and `terminal/release`
-
-**Process Management Concepts:**
-- **Zombie processes**: Always wait on children
-- **Signal handling**: SIGTERM vs. SIGKILL
-- **Process groups**: Killing entire process trees
-- **PTY vs. pipe**: When to allocate a pseudo-terminal
-
----
-
-### Milestone 4.3: Permission System
-**What You'll Build:**
-```
-pkg/
-├── approval/
-│   ├── policy.go          # Approval policy engine
-│   ├── prompt.go          # User prompts
-│   └── rules.go           # Auto-approve rules
-internal/
-├── tui/
-│   └── components/
-│       └── approval_dialog.go
-```
-
-**Key Concepts:**
-- Policy-based access control
-- Modal dialogs in TUI
-- User interaction state machines
-
-**Tasks:**
-1. Define approval policies: none, ask, review
-2. Implement permission request flow (session/request_permission)
-3. Create TUI modal for user approval
-4. Add auto-approval rules (e.g., "allow all reads")
-5. Store user preferences
-
-**Security Concepts:**
-- **Explicit authorization**: User must opt-in to dangerous operations
-- **Audit logging**: Record all approvals/denials
-- **Revocation**: Ability to cancel in-flight operations
-
----
-
-## Phase 5: Advanced Features (Weeks 9-10)
-
-### Learning Goals
-- Distributed tracing & observability
-- Configuration management
-- Error recovery strategies
-- Testing async systems
-
-### Milestone 5.1: Observability & Logging
-**What You'll Build:**
-```
-pkg/
-├── observability/
-│   ├── tracing.go         # OpenTelemetry integration
-│   ├── metrics.go         # Prometheus metrics
-│   └── logging.go         # Structured logging
-```
-
-**Key Concepts:**
-- Distributed tracing (OpenTelemetry)
-- Structured logging (zerolog or zap)
-- Metrics collection (request counts, latencies)
-- Context propagation
-
-**Tasks:**
-1. Add OpenTelemetry tracing to all RPC calls
-2. Emit span events for key operations
-3. Collect metrics: request rate, error rate, latency percentiles
-4. Implement structured logging with correlation IDs
-5. Export traces to Jaeger or Zipkin
-
-**Observability Concepts:**
-- **Three pillars**: Logs, metrics, traces
-- **Trace context**: Propagating trace IDs across boundaries
-- **Sampling strategies**: Head-based vs. tail-based sampling
-- **SLIs/SLOs**: Measuring service health
-
----
-
-### Milestone 5.2: Configuration Management
-**What You'll Build:**
-```
-pkg/
-├── config/
-│   ├── loader.go          # Multi-source config
-│   ├── types.go           # Config struct
-│   └── validation.go      # Config validation
-```
-
-**Key Concepts:**
-- Configuration cascade (files → env → flags)
-- TOML/YAML parsing
-- Environment variable overrides
-- Config hot-reloading (optional)
-
-**Tasks:**
-1. Define config schema (model, sandbox mode, MCP servers, etc.)
-2. Load from `~/.codex-go/config.toml`
-3. Override with environment variables
-4. Override with CLI flags (cobra library)
-5. Validate config at startup
-
-**Software Engineering Concepts:**
-- **12-factor app**: Configuration via environment
-- **Configuration as code**: Version-controlled defaults
-- **Fail-fast principle**: Validate early, fail early
-
----
-
-### Milestone 5.3: Error Handling & Recovery
-**What You'll Build:**
-```
-pkg/
-├── errors/
-│   ├── types.go           # ACP error codes
-│   ├── retry.go           # Retry logic with backoff
-│   └── recovery.go        # Panic recovery
-```
-
-**Key Concepts:**
-- Exponential backoff
-- Circuit breaker pattern
-- Panic recovery in goroutines
-- Error wrapping and context
-
-**Tasks:**
-1. Map Go errors to JSON-RPC error codes
-2. Implement retry logic with exponential backoff
-3. Add circuit breaker for agent connection
-4. Recover from panics in goroutines (with defer/recover)
-5. Provide rich error context to users
-
-**Distributed Systems Concepts:**
-- **Partial failures**: Network can fail independently
-- **Idempotency**: Safe to retry operations
-- **Timeout propagation**: Deadlines across call chains
-- **Failure isolation**: Prevent cascading failures
-
----
-
-### Milestone 5.4: Testing Strategy
-**What You'll Build:**
-```
-test/
-├── integration/
-│   ├── agent_test.go      # End-to-end tests
-│   └── mock_agent.go      # Fake agent for testing
-pkg/
-└── */
-    └── *_test.go          # Unit tests
-```
-
-**Key Concepts:**
-- Table-driven tests
-- Test fixtures
-- Mocking interfaces
-- Integration vs. unit tests
-
-**Tasks:**
-1. Write unit tests for all packages (aim for 80%+ coverage)
-2. Create mock agent that implements ACP protocol
-3. Add integration tests for session lifecycle
-4. Test error scenarios (disconnection, timeouts, malformed JSON)
-5. Benchmark critical paths (message encoding, rendering)
-
-**Testing Concepts:**
-- **Test pyramid**: Unit → Integration → E2E
-- **Hermetic tests**: No external dependencies
-- **Test doubles**: Mocks, stubs, fakes
-- **Property-based testing**: Generate random inputs (gopter)
-
----
-
-## Phase 6: Production Polish (Weeks 11-12)
-
-### Learning Goals
-- Cross-platform support
-- Packaging & distribution
-- Documentation
-- Performance optimization
-
-### Milestone 6.1: Cross-Platform Support
-**What You'll Build:**
-```
-Build artifacts for:
-- linux/amd64, linux/arm64
-- darwin/amd64, darwin/arm64
-- windows/amd64
-```
-
-**Key Concepts:**
-- Build tags for platform-specific code
-- Cross-compilation with Go
-- Static linking
-- Release automation (goreleaser)
-
-**Tasks:**
-1. Add platform-specific sandbox code (Linux: seccomp, macOS: sandbox-exec)
-2. Use goreleaser for multi-platform builds
-3. Embed version info at build time
-4. Test on all target platforms
-5. Package as single static binary
-
----
-
-### Milestone 6.2: Performance Optimization
-**What You'll Build:**
-```
-Profiling and optimization:
-- CPU profiling
-- Memory profiling
-- Benchmarking critical paths
-```
-
-**Key Concepts:**
-- pprof for profiling
-- Escape analysis
-- Reducing allocations
-- Optimizing hot paths
-
-**Tasks:**
-1. Profile application with pprof (CPU, memory, goroutines)
-2. Reduce allocations in hot paths (reuse buffers, sync.Pool)
-3. Benchmark rendering performance
-4. Optimize JSON parsing (ffjson or jsoniter if needed)
-5. Measure startup time and reduce it
-
-**Performance Engineering Concepts:**
-- **Premature optimization**: Measure before optimizing
-- **Allocation profiling**: Stack vs. heap allocations
-- **Cache-friendly data structures**: Locality of reference
-- **Lock contention**: Minimize critical sections
-
-**Rendering Performance Techniques (inspired by OpenTUI):**
-While OpenTUI uses Zig for native performance, apply these concepts in Go:
-- **Buffer reuse**: Use `sync.Pool` for terminal buffers
-- **String builder**: Use `strings.Builder` instead of string concatenation
-- **Byte slices**: Prefer `[]byte` over `string` for ANSI generation
-- **Inline functions**: Small functions get inlined by compiler
-- **Avoid interface boxing**: Direct struct methods are faster
-- **Benchmark rendering**: Target < 16ms per frame (60 FPS)
-
----
-
-### Milestone 6.3: Documentation & Examples
-**What You'll Build:**
-```
-docs/
-├── architecture.md        # This document
-├── getting-started.md     # Quick start guide
-├── configuration.md       # Config reference
-├── contributing.md        # Dev guide
-└── examples/
-    ├── basic-session.md
-    ├── mcp-integration.md
-    └── custom-tools.md
-```
-
-**Tasks:**
-1. Write comprehensive README with installation instructions
-2. Document all configuration options
-3. Add code examples for common use cases
-4. Create architecture diagrams (mermaid)
-5. Record demo GIF/video of TUI in action
-
----
-
-## Optional Extensions (Post-MVP)
-
-### Extension 1: MCP Client Integration
-Implement MCP client to connect to external MCP servers (filesystem, database, APIs).
-
-**Learning:**
-- HTTP/SSE client implementation
-- Tool discovery and schema validation
-- Dynamic tool registration
-
-### Extension 2: Agent as MCP Server
-Expose your TUI client as an MCP server that other tools can connect to.
-
-**Learning:**
-- Implementing server-side protocol
-- Bidirectional transformation (client ↔ server)
-
-### Extension 3: Collaborative Sessions
-Multiple users sharing the same session over network.
-
-**Learning:**
-- Operational transformation (OT) or CRDTs
-- WebSocket server
-- Conflict resolution
-
-### Extension 4: Plugin System
-Load custom tools as Go plugins.
-
-**Learning:**
-- Go plugin system (`plugin` package)
-- Dynamic loading and versioning
-- Sandboxing untrusted plugins
-
-### Extension 5: Advanced Sandboxing
-Implement OS-specific sandboxing.
-
-**Learning:**
-- Linux: landlock, seccomp-bpf, namespaces
-- macOS: Seatbelt (sandbox-exec)
-- Windows: AppContainer
-
----
-
-## Backend Engineering Deep Dives
-
-### Phase 2.5: Advanced Concurrency Patterns (Insert Between Phase 2 & 3)
-
-#### Learning Goals
-- Worker pool patterns
-- Context-based cancellation propagation
-- Rate limiting & throttling
-- Semaphore patterns for resource management
-
-#### Milestone 2.5: Concurrent Task Execution
-**What You'll Build:**
-```
-pkg/
-├── pool/
-│   ├── worker_pool.go      # Worker pool implementation
-│   ├── task_queue.go       # Bounded task queue
-│   └── rate_limiter.go     # Token bucket rate limiter
-```
-
-**Key Concepts:**
-- Bounded worker pools with `sync.WaitGroup`
-- Select statement for multiple channel operations
-- `sync.Pool` for object reuse
-- Rate limiting with token buckets or sliding windows
-
-**Tasks:**
-1. Implement a worker pool for concurrent tool execution
-2. Add task queue with priority handling
-3. Build rate limiter for API calls
-4. Implement graceful shutdown with context cancellation
-5. Add metrics for pool utilization
-
-**Backend Engineering Concepts:**
-- **Worker pool pattern**: Fixed number of goroutines processing tasks
-- **Bounded queues**: Backpressure through queue limits
-- **Context propagation**: Cancellation across goroutine boundaries
-- **Resource pooling**: Reusing expensive objects (connections, buffers)
-
----
-
-### Phase 4.5: Database & Persistence (Insert Between Phase 4 & 5)
-
-#### Learning Goals
-- SQL database design & optimization
-- Transaction management
-- Connection pooling
-- Query performance optimization
-
-#### Milestone 4.5: SQLite Integration
-**What You'll Build:**
-```
-pkg/
-├── database/
-│   ├── db.go              # Database connection
-│   ├── migrations/        # Schema migrations
-│   │   ├── 001_init.sql
-│   │   └── migrate.go
-│   ├── models/
-│   │   ├── session.go     # Session model
-│   │   └── history.go     # History model
-│   └── repository/
-│       ├── session_repo.go
-│       └── history_repo.go
-```
-
-**Key Concepts:**
-- Database/sql interface
-- Prepared statements for security
-- Transaction isolation levels
-- Connection pooling configuration
-- Query builders vs. raw SQL
-
-**Tasks:**
-1. Set up SQLite with database/sql
-2. Implement schema migrations system
-3. Create repository pattern for data access
-4. Add transaction management
-5. Implement connection pool tuning
-6. Add query logging and slow query detection
-
-**Database Engineering Concepts:**
-- **Repository pattern**: Abstracting data access
-- **Unit of Work**: Managing transactions
-- **Connection pooling**: MaxOpenConns, MaxIdleConns, ConnMaxLifetime
-- **N+1 query problem**: Eager loading vs. lazy loading
-- **Database normalization**: 3NF design
-- **Indexing strategies**: B-tree vs. hash indexes
-
----
-
-### Phase 5.5: Structured Logging & Instrumentation (Enhance Phase 5)
-
-#### Milestone 5.5: Production-Grade Logging
-**What You'll Build:**
-```
-pkg/
-├── logging/
-│   ├── logger.go          # Structured logger wrapper
-│   ├── middleware.go      # HTTP/RPC logging middleware
-│   ├── context.go         # Request ID propagation
-│   └── sampler.go         # Log sampling for high-volume
-```
-
-**Key Concepts:**
-- Structured logging with slog (Go 1.21+)
-- Log levels (DEBUG, INFO, WARN, ERROR)
-- Contextual fields (request_id, session_id, user_id)
-- Log sampling and rate limiting
-- Log aggregation (stdout → log shipper → central store)
-
-**Tasks:**
-1. Replace fmt.Println with structured logger (slog)
-2. Add request ID generation and propagation
-3. Implement log sampling for high-volume events
-4. Add caller information (file, line) in logs
-5. Create logging middleware for all RPC calls
-6. Output logs in JSON format for parsing
-
-**Observability Concepts:**
-- **Structured logging**: Key-value pairs for machine parsing
-- **Correlation IDs**: Tracing requests across services
-- **Log sampling**: Reducing volume while maintaining visibility
-- **Log levels**: Filtering by severity
-- **Log aggregation**: ELK stack, Loki, CloudWatch
-
----
-
-## Learning Resources
-
-### Go Fundamentals
-- **The Go Programming Language** (Donovan & Kernighan)
-- **Concurrency in Go** (Katherine Cox-Buday) - Essential for goroutines & channels
-- **Go Design Patterns** (Mario Castro Contreras)
-- **100 Go Mistakes and How to Avoid Them** (Teiva Harsanyi)
-- **Learning Go** (Jon Bodner) - Modern Go practices
-
-### Backend Engineering
-- **Designing Data-Intensive Applications** (Martin Kleppmann) - Must read for backend engineers
-- **Software Engineering at Google** - Google's engineering practices
-- **Building Microservices** (Sam Newman)
-- **Database Internals** (Alex Petrov) - Deep dive into database design
-- **Web Scalability for Startup Engineers** (Artur Ejsmont)
-
-### Systems Programming
-- **The Linux Programming Interface** (Michael Kerrisk)
-- **Advanced Programming in the UNIX Environment** (Stevens & Rago)
-- **Systems Performance** (Brendan Gregg) - Performance engineering
-
-### Distributed Systems
-- **Distributed Systems: Principles and Paradigms** (Tanenbaum)
-- **Designing Distributed Systems** (Brendan Burns)
-- MIT 6.824 Distributed Systems course (free online)
-
-### Networking
-- **UNIX Network Programming** (Stevens)
-- **Computer Networks** (Tanenbaum)
-- **HTTP: The Definitive Guide** (Gourley & Totty)
-
-### TUI Development
-- [Bubble Tea Documentation](https://github.com/charmbracelet/bubbletea) - Official docs & examples
-- [Charm Libraries](https://charm.sh/) - lipgloss, bubbles, glamour
-- OpenTUI Architecture (see opentui/ARCHITECTURE.md in this repo)
-- "Building TUIs in Go" by [packagemain](https://packagemain.tech/p/terminal-ui-bubble-tea)
-- [Tips for Building Bubble Tea Programs](https://leg100.github.io/en/posts/building-bubbletea-programs/)
-
-### Go-Specific Backend Patterns
-- [How to Architecture Good Go Backend REST API Services](https://medium.com/@janishar.ali/how-to-architecture-good-go-backend-rest-api-services-14cc4730c05b)
-- [Uber Go Style Guide](https://github.com/uber-go/guide/blob/master/style.md)
-- [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
-- [Effective Go](https://go.dev/doc/effective_go) - Official Go best practices
-
-### Performance & Profiling
-- [Go's pprof profiling guide](https://go.dev/blog/pprof)
-- [Profiling Go Programs](https://go.dev/blog/profiling-go-programs)
-- Dave Cheney's [High Performance Go Workshop](https://dave.cheney.net/high-performance-go-workshop/dotgo-paris.html)
-
----
-
-## Project Structure (Final)
-
-```
-codex-go/
-├── go.mod
-├── go.sum
-├── README.md
-├── ARCHITECTURE.md
-├── LICENSE
-├── Makefile
-├── .goreleaser.yml
+│       └── stream.go                # Real-time token streaming display
 │
-├── cmd/
-│   ├── codex-client/          # Main TUI binary
-│   │   └── main.go
-│   └── codex-test-agent/      # Mock agent for testing
-│       └── main.go
+├── cli/                             # CLI tool plugins
+│   ├── go.mod                       # module github.com/user/harness/cli
+│   ├── plugin.go                    # CLI plugin interface + runner
+│   ├── xsearch/
+│   │   └── xsearch.go              # X API search — implements Tool
+│   ├── webmd/
+│   │   └── webmd.go                 # Web→Markdown (like defuddle) — implements Tool
+│   ├── pdfparse/
+│   │   └── pdfparse.go             # PDF→text (like liteparse) — implements Tool
+│   └── codereview/
+│       ├── review.go                # Codebase research — implements Tool + Analyzer
+│       ├── architecture.go          # Architecture-as-code extraction
+│       ├── intent.go                # Intent formalization
+│       └── verify.go                # Formal verification helpers
 │
-├── pkg/                        # Public API
-│   ├── jsonrpc/               # JSON-RPC 2.0 implementation
-│   ├── transport/             # Transport abstractions
-│   ├── acp/                   # ACP protocol types
-│   ├── connection/            # Connection management
-│   ├── session/               # Session state
-│   ├── events/                # Event stream
-│   ├── tools/                 # Tool implementations
-│   ├── approval/              # Permission system
-│   ├── config/                # Configuration
-│   ├── observability/         # Tracing, metrics, logging
-│   └── errors/                # Error handling
+├── analyzers/                       # AST / code intelligence extensions
+│   ├── go.mod                       # module github.com/user/harness/analyzers
+│   ├── treesitter/
+│   │   ├── parser.go                # Tree-sitter parsing — implements Analyzer
+│   │   ├── tags.go                  # Symbol extraction (defs/refs)
+│   │   └── queries/                 # Language-specific .scm query files
+│   ├── zoekt/
+│   │   └── zoekt.go                 # Zoekt code search — implements Analyzer
+│   ├── astgrep/
+│   │   └── astgrep.go              # ast-grep structural search — implements Analyzer
+│   ├── semgrep/
+│   │   └── semgrep.go              # Semgrep SAST — implements Analyzer
+│   └── graph/
+│       ├── dependency.go            # Dependency graph builder
+│       ├── ranking.go               # PageRank, betweenness centrality
+│       └── repomap.go               # Repository map generation (aider-style)
 │
-├── internal/                   # Private implementation
-│   ├── tui/                   # Bubble Tea TUI
-│   │   ├── app.go
-│   │   ├── update.go
-│   │   ├── view.go
-│   │   ├── commands.go
-│   │   ├── components/
-│   │   ├── layout/
-│   │   ├── markdown/
-│   │   └── streaming/
-│   └── agent/                 # Agent process management
+├── cmd/                             # Binaries
+│   ├── harness/                     # Main agent CLI
+│   │   └── main.go                  # Wire core + providers + tools + TUI → run
+│   └── harness-server/              # Headless RPC server
+│       └── main.go                  # Wire core + providers + tools → gRPC/HTTP
 │
 ├── test/
-│   ├── integration/           # Integration tests
-│   └── fixtures/              # Test data
+│   ├── integration/                 # Cross-module integration tests
+│   ├── fixtures/                    # Test data
+│   └── mock/
+│       ├── provider.go              # Mock LLM provider for testing
+│       └── tool.go                  # Mock tool for testing
 │
-├── docs/                       # Documentation
-│   ├── getting-started.md
-│   ├── configuration.md
-│   ├── architecture.md
-│   └── examples/
-│
-└── scripts/                    # Build scripts
-    ├── build.sh
-    ├── test.sh
-    └── release.sh
+└── docs/
+    ├── architecture.md              # This document
+    ├── getting-started.md
+    ├── writing-extensions.md        # How to write providers, tools, analyzers
+    └── examples/
 ```
 
 ---
 
-## Weekly Breakdown
+## Core Design Deep Dive
 
-| Week | Phase | Focus | Deliverable | Backend Skills |
-|------|-------|-------|-------------|----------------|
-| 1 | Phase 1 | JSON-RPC & Transport | Working message encoder/decoder | Protocol design, serialization |
-| 2 | Phase 1 | ACP Types & Handshake | Can initialize connection to agent | Type systems, API contracts |
-| 3 | Phase 2 | Connection Manager | Bidirectional communication working | Concurrency, channels |
-| 4 | Phase 2 | Session & Events | Can send prompts, receive responses | State management, pub/sub |
-| 4.5 | Phase 2.5 | Worker Pools | Concurrent task execution | Worker patterns, rate limiting |
-| 5 | Phase 3 | Bubble Tea Foundation | Basic TUI with input/output | Event-driven architecture |
-| 6 | Phase 3 | Layout & Streaming | Polished UI with streaming display | Real-time systems, buffers |
-| 7 | Phase 4 | File System Tools | Can read/write files via agent | Sandboxing, validation |
-| 8 | Phase 4 | Terminal & Permissions | Can execute commands with approval | Process mgmt, security |
-| 8.5 | Phase 4.5 | Database Layer | SQLite integration, persistence | SQL, transactions, repos |
-| 9 | Phase 5 | Observability | Tracing and logging integrated | Structured logging, metrics |
-| 9.5 | Phase 5.5 | Production Logging | Request IDs, sampling | Correlation, observability |
-| 10 | Phase 5 | Config & Error Handling | Robust error recovery | Resilience patterns |
-| 11 | Phase 6 | Cross-Platform | Builds on all targets | Build systems, distribution |
-| 12 | Phase 6 | Polish & Documentation | Production-ready release | Documentation, profiling |
+### 1. Agent Loop
+
+The agent loop is the heart. It mirrors pi-mono's `runAgentLoop` but leverages goroutines and an explicit typed state machine.
+
+**What Claude Code gets wrong here:** `QueryEngine.ts` is 46K lines — a single file containing the entire agent loop, LLM streaming, tool execution, retry logic, token counting, thinking mode, and analytics. `query/transitions.ts` defines its "state machine" as `type Terminal = any; type Continue = any`. There are no typed states. Harness corrects this.
+
+#### Typed States
+
+```go
+// LoopState is an explicit enum — not booleans, not `any`.
+type LoopState int
+
+const (
+    StateIdle         LoopState = iota  // waiting for prompt
+    StateEnriching                      // analyzers injecting context
+    StateBudgetCheck                    // check token budget, compact if needed
+    StateStreaming                      // streaming LLM response
+    StateApproving                      // awaiting Approver decision on tool call
+    StateExecuting                      // tools running (parallel read, serial write)
+    StateCollecting                     // collecting tool results
+    StateSteered                        // steering message received, restart turn
+    StateCompleted                      // turn done, check for follow-ups
+    StateCompacting                     // context window full, compacting
+    StateError                          // recoverable error, retry with backoff
+    StateDone                           // agent loop finished
+)
+```
+
+#### Flow
+
+```
+                    ┌─────────────┐
+                    │   prompt()  │
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐
+                    │  ENRICHING  │──── Analyzers inject repomap, symbols
+                    └──────┬──────┘     (Claude Code has no equivalent)
+                           │
+                    ┌──────▼──────┐
+                    │ BUDGET CHECK│──── Compact if over token budget
+                    └──────┬──────┘     (from Claude Code's autoCompact)
+                           │
+                    ┌──────▼──────┐
+              ┌────►│  STREAMING  │◄──── steering messages (interrupt)
+              │     │  (Provider) │
+              │     └──────┬──────┘
+              │            │
+              │     ┌──────▼──────┐
+              │     │  APPROVING  │──── Approver.Approve() per tool call
+              │     │             │     (Claude Code: hooks/toolPermission/)
+              │     └──────┬──────┘
+              │            │
+              │     ┌──────▼──────┐
+              │     │  EXECUTING  │──── read-only: parallel (errgroup)
+              │     │  (tools)    │     mutating: sequential
+              │     └──────┬──────┘     (from Claude Code's toolOrchestration.ts)
+              │            │
+              │     ┌──────▼──────┐
+              │     │ COLLECTING  │──── gather results, update state
+              │     └──────┬──────┘
+              │            │
+              │      more tools?
+              │        │      │
+              │       yes     no
+              │        │      │
+              └────────┘  ┌───▼───────┐
+                          │ COMPLETED │
+                          │ follow-up │
+                          │ queued?   │
+                          └───┬───┬───┘
+                           yes   no
+                            │     │
+                    ┌───────┘     └──► DONE
+                    │
+             ┌──────▼──────┐
+             │ DEQUEUE     │
+             │ follow-up   │
+             └──────┬──────┘
+                    │
+                    └────► (back to ENRICHING)
+```
+
+#### Signature
+
+The loop is a pure function. No file should exceed ~500 lines.
+
+```go
+func RunLoop(
+    ctx       context.Context,
+    provider  Provider,
+    tools     []Tool,
+    approver  Approver,
+    analyzers []Analyzer,
+    state     *AgentState,
+    bus       *EventBus,
+    budget    *TokenBudget,
+) error
+```
+
+**Key differences from pi-mono and Claude Code:**
+- **Typed state machine** with explicit `LoopState` enum (Claude Code uses implicit booleans)
+- **Enrichment phase** before streaming — analyzers inject context automatically
+- **Budget check** before every LLM call — compact proactively, not reactively
+- **Approval phase** is structural — `Approver.Approve()` is called by the loop, not by tools
+- **Tool partitioning** via `Tool.ReadOnly()` — read-only parallel, writes serial (from Claude Code)
+- **Steering via `context.CancelFunc`** — not queue polling (from pi-mono)
+
+### 2. Event Bus
+
+Typed events over channels. Every event flows through the bus. Frontends, loggers, metrics collectors all subscribe.
+
+```go
+// Event types mirror pi-mono's but are Go-native
+type EventKind int
+
+const (
+    AgentStart EventKind = iota
+    AgentEnd
+    TurnStart
+    TurnEnd
+    MessageStart
+    MessageUpdate        // streaming delta
+    MessageEnd
+    ToolExecStart
+    ToolExecUpdate       // progress
+    ToolExecEnd
+    ApprovalRequest      // tool awaiting approval
+    ApprovalResult       // approval decision (allow/deny/ask)
+    BudgetWarning        // approaching token limit
+    CompactStart         // compaction beginning
+    CompactEnd           // compaction complete
+    ChildAgentStart      // sub-agent spawned
+    ChildAgentEnd        // sub-agent completed
+    StateChange          // immutable state snapshot
+    Error
+)
+
+type Event struct {
+    Kind      EventKind
+    Timestamp time.Time
+    SessionID string
+    Data      any       // type-assert based on Kind
+}
+```
+
+Subscribers receive events via a buffered channel. Slow subscribers get dropped events (configurable: drop-oldest or block). This is the backpressure story that pi-mono's EventEmitter lacks.
+
+### 3. State Machine
+
+Agent state is an immutable snapshot. Every mutation produces a new snapshot and emits a `StateChange` event. Frontends render from snapshots — never from mutable state.
+
+```go
+type AgentState struct {
+    SessionID    string
+    Mode         SessionMode          // ask, code, architect
+    Model        Model
+    SystemPrompt string
+    Messages     []Message            // conversation history
+    IsStreaming   bool
+    StreamDelta  string               // current streaming chunk
+    PendingTools map[string]ToolCall  // in-flight tool executions
+    Error        error
+}
+
+// Snapshot returns an immutable copy
+func (s *AgentState) Snapshot() AgentState { ... }
+```
+
+**Why immutable snapshots:**
+pi-mono mutates `_state` directly and re-renders. This creates race conditions when tools execute concurrently. Snapshots eliminate this — the frontend always renders a consistent state.
+
+### 4. Content-Addressable Cache
+
+Every expensive computation is cached by content hash. Built into core, used by extensions.
+
+```go
+type Cache interface {
+    Get(key [32]byte) ([]byte, bool)
+    Put(key [32]byte, value []byte) error
+    Has(key [32]byte) bool
+}
+
+// ContentKey hashes the input to produce a cache key
+func ContentKey(data []byte) [32]byte {
+    return sha256.Sum256(data)
+}
+```
+
+Two implementations in core:
+- **MemoryCache**: LRU with configurable max size (L1, microseconds)
+- **DiskCache**: `~/.harness/cache/{hex(key)[:2]}/{hex(key)}` (L2, milliseconds)
+
+Extensions (like the AST analyzer) use this transparently:
+```go
+key := harness.ContentKey([]byte(fileContent))
+if cached, ok := cache.Get(key); ok {
+    return unmarshal(cached)
+}
+result := expensiveParse(fileContent)
+cache.Put(key, marshal(result))
+```
+
+### 5. Transport Layer
+
+Abstracts the wire protocol. Default is stdio + newline-delimited JSON (same as pi-mono).
+
+```go
+type Transport interface {
+    Send(ctx context.Context, msg []byte) error
+    Receive(ctx context.Context) ([]byte, error)
+    Close() error
+}
+```
+
+Implementations:
+- `StdioTransport`: newline-delimited JSON over stdin/stdout (core)
+- `TCPTransport`: for remote agents (extension)
+- `GRPCTransport`: for high-performance service mesh (extension)
+
+### 6. Token Budget & Compaction
+
+**Credit:** Claude Code's `services/compact/` implements four compaction strategies (auto, micro, API-side, session-memory) and extracts memories before truncating context. This is one of the most practically important subsystems in any agent — without it, long sessions crash into context limits. Harness adopts the concept and improves the architecture.
+
+```go
+// TokenBudget tracks context window usage and triggers compaction.
+type TokenBudget struct {
+    MaxTokens      int     // model's context window
+    WarnThreshold  float64 // e.g., 0.80 — emit BudgetWarning event
+    CompactAt      float64 // e.g., 0.90 — trigger compaction
+    CurrentTokens  int     // estimated tokens in current context
+}
+
+func (b *TokenBudget) ShouldCompact() bool {
+    return float64(b.CurrentTokens)/float64(b.MaxTokens) >= b.CompactAt
+}
+
+// Compactor reduces context size. Extensions implement this.
+// The agent loop calls Compact() when budget threshold is exceeded.
+type Compactor interface {
+    // Compact receives the current messages and returns a reduced set.
+    // The bus receives CompactStart/CompactEnd events for observability.
+    Compact(ctx context.Context, messages []Message) ([]Message, error)
+}
+```
+
+Compactor implementations (all in extensions, not core):
+- **SummaryCompactor**: LLM-generated summary of old messages (like Claude Code's autoCompact)
+- **SlidingWindowCompactor**: drop oldest messages beyond a window
+- **MemoryExtractCompactor**: extract key learnings before compacting (from Claude Code's sessionMemoryCompact — this is the most valuable strategy)
+- **ChainCompactor**: extract memories THEN summarize THEN truncate
+
+### 7. Multi-Agent Spawning
+
+**Credit:** Claude Code's `AgentTool` + `coordinator/coordinatorMode.ts` prove that multi-agent orchestration works for real-world coding tasks. Their implementation (tmux backends, layout managers, iTerm2 setup) is over-engineered for a harness — but the core idea is sound.
+
+Harness keeps it simple: an agent can spawn a child agent. The child has its own state, its own conversation, and a subset of tools. The parent receives events from the child via the event bus.
+
+```go
+// SpawnChild creates a new agent loop that runs concurrently.
+// The child gets its own AgentState and communicates via the shared EventBus.
+// The parent's ChildAgentStart/ChildAgentEnd events track lifecycle.
+func (h *Harness) SpawnChild(ctx context.Context, opts ChildOpts) (<-chan Event, error) {
+    childState := &AgentState{
+        SessionID:    newSessionID(),
+        ParentID:     opts.ParentSessionID,
+        Model:        opts.Model,
+        SystemPrompt: opts.SystemPrompt,
+        Messages:     []Message{userMessage(opts.Task)},
+    }
+    childBus := h.bus.Scoped(childState.SessionID) // events prefixed with child ID
+
+    go func() {
+        h.bus.Emit(Event{Kind: ChildAgentStart, ...})
+        err := RunLoop(ctx, h.provider, opts.Tools, h.approver, nil, childState, childBus, opts.Budget)
+        h.bus.Emit(Event{Kind: ChildAgentEnd, ...})
+    }()
+
+    return childBus.Subscribe(), nil
+}
+```
+
+**What NOT to do (from Claude Code):**
+- No tmux/iTerm2 backends — the frontend decides how to render multiple agents
+- No layout managers — that's a TUI concern, not a core concern
+- No permission sync protocol — children inherit the parent's Approver
+- No 30-file swarm infrastructure — spawning a child is ~50 lines
 
 ---
 
-## Success Criteria
+## Extension Design Patterns
 
-By the end of this project, you should be able to:
+### Writing a Provider
 
-✅ Implement a complete JSON-RPC 2.0 client from scratch  
-✅ Manage bidirectional communication over stdio  
-✅ Build a responsive TUI with complex state management  
-✅ Handle concurrent operations safely with goroutines & channels  
-✅ Design and implement worker pools with backpressure  
-✅ Integrate databases with proper connection pooling  
-✅ Implement security policies and sandboxing  
-✅ Write comprehensive tests (unit + integration)  
-✅ Add production-grade logging and observability  
-✅ Deploy a cross-platform CLI tool  
-✅ Debug distributed systems with tracing  
-✅ Profile and optimize hot paths  
-✅ Design extensible protocols and clean APIs  
-✅ Understand agent-editor interaction patterns  
+```go
+package openai
 
-**Core Skills Gained:**
-- **Go**: Concurrency, interfaces, modules, testing, performance
-- **Systems**: Process management, IPC, sandboxing, resource pooling
-- **Networking**: JSON-RPC, request/response correlation, streaming
-- **Distributed Systems**: State management, error handling, observability, resilience
-- **Database**: SQL, migrations, transactions, connection pooling
-- **UI**: Event-driven architecture, rendering, layout, real-time updates
-- **Backend Engineering**: Worker patterns, rate limiting, structured logging, profiling
+type OpenAI struct {
+    apiKey  string
+    client  *http.Client
+    baseURL string
+}
 
-**Interview-Ready Knowledge:**
-After completing this project, you can confidently discuss:
-- "How do you handle backpressure in Go services?" → Worker pools, buffered channels
-- "Explain your approach to error handling" → Wrapping, retries, circuit breakers
-- "How do you manage database connections?" → Pooling, prepared statements, repos
-- "Describe your logging strategy" → Structured logging, correlation IDs, sampling
-- "How do you test concurrent code?" → Mocks, race detector, integration tests
-- "What's your profiling workflow?" → pprof, benchmark tests, optimization strategies
+func New(apiKey string) *OpenAI {
+    return &OpenAI{
+        apiKey:  apiKey,
+        client:  &http.Client{Timeout: 5 * time.Minute},
+        baseURL: "https://api.openai.com/v1",
+    }
+}
+
+func (o *OpenAI) Stream(ctx context.Context, req *harness.StreamRequest) (<-chan harness.StreamEvent, error) {
+    ch := make(chan harness.StreamEvent, 64)
+    go func() {
+        defer close(ch)
+        // ... SSE stream from OpenAI, emit events to ch
+    }()
+    return ch, nil
+}
+
+func (o *OpenAI) Models(ctx context.Context) ([]harness.Model, error) {
+    // ... GET /v1/models
+}
+```
+
+### Writing a Tool
+
+```go
+package filesystem
+
+type ReadFile struct{}
+
+func (r *ReadFile) Name() string        { return "read_file" }
+func (r *ReadFile) Description() string { return "Read contents of a file" }
+func (r *ReadFile) Schema() json.RawMessage {
+    return json.RawMessage(`{
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "File path to read"}
+        },
+        "required": ["path"]
+    }`)
+}
+
+func (r *ReadFile) Execute(ctx context.Context, args json.RawMessage) (*harness.ToolResult, error) {
+    var params struct{ Path string `json:"path"` }
+    if err := json.Unmarshal(args, &params); err != nil {
+        return nil, err
+    }
+    content, err := os.ReadFile(params.Path)
+    if err != nil {
+        return &harness.ToolResult{IsError: true, Content: err.Error()}, nil
+    }
+    return &harness.ToolResult{Content: string(content)}, nil
+}
+```
+
+### Writing an Analyzer
+
+```go
+package treesitter
+
+type TreeSitter struct {
+    cache harness.Cache
+}
+
+func (ts *TreeSitter) Name() string { return "treesitter" }
+
+func (ts *TreeSitter) Analyze(ctx context.Context, files []harness.FileRef) (*harness.Analysis, error) {
+    var tags []Tag
+    for _, f := range files {
+        key := harness.ContentKey(f.Content)
+        if cached, ok := ts.cache.Get(key); ok {
+            tags = append(tags, unmarshalTags(cached)...)
+            continue
+        }
+        parsed := parse(f)
+        ts.cache.Put(key, marshalTags(parsed))
+        tags = append(tags, parsed...)
+    }
+    return buildAnalysis(tags), nil
+}
+
+func (ts *TreeSitter) Query(ctx context.Context, q *harness.AnalysisQuery) (*harness.AnalysisResult, error) {
+    // Symbol lookup, dependency queries, repomap generation
+}
+```
 
 ---
 
-## Next Steps
+## Wiring: The Main Binary
 
-1. **Set up development environment:**
-   ```bash
-   mkdir codex-go && cd codex-go
-   go mod init github.com/yourusername/codex-go
-   mkdir -p cmd/codex-client pkg/jsonrpc internal/tui
-   ```
+The power of the harness pattern: everything is composed at the top level.
 
-2. **Install dependencies:**
-   ```bash
-   go get github.com/charmbracelet/bubbletea
-   go get github.com/charmbracelet/lipgloss
-   go get github.com/charmbracelet/glamour    # Markdown rendering
-   go get github.com/charmbracelet/bubbles    # Pre-built components
-   go get go.opentelemetry.io/otel
-   go get github.com/mattn/go-sqlite3         # SQLite driver (CGO)
-   # OR use modernc.org/sqlite for pure Go (no CGO)
-   ```
+```go
+package main
 
-3. **Start with Milestone 1.1** and work sequentially through the phases.
+import (
+    "github.com/user/harness/core"
+    "github.com/user/harness/provider/openai"
+    "github.com/user/harness/provider/anthropic"
+    "github.com/user/harness/tools/filesystem"
+    "github.com/user/harness/tools/terminal"
+    "github.com/user/harness/cli/webmd"
+    "github.com/user/harness/cli/pdfparse"
+    "github.com/user/harness/analyzers/treesitter"
+    "github.com/user/harness/tui"
+)
 
-4. **Study OpenTUI as reference:**
-   - Read [opentui/ARCHITECTURE.md](opentui/ARCHITECTURE.md) to understand:
-     - Component-based rendering architecture
-     - Event-driven UI patterns (Model-View-Update)
-     - Terminal rendering pipeline (layout → render → buffer → ANSI)
-     - FFI patterns for performance (adapt to Go's strengths)
-   - Examine [opentui/GOLANG_REFACTOR.md](opentui/GOLANG_REFACTOR.md) for Go-specific considerations
-   - Key takeaways for Go implementation:
-     - Use interfaces for Renderable abstraction
-     - Leverage goroutines for async rendering
-     - Apply channels for event communication
-     - Use struct embedding for component composition
+func main() {
+    // Parallel prefetch — fire before heavy initialization.
+    // Pattern from Claude Code's main.tsx (startMdmRawRead, startKeychainPrefetch).
+    go core.PreconnectAPI(os.Getenv("ANTHROPIC_BASE_URL"))
+    go core.WarmDiskCache("~/.harness/cache")
 
-5. **Join communities:**
-   - [Charm Bubble Tea Discord](https://charm.sh/community) (for TUI questions)
-   - [Gophers Slack](https://gophers.slack.com) (for Go questions)
-   - [ACP GitHub Discussions](https://github.com/sourcegraph/agent-client-protocol) (for protocol questions)
-   - [r/golang](https://reddit.com/r/golang) (Reddit community)
+    h := core.New(
+        core.WithProviders(
+            openai.New(os.Getenv("OPENAI_API_KEY")),
+            anthropic.New(os.Getenv("ANTHROPIC_API_KEY")),
+        ),
+        core.WithTools(
+            filesystem.NewReadFile(),
+            filesystem.NewWriteFile(),
+            terminal.NewExec(),
+            webmd.New(),
+            pdfparse.New(),
+        ),
+        core.WithApprover(
+            approval.NewChain(
+                approval.NewRules("~/.harness/rules.toml"),  // glob allow/deny
+                approval.NewAuto(),                           // auto-classify
+                approval.NewInteractive(),                    // prompt user
+            ),
+        ),
+        core.WithAnalyzers(
+            treesitter.New(),
+        ),
+        core.WithFrontend(tui.New()),
+        core.WithCache(core.NewDiskCache("~/.harness/cache")),
+    )
 
-6. **Set up your learning journal:**
-   ```bash
-   mkdir docs/learning-journal
-   # Document challenges, solutions, and insights as you build
-   # This becomes your personal reference and portfolio piece
-   ```
+    if err := h.Run(context.Background()); err != nil {
+        fmt.Fprintf(os.Stderr, "harness: %v\n", err)
+        os.Exit(1)
+    }
+}
+```
 
-## How This Makes You a Better Backend Engineer
+Want a headless server instead? Same core, different frontend:
 
-This project uniquely combines:
+```go
+h := core.New(
+    core.WithProviders(openai.New(key)),
+    core.WithTools(filesystem.NewReadFile()),
+    core.WithFrontend(rpc.NewGRPCServer(":50051")),
+)
+```
 
-✅ **Protocol Implementation** - JSON-RPC, ACP → understanding RPC systems  
-✅ **Concurrency Mastery** - Goroutines, channels, context → essential for backend  
-✅ **State Management** - Sessions, persistence → applicable to web services  
-✅ **IPC & Process Management** - Spawning, pipes, signals → systems programming  
-✅ **Error Handling** - Retries, circuit breakers → production resilience  
-✅ **Observability** - Logging, tracing, metrics → debugging production systems  
-✅ **API Design** - Clean interfaces, clear contracts → maintainable codebases  
-✅ **Database Integration** - SQLite, migrations, repos → data persistence patterns  
-✅ **Testing** - Unit, integration, mocking → confidence in code  
-✅ **Performance** - Profiling, optimization → efficient systems  
+---
 
-**Real-world parallels:**
-- JSON-RPC communication → gRPC services, REST APIs
-- Session management → User session handling in web apps
-- Event streams → Kafka consumers, WebSocket servers
-- Tool execution → Job queues, worker services
-- Permission system → RBAC in APIs
-- Connection management → Database connection pools, service meshes
-- Rate limiting → API throttling, load shedding
+## Implementation Phases
 
-By building this TUI agent, you'll develop muscle memory for patterns used in:
-- **Microservices**: Service-to-service communication, observability
-- **APIs**: Request handling, validation, error responses
-- **Data pipelines**: Stream processing, buffering, backpressure
-- **Distributed systems**: State management, failure handling, consistency
+### Phase 1: The Core (Weeks 1–3)
 
-Good luck building! This project will give you a deep understanding of building production-grade systems in Go. 🚀
+Build the harness with zero external dependencies.
+
+| Module | What | Learn |
+|--------|------|-------|
+| `core/protocol` | JSON-RPC 2.0 types, ACP types, codec | Go structs, JSON tags, discriminated unions with iota |
+| `core/transport` | stdio transport, framing | `io.Reader`/`io.Writer`, `bufio.Scanner`, interfaces |
+| `core/bus` | Typed event bus with channels | Goroutines, channels, fan-out, `context.Context` |
+| `core/agent` | Agent loop, typed state machine, budget, compaction interface | State machines, `select {}`, `errgroup` |
+| `core/cache` | Content-addressable LRU + disk cache | SHA-256, file I/O, `sync.Map`, atomic operations |
+| `core/process` | Subprocess spawning, lifecycle | `os/exec`, pipes, signal handling |
+
+**Deliverable:** A working harness that can spawn an agent process, send a prompt, stream a response, and display it on stdout. No TUI yet — stdout is the frontend.
+
+**Verification:**
+```bash
+echo '{"prompt": "Hello"}' | go run ./cmd/harness/
+# Streams response tokens to stdout
+```
+
+### Phase 2: Providers (Weeks 3–4)
+
+Implement the `Provider` interface for real LLMs.
+
+| Module | What | Learn |
+|--------|------|-------|
+| `provider/openai` | OpenAI chat completions + streaming | HTTP clients, SSE parsing, API design |
+| `provider/anthropic` | Anthropic Messages API | Provider abstraction validation |
+| `provider/ollama` | Local Ollama models | Localhost integration, model management |
+| `provider/registry` | Model registry + resolution | Registry pattern, model metadata |
+
+**Deliverable:** Send prompts to real LLMs, receive streaming responses through the harness event bus.
+
+### Phase 3: Tools + Approval (Weeks 4–5)
+
+Implement built-in tools + the Approver chain.
+
+| Module | What | Learn |
+|--------|------|-------|
+| `tools/filesystem` | Read, write, list, search | File I/O, sandboxing, path validation |
+| `tools/terminal` | Command execution + safety classification | `os/exec`, PTY, output capture |
+| `tools/terminal/safety` | Dangerous pattern detection, path validation | Adapted from Claude Code's `bashSecurity.ts`, `dangerousPatterns.ts` |
+| `tools/approval/rules` | Glob-based allow/deny rules | Pattern matching, TOML config parsing |
+| `tools/approval/auto` | Auto-classify command safety | Command parsing, heuristics |
+| `tools/approval/interactive` | Prompt user via Frontend event | Event bus, Frontend protocol |
+| `tools/approval/chain` | Compose: rules → auto → interactive | Chain of responsibility pattern |
+
+**Deliverable:** Agent can call tools, each invocation passes through the Approver chain, results feed back to the LLM. Denied tools return structured errors to the LLM.
+
+### Phase 4: TUI Frontend (Weeks 5–7)
+
+Build the Bubble Tea frontend. This is purely a rendering concern — no agent logic lives here.
+
+| Module | What | Learn |
+|--------|------|-------|
+| `tui/app.go` | Bubble Tea model, implements Frontend | Elm architecture, event-driven UI |
+| `tui/components/` | Chat, input, status, tool views | Component composition, lipgloss styling |
+| `tui/markdown/` | Glamour markdown rendering | Terminal rendering, ANSI codes |
+| `tui/streaming/` | Real-time token display | Buffering, render throttling |
+
+**Deliverable:** Full interactive TUI that renders agent state from immutable snapshots.
+
+### Phase 5: CLI Plugins + Analyzers (Weeks 7–9)
+
+The extensions that make this an **agent harness**, not just an agent.
+
+| Module | What | Learn |
+|--------|------|-------|
+| `cli/xsearch` | X API search as a tool | OAuth, API clients, pagination |
+| `cli/webmd` | Web→Markdown extractor | HTML parsing, readability algorithms |
+| `cli/pdfparse` | PDF→text extraction | Binary formats, streaming parsers |
+| `cli/codereview` | Codebase research tool | Architecture analysis, static analysis |
+| `analyzers/treesitter` | Tree-sitter AST parsing | Tree-sitter bindings, tag extraction |
+| `analyzers/graph` | Dependency graphs, PageRank | Graph algorithms, NetworkX-style analysis |
+| `analyzers/zoekt` | Zoekt code search integration | Index-based search, trigram indexing |
+| `analyzers/astgrep` | ast-grep structural search | AST patterns, structural matching |
+
+**Deliverable:** A fully extensible agent that can search X, parse PDFs, extract web content, analyze codebases via AST, and generate repository maps — all as pluggable tools and analyzers.
+
+### Phase 6: Production Hardening (Weeks 9–10)
+
+| Concern | What | Learn |
+|---------|------|-------|
+| Observability | Structured logging (`slog`), OpenTelemetry traces | `log/slog`, trace propagation |
+| Persistence | Session save/restore, SQLite history | Atomic writes, migrations |
+| Configuration | TOML/YAML config, env vars, flags | `flag`, config layering |
+| Testing | Integration tests, mock provider/tools | Table-driven tests, `httptest` |
+| Release | GoReleaser, cross-compilation | Build systems, CI/CD |
+
+---
+
+## Key Design Decisions
+
+### 1. Why Go, Not TypeScript (like pi-mono)
+
+| Dimension | TypeScript (pi-mono) | Go (Harness) |
+|-----------|---------------------|--------------|
+| Startup | ~200ms (Node.js) | ~5ms |
+| Memory | ~50MB baseline | ~5MB baseline |
+| Concurrency | Event loop + Promises | Goroutines (M:N scheduling) |
+| Deployment | node + node_modules | Single static binary |
+| Type safety | Structural, runtime gaps | Interface-checked at compile time |
+| Dependencies | npm (deep trees) | Go modules (flat, vendorable) |
+
+### 2. Why Interfaces, Not a Plugin Registry
+
+pi-mono uses `pi.registerTool()` — a runtime function that adds to a mutable array. This requires:
+- A `pi` context object to exist
+- Runtime type checking of the registered object
+- Dynamic dispatch through the registry
+
+Go interfaces are implicit. Any struct that has the right methods IS a Tool. No registration, no context object, no runtime checks. The compiler verifies it.
+
+### 3. Why Immutable State, Not Mutable Mutators
+
+pi-mono's `AgentState` has methods like `setModel()`, `setTools()`, `replaceMessages()` that mutate in-place. When tools execute concurrently and the TUI renders simultaneously, you get data races (Node.js avoids this via single-threaded event loop, but it constrains performance).
+
+Go has real concurrency. Immutable snapshots are the safe, performant answer. The agent loop produces snapshots. The frontend consumes them. No locks on the hot path.
+
+### 4. Why Content-Addressable Caching in Core
+
+pi-mono has no built-in caching. The AST service doc in this project describes content-addressable caching as a separate cloud service. Harness puts it in core because:
+- Every extension benefits (LLM responses, parsed ASTs, tool outputs)
+- The interface is tiny (Get/Put/Has with a [32]byte key)
+- It enables offline operation and instant re-analysis of unchanged files
+- Merkle-tree change detection for incremental updates comes naturally
+
+### 5. Why Analyzers Are a Separate Interface
+
+Tools execute actions. Analyzers provide intelligence. The distinction matters:
+- Tools are called by the LLM via tool-use protocol
+- Analyzers are called by the harness to enrich context before sending to the LLM
+- A tool says "read this file." An analyzer says "here are the 20 most important symbols in this codebase for this query."
+
+The harness can use analyzers automatically (e.g., before every prompt, run treesitter on changed files and inject a repomap into context) — without the LLM explicitly requesting it.
+
+### 6. Why Approver Is a Core Interface (Lesson from Claude Code)
+
+Claude Code's permission system is its most battle-tested component — multi-layer classification (bash classifier, dangerous patterns, path validation, sed validation) with glob-based allow/deny rules. It works. But it lives in `utils/permissions/`, a utility directory that any extension can bypass.
+
+Harness promotes safety from "convention" to "structure":
+- The agent loop calls `Approver.Approve()` before every `Tool.Execute()`
+- Extensions cannot bypass this — the interface is enforced by the loop, not by convention
+- The Approver receives minimal context (`ApprovalRequest`: tool name, args, workspace, read-only flag) — NOT the entire application state
+- Multiple Approvers compose via `ChainApprover`: rules first, then auto-classify, then interactive prompt
+
+This is the single most important architectural difference from Claude Code. Safety is not a feature. It is the architecture.
+
+---
+
+## Learning Map
+
+This project teaches through building. Each module exercises specific engineering skills.
+
+| Skill Domain | Modules | Concepts |
+|-------------|---------|----------|
+| **Go Fundamentals** | protocol, transport | Structs, interfaces, error handling, testing |
+| **Concurrency** | bus, agent/loop | Goroutines, channels, `select`, `errgroup`, `context` |
+| **Systems Programming** | process, transport | Subprocess mgmt, pipes, signals, IPC |
+| **Protocol Design** | protocol, transport | JSON-RPC, framing, capability negotiation |
+| **State Machines** | agent/state, agent/loop | State transitions, immutable snapshots |
+| **API Design** | interfaces, provider/* | Interface design, composition, dependency injection |
+| **Caching** | cache | Content-addressable storage, LRU, disk persistence |
+| **UI Architecture** | tui/* | Elm architecture, component composition, rendering |
+| **HTTP/Streaming** | provider/* | SSE parsing, chunked transfer, connection pooling |
+| **Code Analysis** | analyzers/* | AST parsing, graph algorithms, symbol resolution |
+| **Observability** | (phase 6) | Structured logging, tracing, metrics |
+| **Database** | (phase 6) | SQLite, migrations, atomic writes |
+
+---
+
+## Anti-Patterns: What NOT to Do
+
+*Derived from analysis of Claude Code (~512K LoC). See `docs/CLAUDE_CODE_CRITIQUE.md` for the full evaluation.*
+
+These are explicit guardrails for Harness development. Each anti-pattern was observed in a production system and represents a trap that seems reasonable at first.
+
+### ❌ God files
+
+Claude Code's `QueryEngine.ts` is 46K lines. `Tool.ts` is 29K lines. `commands.ts` is 25K lines. These files are impossible to review, test, or refactor incrementally.
+
+**Harness rule:** No file exceeds 500 lines. If it does, it needs to be decomposed.
+
+### ❌ God state
+
+Claude Code's `AppState` has ~100+ fields covering agent state, UI state, bridge state, plugin state, MCP state, companion state, and tungsten state. Every component can read everything.
+
+**Harness rule:** `AgentState` has ~10 fields. UI state lives in the frontend. Connection state lives in connection managers. State is per-concern, not per-application.
+
+### ❌ Tool context as universe carrier
+
+Claude Code's `ToolUseContext` carries ~60 fields: settings, permissions, state store, model, messages, MCP connections, plugins, file history, analytics. Every tool is coupled to every product concern.
+
+**Harness rule:** `Tool.Execute()` receives `context.Context` and `json.RawMessage`. Nothing else. Tools are independent of the application.
+
+### ❌ Circular dependencies solved by lazy require
+
+Claude Code has `const getTeamCreateTool = () => require(...)` scattered throughout to break circular imports. This indicates the dependency graph has no enforced layering.
+
+**Harness rule:** Go modules enforce unidirectional dependencies at compile time. The core never imports extensions. If a cycle appears, the abstraction is wrong.
+
+### ❌ Feature flags as architecture
+
+Claude Code has 20+ feature flags (`PROACTIVE`, `KAIROS`, `COORDINATOR_MODE`, `VOICE_MODE`, `BUDDY`, `ULTRAPLAN`, etc.) creating code paths that may or may not exist at runtime. This is a combinatorial testing problem.
+
+**Harness rule:** Features are Go modules. They're compiled in or they're not. No runtime conditionals for feature existence.
+
+### ❌ Safety boundary in utility layer
+
+Claude Code's permission system lives in `utils/permissions/` — a utility directory. Extensions can bypass it by calling tool execution directly.
+
+**Harness rule:** The Approver is a core interface. The agent loop calls `Approver.Approve()` before `Tool.Execute()`. It cannot be bypassed. Safety is structural, not conventional.
+
+### ❌ Analytics woven into agent logic
+
+Claude Code has GrowthBook feature flags in the query engine, Datadog in the API client, OpenTelemetry spans around tool execution, first-party event logging in permission decisions.
+
+**Harness rule:** The core emits events to the bus. An analytics extension subscribes. The core has zero knowledge of analytics providers.
+
+### ❌ Frontend coupled to agent logic
+
+Claude Code's `REPL.tsx` is ~5000 lines mixing React state, agent loop orchestration, permission handling, bridge management, and rendering. The TUI IS the application.
+
+**Harness rule:** The frontend implements a 1-method interface (`Run()`). It reads state snapshots and emits user input. It has no access to the agent loop. Swap TUI for web UI without touching agent logic.
+
+### ❌ React for terminal rendering
+
+Claude Code maintains a ~15K-line custom Ink fork (layout engine, reconciler, event system, hit testing). This is extraordinary machinery for rendering text.
+
+**Harness rule:** Bubble Tea's Elm architecture (Model → Update → View) achieves equivalent results. No virtual DOM, no Yoga flexbox, no React reconciler.
+
+---
+
+## References
+
+### Architecture Inspiration
+- [pi-mono](https://github.com/badlogic/pi-mono) — The TypeScript agent framework this design evolves from
+- [Claude Code](https://github.com/anthropics/claude-code) — Anthropic's production agentic CLI. Studied for permission system, tool orchestration, compaction, and startup patterns. See `docs/CLAUDE_CODE_CRITIQUE.md` and `docs/CLAUDE_DEEP_DIVE.md`.
+- [Aider](https://github.com/Aider-AI/aider) — Repository map and AST-based code analysis patterns
+- [OpenAI Codex CLI](https://github.com/openai/codex) — Agent-client protocol design
+
+### Go
+- [Effective Go](https://go.dev/doc/effective_go)
+- [Uber Go Style Guide](https://github.com/uber-go/guide/blob/master/style.md)
+- [100 Go Mistakes](https://100go.co/)
+- [Concurrency in Go](https://www.oreilly.com/library/view/concurrency-in-go/9781491941294/)
+
+### TUI
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea)
+- [Lip Gloss](https://github.com/charmbracelet/lipgloss)
+- [Glamour](https://github.com/charmbracelet/glamour)
+
+### Code Analysis
+- [Tree-sitter](https://tree-sitter.github.io/tree-sitter/)
+- [Zoekt](https://github.com/sourcegraph/zoekt)
+- [ast-grep](https://ast-grep.github.io/)
+- [Semgrep](https://semgrep.dev/)
+
+### Systems
+- [Designing Data-Intensive Applications](https://dataintensive.net/) (Kleppmann)
+- [The Linux Programming Interface](https://man7.org/tlpi/) (Kerrisk)
+- [Systems Performance](https://www.brendangregg.com/systems-performance-2nd-edition-book.html) (Gregg)
