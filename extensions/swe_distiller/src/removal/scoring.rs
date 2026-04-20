@@ -19,10 +19,7 @@ pub fn remove_low_scoring_blocks(input: &str) -> String {
         }
         let score = score_non_content_block(&el);
         if score < 0.0 {
-            let snippet = regex::escape(el.html().as_str());
-            if let Ok(re) = regex::Regex::new(&snippet) {
-                output = re.replace(&output, "").to_string();
-            }
+            output = output.replacen(&el.html(), "", 1);
         }
     }
 

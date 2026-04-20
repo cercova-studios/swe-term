@@ -14,22 +14,7 @@ pub const ENTRY_POINT_SELECTORS: &[&str] = &[
     "body",
 ];
 
-pub const EXACT_SELECTORS: &[&str] = &[
-    "nav",
-    "aside",
-    "footer",
-    "header nav",
-    ".sidebar",
-    ".advertisement",
-    ".ads",
-    ".cookie-banner",
-    ".social-share",
-    ".newsletter",
-    ".related-posts",
-    "script:not([type^=\"math/\"])",
-    "style",
-    "noscript",
-];
+pub const EXACT_SELECTORS: &[&str] = &["script:not([type^=\"math/\"])", "style", "noscript"];
 
 pub const PARTIAL_PATTERNS: &[&str] = &[
     "advert",
@@ -42,7 +27,6 @@ pub const PARTIAL_PATTERNS: &[&str] = &[
     "share",
     "promo",
     "banner",
-    "byline",
 ];
 
 pub const CONTENT_INDICATORS: &[&str] = &[

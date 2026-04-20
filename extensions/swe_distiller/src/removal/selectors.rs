@@ -46,3 +46,23 @@ pub fn remove_by_selectors(input: &str, remove_exact: bool, remove_partial: bool
 
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::remove_by_selectors;
+
+    #[test]
+    fn partial_selector_cleanup_keeps_byline_blocks() {
+        let html = r#"
+        <article>
+          <h1>Title</h1>
+          <div class="byline">Alice Example</div>
+          <p>Body paragraph with enough words to represent real article content.</p>
+        </article>
+        "#;
+
+        let cleaned = remove_by_selectors(html, false, true);
+        assert!(cleaned.contains("Alice Example"));
+        assert!(cleaned.contains("Body paragraph"));
+    }
+}

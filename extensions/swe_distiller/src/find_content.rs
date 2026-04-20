@@ -1,15 +1,21 @@
+use once_cell::sync::Lazy;
 use scraper::{Html, Selector};
 
 use crate::constants::ENTRY_POINT_SELECTORS;
 use crate::dom::count_words;
 use crate::scoring::score_element;
 
+static ARTICLE_SELECTOR: Lazy<Selector> =
+    Lazy::new(|| Selector::parse("article").expect("valid selector"));
+static BODY_SELECTOR: Lazy<Selector> =
+    Lazy::new(|| Selector::parse("body").expect("valid selector"));
+
 pub fn find_main_content_html(html: &Html) -> Option<String> {
     if let Some(article_html) = best_article_candidate(html) {
         return Some(article_html);
     }
 
-    let mut candidates: Vec<(String, f64, usize, usize)> = Vec::new();
+    let mut candidates: Vec<(String, f64)> = Vec::new();
 
     for (idx, selector_str) in ENTRY_POINT_SELECTORS.iter().enumerate() {
         let selector = match Selector::parse(selector_str) {
@@ -20,8 +26,7 @@ pub fn find_main_content_html(html: &Html) -> Option<String> {
         for element in html.select(&selector) {
             let priority = ((ENTRY_POINT_SELECTORS.len() - idx) as f64) * 40.0;
             let content_score = score_element(&element);
-            let text = element.text().collect::<String>();
-            candidates.push((element.html(), priority + content_score, idx, text.len()));
+            candidates.push((element.html(), priority + content_score));
         }
     }
 
@@ -30,10 +35,9 @@ pub fn find_main_content_html(html: &Html) -> Option<String> {
 }
 
 fn best_article_candidate(html: &Html) -> Option<String> {
-    let article_sel = Selector::parse("article").expect("valid selector");
     let mut best: Option<(String, usize)> = None;
 
-    for article in html.select(&article_sel) {
+    for article in html.select(&ARTICLE_SELECTOR) {
         let text = article.text().collect::<String>();
         let words = count_words(&text);
         if words < 40 {
@@ -51,6 +55,5 @@ fn best_article_candidate(html: &Html) -> Option<String> {
 }
 
 pub fn body_fallback_html(html: &Html) -> Option<String> {
-    let body_sel = Selector::parse("body").expect("valid selector");
-    html.select(&body_sel).next().map(|body| body.html())
+    html.select(&BODY_SELECTOR).next().map(|body| body.html())
 }

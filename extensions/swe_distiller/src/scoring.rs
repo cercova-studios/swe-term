@@ -1,19 +1,28 @@
+use once_cell::sync::Lazy;
 use scraper::{ElementRef, Selector};
 
 use crate::constants::{CONTENT_INDICATORS, NAVIGATION_INDICATORS};
 use crate::dom::count_words;
+
+static PARAGRAPH_SELECTOR: Lazy<Selector> =
+    Lazy::new(|| Selector::parse("p").expect("valid selector"));
+static IMAGE_SELECTOR: Lazy<Selector> =
+    Lazy::new(|| Selector::parse("img").expect("valid selector"));
+static PARAGRAPH_LIKE_SELECTOR: Lazy<Selector> =
+    Lazy::new(|| Selector::parse("p, li").expect("valid selector"));
+static CODE_LIKE_SELECTOR: Lazy<Selector> =
+    Lazy::new(|| Selector::parse("pre, table").expect("valid selector"));
+static LINK_SELECTOR: Lazy<Selector> = Lazy::new(|| Selector::parse("a").expect("valid selector"));
 
 pub fn score_element(element: &ElementRef<'_>) -> f64 {
     let text = element.text().collect::<String>();
     let words = count_words(&text);
     let mut score = words as f64;
 
-    let p_sel = Selector::parse("p").expect("valid selector");
-    score += (element.select(&p_sel).count() as f64) * 10.0;
+    score += (element.select(&PARAGRAPH_SELECTOR).count() as f64) * 10.0;
     score += text.matches(',').count() as f64;
 
-    let img_sel = Selector::parse("img").expect("valid selector");
-    let images = element.select(&img_sel).count();
+    let images = element.select(&IMAGE_SELECTOR).count();
     let image_density = images as f64 / words.max(1) as f64;
     score -= image_density * 3.0;
 
@@ -62,20 +71,17 @@ pub fn is_likely_content(element: &ElementRef<'_>) -> bool {
         return true;
     }
 
-    let p_sel = Selector::parse("p, li").expect("valid selector");
-    let paragraph_like = element.select(&p_sel).count();
+    let paragraph_like = element.select(&PARAGRAPH_LIKE_SELECTOR).count();
     if words > 50 && paragraph_like > 1 {
         return true;
     }
 
-    let code_sel = Selector::parse("pre, table").expect("valid selector");
-    element.select(&code_sel).next().is_some()
+    element.select(&CODE_LIKE_SELECTOR).next().is_some()
 }
 
 fn link_density(element: &ElementRef<'_>, text: &str) -> f64 {
-    let a_sel = Selector::parse("a").expect("valid selector");
     let link_text_len: usize = element
-        .select(&a_sel)
+        .select(&LINK_SELECTOR)
         .map(|a| a.text().collect::<String>().len())
         .sum();
     let text_len = text.len().max(1);
