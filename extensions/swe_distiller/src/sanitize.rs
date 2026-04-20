@@ -4,10 +4,12 @@ use url::Url;
 
 static DANGEROUS_ELEMENTS_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
-        r#"(?is)<(?:script|style|noscript|frame|frameset|object|embed|applet|base)\b[^>]*>.*?</(?:script|style|noscript|frame|frameset|object|embed|applet|base)>"#,
+        r#"(?is)<(?:script|style|noscript|frame|frameset|object|embed|applet)\b[^>]*>.*?</(?:script|style|noscript|frame|frameset|object|embed|applet)>"#,
     )
     .expect("valid regex")
 });
+static DANGEROUS_VOID_ELEMENTS_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"(?is)<base\b[^>]*>"#).expect("valid regex"));
 static EVENT_ATTR_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"(?i)\s+on[a-z]+\s*=\s*(".*?"|'.*?'|[^\s>]+)"#).expect("valid regex")
 });
@@ -20,6 +22,7 @@ static URL_ATTR_RE: Lazy<Regex> = Lazy::new(|| {
 
 pub fn sanitize_html(input: &str) -> String {
     let mut out = DANGEROUS_ELEMENTS_RE.replace_all(input, "").to_string();
+    out = DANGEROUS_VOID_ELEMENTS_RE.replace_all(&out, "").to_string();
     out = EVENT_ATTR_RE.replace_all(&out, "").to_string();
     out = SRCDOC_RE.replace_all(&out, "").to_string();
 
@@ -108,4 +111,15 @@ pub fn is_dangerous_url(url: &str) -> bool {
         .collect();
     let lower = normalized.to_lowercase();
     lower.starts_with("javascript:") || lower.starts_with("data:text/html")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize_html;
+
+    #[test]
+    fn strips_void_base_elements() {
+        let sanitized = sanitize_html(r#"<head><base href="https://evil.test/"></head>"#);
+        assert!(!sanitized.contains("<base"));
+    }
 }

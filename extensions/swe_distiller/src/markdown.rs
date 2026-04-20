@@ -40,8 +40,8 @@ static CODE_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?is)<code[^>]*>(.*?)</code>").expect("valid regex"));
 static LI_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?is)<li[^>]*>(.*?)</li>").expect("valid regex"));
-static BR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<br\\s*/?>").expect("valid regex"));
-static HR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<hr\\s*/?>").expect("valid regex"));
+static BR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<br\s*/?>").expect("valid regex"));
+static HR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<hr\s*/?>").expect("valid regex"));
 static TAG_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<[^>]+>").expect("valid regex"));
 static MULTI_NEWLINE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n{3,}").expect("valid regex"));
 static EMPTY_LINK_RE: Lazy<Regex> =
@@ -396,7 +396,10 @@ fn count_marker(haystack: &str, needle: &str) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::{fix_bold_spans_crossing_headings, normalize_metadata_runons, strip_known_chrome};
+    use super::{
+        fix_bold_spans_crossing_headings, html_to_markdown, normalize_metadata_runons,
+        strip_known_chrome,
+    };
 
     #[test]
     fn strips_standalone_action_links_and_counters() {
@@ -528,5 +531,13 @@ Body paragraph.";
         let out = strip_known_chrome(input);
         assert!(!out.contains("system-design-interview"));
         assert!(out.contains("Body paragraph."));
+    }
+
+    #[test]
+    fn converts_br_and_hr_tags_to_line_breaks() {
+        let md = html_to_markdown("<p>alpha<br />beta<hr />gamma</p>", None);
+        assert!(md.contains("alpha\nbeta"));
+        assert!(md.contains("\n---\n"));
+        assert!(md.contains("gamma"));
     }
 }

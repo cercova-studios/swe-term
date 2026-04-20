@@ -44,7 +44,7 @@ pub async fn fetch_page(
     crate::observability::debug(
         debug_enabled,
         "fetch.start",
-        format!("url={target_url} proxy={}", proxy_url.unwrap_or("none")),
+        format!("url={target_url} proxy={}", proxy_log_value(proxy_url)),
     );
     let mut builder = reqwest::Client::builder()
         .timeout(FETCH_TIMEOUT)
@@ -114,16 +114,10 @@ pub async fn fetch_page(
                 return Err(anyhow!("Not an HTML page (content-type: {content_type})"));
             }
 
-            if let Some(content_length) = response.content_length() {
-                if content_length > MAX_SIZE as u64 {
-                    return Err(anyhow!("Page too large"));
-                }
-            }
+            ensure_declared_size_within_limit(response.content_length())?;
 
             let bytes = response.bytes().await?;
-            if bytes.len() > MAX_SIZE {
-                return Err(anyhow!("Page too large"));
-            }
+            ensure_actual_size_within_limit(bytes.len())?;
 
             let encoding = detect_charset(&content_type, &bytes);
             let (decoded, _, _) = encoding.decode(&bytes);
@@ -320,7 +314,18 @@ async fn fetch_medium_via_feed(
             _ => continue,
         };
 
-        let xml = response.text().await?;
+        ensure_declared_size_within_limit(response.content_length())?;
+        let content_type = response
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("application/rss+xml")
+            .to_string();
+        let bytes = response.bytes().await?;
+        ensure_actual_size_within_limit(bytes.len())?;
+        let encoding = detect_charset(&content_type, &bytes);
+        let (decoded, _, _) = encoding.decode(&bytes);
+        let xml = decoded.into_owned();
         let items = parse_medium_feed_items(&xml)?;
         for item in items {
             let item_norm = normalize_medium_url(&item.link);
@@ -337,6 +342,37 @@ async fn fetch_medium_via_feed(
     }
 
     Err(anyhow!("Medium RSS fallback did not find target article"))
+}
+
+fn proxy_log_value(proxy_url: Option<&str>) -> String {
+    let Some(proxy_url) = proxy_url else {
+        return "none".to_string();
+    };
+    let Ok(url) = Url::parse(proxy_url) else {
+        return "<invalid>".to_string();
+    };
+    let scheme = url.scheme();
+    let Some(host) = url.host_str() else {
+        return "<invalid>".to_string();
+    };
+    match url.port() {
+        Some(port) => format!("{scheme}://{host}:{port}"),
+        None => format!("{scheme}://{host}"),
+    }
+}
+
+fn ensure_declared_size_within_limit(content_length: Option<u64>) -> Result<()> {
+    if content_length.is_some_and(|len| len > MAX_SIZE as u64) {
+        return Err(anyhow!("Page too large"));
+    }
+    Ok(())
+}
+
+fn ensure_actual_size_within_limit(actual_len: usize) -> Result<()> {
+    if actual_len > MAX_SIZE {
+        return Err(anyhow!("Page too large"));
+    }
+    Ok(())
 }
 
 fn medium_feed_candidates(target_url: &str) -> Result<Vec<String>> {
@@ -513,5 +549,27 @@ mod tests {
         let p_url = "https://medium.com/p/bdaf1bd6e64b";
         assert_eq!(medium_post_id(slug_url).as_deref(), Some("bdaf1bd6e64b"));
         assert_eq!(medium_post_id(p_url).as_deref(), Some("bdaf1bd6e64b"));
+    }
+
+    #[test]
+    fn extracts_charset_from_content_type() {
+        let charset = extract_charset_from_content_type("text/xml; charset=utf-8");
+        assert_eq!(charset.as_deref(), Some("utf-8"));
+    }
+
+    #[test]
+    fn redacts_proxy_credentials_in_debug_log_value() {
+        let redacted = proxy_log_value(Some("http://user:secret@example.com:8080/path?q=1"));
+        assert_eq!(redacted, "http://example.com:8080");
+        assert!(!redacted.contains("secret"));
+        assert_eq!(proxy_log_value(Some("not a url")), "<invalid>");
+    }
+
+    #[test]
+    fn enforces_size_limit_for_declared_and_actual_lengths() {
+        assert!(ensure_declared_size_within_limit(Some(MAX_SIZE as u64)).is_ok());
+        assert!(ensure_declared_size_within_limit(Some((MAX_SIZE as u64) + 1)).is_err());
+        assert!(ensure_actual_size_within_limit(MAX_SIZE).is_ok());
+        assert!(ensure_actual_size_within_limit(MAX_SIZE + 1).is_err());
     }
 }

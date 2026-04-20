@@ -28,7 +28,7 @@ URL
   -> metadata extraction
   -> markdown conversion (AST-based)
   -> optional LLM extraction override (--llm) with safety checks and heuristic fallback
-  -> output file (markdown/html/json)
+  -> output file (markdown/json)
 ```
 
 ## Module Layout
@@ -70,7 +70,7 @@ src/
 ### Output Contract
 
 - `DistillerResponse` contains content, markdown, metadata, parse timings, and meta tags.
-- `ParseMode` controls markdown/html/json output behavior.
+- `ParseMode` controls markdown/json output behavior.
 
 ## Runtime Modes
 
@@ -106,4 +106,3 @@ The current architecture is prepared for multi-content-type expansion:
 - LLM provider orchestration is isolated behind one module.
 
 Natural next step is introducing an explicit `InputKind`/`RawDocument` preprocess stage for HTML/PDF/image routing without changing CLI behavior.
-

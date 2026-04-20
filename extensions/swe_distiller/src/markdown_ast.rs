@@ -305,7 +305,7 @@ fn collapse_whitespace(input: &str) -> String {
 
 fn detect_code_language(el: &ElementRef<'_>) -> Option<String> {
     static LANG_RE: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r"(?:^|\\s)(?:language|lang|highlight-source)-([a-zA-Z0-9_+-]+)(?:\\s|$)")
+        Regex::new(r"(?:^|\s)(?:language|lang|highlight-source)-([a-zA-Z0-9_+-]+)(?:\s|$)")
             .expect("valid regex")
     });
 
@@ -351,5 +351,18 @@ mod tests {
         assert!(md.contains("| A | B |"));
         assert!(md.contains("| --- | --- |"));
         assert!(md.contains("| 1 | 2 |"));
+    }
+
+    #[test]
+    fn detects_language_from_pre_code_classes() {
+        let html =
+            Html::parse_fragment(r#"<pre class="language-rust"><code>fn main() {}</code></pre>"#);
+        let selector = Selector::parse("pre").expect("valid selector");
+        let pre = html
+            .select(&selector)
+            .next()
+            .expect("pre element");
+
+        assert_eq!(detect_code_language(&pre).as_deref(), Some("rust"));
     }
 }

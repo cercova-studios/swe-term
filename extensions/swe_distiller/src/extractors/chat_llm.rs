@@ -48,12 +48,27 @@ fn is_chat_share_url(url: &str) -> bool {
         .ok()
         .and_then(|u| {
             u.host_str().map(|h| {
-                h.contains("chatgpt.com")
-                    || h.ends_with(".openai.com")
-                    || h.contains("claude.ai")
-                    || h.contains("grok.com")
-                    || h.contains("gemini.google.com")
+                host_matches(h, "chatgpt.com")
+                    || host_matches(h, "openai.com")
+                    || host_matches(h, "claude.ai")
+                    || host_matches(h, "grok.com")
+                    || host_matches(h, "gemini.google.com")
             })
         })
         .unwrap_or(false)
+}
+
+fn host_matches(host: &str, domain: &str) -> bool {
+    host == domain || host.ends_with(&format!(".{domain}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_chat_share_url;
+
+    #[test]
+    fn rejects_hosts_that_only_contain_supported_domains() {
+        assert!(!is_chat_share_url("https://chatgpt.com.evil.example/share/123"));
+        assert!(!is_chat_share_url("https://claude.ai.evil.example/share/123"));
+    }
 }
