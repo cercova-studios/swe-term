@@ -53,18 +53,21 @@ pub async fn extract_url(url: &str, opts: DistillerOptions) -> Result<DistillerR
         parse_html_with_extractor(&html, Some(url), opts.clone(), async_extractor.clone());
 
     if opts.llm {
-        let mut applied = false;
         if let Some(md_raw) = llm_markdown {
-            let md = markdown::ensure_title_heading(&md_raw, &result.title);
-            result.word_count = dom::count_words(&md);
-            result.content_markdown = Some(md);
-            applied = true;
+            let title_hint = result.title.clone();
+            apply_llm_markdown_override(&mut result, &title_hint, &md_raw);
+            observability::debug(
+                opts.debug,
+                "pipeline.llm",
+                format!("outcome={:?}", extraction::llm::outcome_for(true)),
+            );
+        } else {
+            observability::debug(
+                opts.debug,
+                "pipeline.llm",
+                format!("outcome={:?}", extraction::llm::outcome_for(false)),
+            );
         }
-        observability::debug(
-            opts.debug,
-            "pipeline.llm",
-            format!("outcome={:?}", extraction::llm::outcome_for(applied)),
-        );
     }
     observability::debug(
         opts.debug,
@@ -94,62 +97,91 @@ pub async fn parse_html_async(
     parse_html_with_extractor(html_str, url, opts, extractor_override)
 }
 
+#[derive(Debug, Clone)]
+struct RecoveryPlan {
+    minimum_word_count: usize,
+    options: DistillerOptions,
+    require_double_improvement: bool,
+}
+
+struct ParsePipeline<'a> {
+    html_str: &'a str,
+    url: Option<&'a str>,
+    opts: DistillerOptions,
+    extractor_override: Option<ExtractorResult>,
+}
+
+impl<'a> ParsePipeline<'a> {
+    fn new(
+        html_str: &'a str,
+        url: Option<&'a str>,
+        opts: DistillerOptions,
+        extractor_override: Option<ExtractorResult>,
+    ) -> Self {
+        Self {
+            html_str,
+            url,
+            opts,
+            extractor_override,
+        }
+    }
+
+    fn run(&self) -> DistillerResponse {
+        let start = Instant::now();
+        let mut result = self.run_pass(&self.opts);
+
+        for plan in recovery_plans(&self.opts) {
+            if result.word_count < plan.minimum_word_count {
+                let retry = self.run_pass(&plan.options);
+                let improved = if plan.require_double_improvement {
+                    retry.word_count > result.word_count.saturating_mul(2)
+                } else {
+                    retry.word_count > result.word_count
+                };
+                if improved {
+                    result = retry;
+                }
+            }
+        }
+
+        result = self.apply_schema_override(result);
+        result.parse_time_ms = start.elapsed().as_millis() as u64;
+        result
+    }
+
+    fn run_pass(&self, opts: &DistillerOptions) -> DistillerResponse {
+        parse_internal(
+            self.html_str,
+            self.url,
+            opts,
+            self.extractor_override.as_ref(),
+        )
+    }
+
+    fn apply_schema_override(&self, result: DistillerResponse) -> DistillerResponse {
+        if let Some(schema_text) = metadata::schema_text(result.schema_org_data.as_ref()) {
+            let schema_words = dom::count_words(&schema_text);
+            if schema_words > (result.word_count * 3) / 2 {
+                let mut schema_result = result.clone();
+                schema_result.content = schema_text;
+                schema_result.word_count = schema_words;
+                schema_result.content_markdown =
+                    Some(markdown::html_to_markdown(&schema_result.content, self.url));
+                return schema_result;
+            }
+        }
+
+        result
+    }
+}
+
 fn parse_html_with_extractor(
     html_str: &str,
     url: Option<&str>,
-    mut opts: DistillerOptions,
+    opts: DistillerOptions,
     extractor_override: Option<ExtractorResult>,
 ) -> DistillerResponse {
-    if !opts.defaults_applied {
-        opts = opts.with_defaults();
-    }
-
-    let start = Instant::now();
-    let mut result = parse_internal(html_str, url, &opts, extractor_override.as_ref());
-
-    if result.word_count < 200 {
-        let mut retry_opts = opts.clone();
-        retry_opts.remove_partial_selectors = false;
-        let retry = parse_internal(html_str, url, &retry_opts, extractor_override.as_ref());
-        if retry.word_count > result.word_count.saturating_mul(2) {
-            result = retry;
-        }
-    }
-
-    if result.word_count < 50 {
-        let mut retry_opts = opts.clone();
-        retry_opts.remove_hidden_elements = false;
-        let retry = parse_internal(html_str, url, &retry_opts, extractor_override.as_ref());
-        if retry.word_count > result.word_count.saturating_mul(2) {
-            result = retry;
-        }
-    }
-
-    if result.word_count < 50 {
-        let mut retry_opts = opts.clone();
-        retry_opts.remove_partial_selectors = false;
-        retry_opts.remove_content_patterns = false;
-        retry_opts.remove_low_scoring = false;
-        let retry = parse_internal(html_str, url, &retry_opts, extractor_override.as_ref());
-        if retry.word_count > result.word_count {
-            result = retry;
-        }
-    }
-
-    if let Some(schema_text) = metadata::schema_text(result.schema_org_data.as_ref()) {
-        let schema_words = dom::count_words(&schema_text);
-        if schema_words > (result.word_count * 3) / 2 {
-            let mut schema_result = result.clone();
-            schema_result.content = schema_text;
-            schema_result.word_count = schema_words;
-            schema_result.content_markdown =
-                Some(markdown::html_to_markdown(&schema_result.content, url));
-            result = schema_result;
-        }
-    }
-
-    result.parse_time_ms = start.elapsed().as_millis() as u64;
-    result
+    ParsePipeline::new(html_str, url, opts, extractor_override).run()
 }
 
 fn parse_internal(
@@ -343,4 +375,121 @@ where
         after_chars,
     );
     output
+}
+
+fn apply_llm_markdown_override(result: &mut DistillerResponse, title_hint: &str, markdown: &str) {
+    let markdown = markdown::ensure_title_heading(markdown, title_hint);
+    let markdown = markdown.trim().to_string();
+    if markdown.is_empty() {
+        return;
+    }
+
+    if let Some(title) = markdown::guess_title(&markdown).filter(|title| !title.trim().is_empty()) {
+        result.title = title;
+    }
+
+    result.word_count = dom::count_words(&markdown);
+    result.description = markdown_description(&markdown);
+    result.content = markdown.clone();
+    result.content_markdown = Some(markdown);
+}
+
+fn markdown_description(markdown: &str) -> String {
+    markdown
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .take(3)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn recovery_plans(opts: &DistillerOptions) -> Vec<RecoveryPlan> {
+    let mut plans = Vec::with_capacity(3);
+
+    let mut partial_selector_retry = opts.clone();
+    partial_selector_retry.remove_partial_selectors = false;
+    plans.push(RecoveryPlan {
+        minimum_word_count: 200,
+        options: partial_selector_retry,
+        require_double_improvement: true,
+    });
+
+    let mut hidden_retry = opts.clone();
+    hidden_retry.remove_hidden_elements = false;
+    plans.push(RecoveryPlan {
+        minimum_word_count: 50,
+        options: hidden_retry,
+        require_double_improvement: true,
+    });
+
+    let mut broad_retry = opts.clone();
+    broad_retry.remove_partial_selectors = false;
+    broad_retry.remove_content_patterns = false;
+    broad_retry.remove_low_scoring = false;
+    plans.push(RecoveryPlan {
+        minimum_word_count: 50,
+        options: broad_retry,
+        require_double_improvement: false,
+    });
+
+    plans
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn llm_override_updates_primary_content_fields() {
+        let mut response = DistillerResponse {
+            content: "<article><p>heuristic body</p></article>".to_string(),
+            content_markdown: Some("# Heuristic Title\n\nheuristic body".to_string()),
+            title: "Heuristic Title".to_string(),
+            description: "heuristic body".to_string(),
+            word_count: 2,
+            ..DistillerResponse::default()
+        };
+
+        apply_llm_markdown_override(
+            &mut response,
+            "LLM Title",
+            "First llm paragraph.\n\nSecond llm paragraph.",
+        );
+
+        assert_eq!(response.title, "LLM Title");
+        assert_eq!(
+            response.content,
+            "# LLM Title\n\nFirst llm paragraph.\n\nSecond llm paragraph."
+        );
+        assert_eq!(
+            response.content_markdown.as_deref(),
+            Some("# LLM Title\n\nFirst llm paragraph.\n\nSecond llm paragraph.")
+        );
+        assert!(response.word_count >= 6);
+        assert_eq!(
+            response.description,
+            "First llm paragraph. Second llm paragraph."
+        );
+    }
+
+    #[test]
+    fn recovery_plans_match_existing_relaxation_order() {
+        let plans = recovery_plans(&DistillerOptions::default());
+
+        assert_eq!(plans.len(), 3);
+        assert_eq!(plans[0].minimum_word_count, 200);
+        assert!(!plans[0].options.remove_partial_selectors);
+        assert!(plans[0].require_double_improvement);
+
+        assert_eq!(plans[1].minimum_word_count, 50);
+        assert!(!plans[1].options.remove_hidden_elements);
+        assert!(plans[1].require_double_improvement);
+
+        assert_eq!(plans[2].minimum_word_count, 50);
+        assert!(!plans[2].options.remove_partial_selectors);
+        assert!(!plans[2].options.remove_content_patterns);
+        assert!(!plans[2].options.remove_low_scoring);
+        assert!(!plans[2].require_double_improvement);
+    }
 }

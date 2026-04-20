@@ -27,7 +27,7 @@ pub async fn extract_via_llm(html: &str, source_url: &str, debug_enabled: bool) 
     }
 
     let preprocessed = preprocess_html(html);
-    let baseline_markdown = crate::markdown::html_to_markdown(html, Some(source_url));
+    let baseline_markdown = crate::markdown_ast::html_to_markdown(html, Some(source_url));
     let baseline_score = structure_noise_score(&baseline_markdown);
     observability::debug(
         debug_enabled,
@@ -37,8 +37,6 @@ pub async fn extract_via_llm(html: &str, source_url: &str, debug_enabled: bool) 
             providers.join(",")
         ),
     );
-
-    let mut best_fallback: Option<(String, i32)> = None;
 
     for provider in providers {
         let candidate = if provider.eq_ignore_ascii_case("jina") {
@@ -55,14 +53,6 @@ pub async fn extract_via_llm(html: &str, source_url: &str, debug_enabled: bool) 
 
         let candidate_score = structure_noise_score(&markdown);
 
-        // Track best candidate by noise score for fallback
-        if best_fallback
-            .as_ref()
-            .map_or(true, |(_, s)| candidate_score < *s)
-        {
-            best_fallback = Some((markdown.clone(), candidate_score));
-        }
-
         if !passes_safety_checks(&baseline_markdown, &markdown) {
             continue;
         }
@@ -75,18 +65,6 @@ pub async fn extract_via_llm(html: &str, source_url: &str, debug_enabled: bool) 
             format!("provider={provider} accepted_noise={candidate_score}"),
         );
         return Some(markdown);
-    }
-
-    // When --llm was explicitly requested, use the best candidate even if it
-    // didn't pass the quality gates rather than silently falling back to
-    // heuristic parsing.
-    if let Some((md, score)) = best_fallback {
-        observability::debug(
-            debug_enabled,
-            "pipeline.llm.provider",
-            format!("best_fallback_noise={score}"),
-        );
-        return Some(md);
     }
 
     None

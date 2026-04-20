@@ -33,33 +33,35 @@ pub struct DistillerResponse {
     pub meta_tags: Vec<MetaTag>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct DistillerOptions {
     pub debug: bool,
-    pub url: Option<String>,
     pub remove_exact_selectors: bool,
     pub remove_partial_selectors: bool,
     pub remove_hidden_elements: bool,
     pub remove_low_scoring: bool,
     pub remove_small_images: bool,
     pub remove_content_patterns: bool,
-    pub content_selector: Option<String>,
     pub language: Option<String>,
     pub proxy_url: Option<String>,
     pub mode: ParseMode,
     pub llm: bool,
-    pub defaults_applied: bool,
 }
 
-impl DistillerOptions {
-    pub fn with_defaults(mut self) -> Self {
-        self.remove_exact_selectors = true;
-        self.remove_partial_selectors = true;
-        self.remove_hidden_elements = true;
-        self.remove_low_scoring = true;
-        self.remove_small_images = true;
-        self.remove_content_patterns = true;
-        self.defaults_applied = true;
-        self
+impl Default for DistillerOptions {
+    fn default() -> Self {
+        Self {
+            debug: false,
+            remove_exact_selectors: true,
+            remove_partial_selectors: true,
+            remove_hidden_elements: true,
+            remove_low_scoring: true,
+            remove_small_images: true,
+            remove_content_patterns: true,
+            language: None,
+            proxy_url: None,
+            mode: ParseMode::Markdown,
+            llm: false,
+        }
     }
 }

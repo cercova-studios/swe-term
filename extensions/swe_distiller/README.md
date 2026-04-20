@@ -1,6 +1,6 @@
 # swe_distiller
 
-`swe_distiller` is a Rust CLI and library for extracting readable content from URLs and writing it to Markdown, HTML, or JSON.
+`swe_distiller` is a Rust CLI and library for extracting readable content from URLs and writing it to Markdown or JSON.
 
 Core CLI contract:
 
@@ -25,9 +25,6 @@ cargo run -- "https://example.com/article" -o webpage.md
 ### 3. Choose output mode
 
 ```bash
-# HTML
-cargo run -- "https://example.com/article" --mode html -o webpage.html
-
 # JSON
 cargo run -- "https://example.com/article" --mode json -o webpage.json
 ```
@@ -66,4 +63,3 @@ cargo test
 
 This project is inspired by the extraction approach and architecture patterns from [`defuddle`](https://github.com/nicholasgasior/defuddle).  
 `swe_distiller` is an independent Rust implementation with its own pipeline, CLI, and module layout.
-

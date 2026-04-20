@@ -65,8 +65,7 @@ async fn main() -> Result<()> {
         llm: args.llm,
         mode,
         ..DistillerOptions::default()
-    }
-    .with_defaults();
+    };
 
     let result = swe_distiller::extract_url(&args.url, opts).await?;
 
