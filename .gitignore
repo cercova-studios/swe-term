@@ -32,3 +32,5 @@ extensions/swe_distiller/webpage.md
 extensions/swe_distiller/webpage-llm.md
 extensions/swe_distiller/target/
 
+.gemini/
+setup_agents.sh

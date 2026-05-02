@@ -217,6 +217,7 @@ TOOL BOUNDARIES (CRITICAL)
 <Text Streams>
 Logs, CSV, configs, plaintext:
 - For any file search or grep in the current git indexed directory use fff tools
+- grep / rg
 - sed
 - awk
 - jq / yq
@@ -226,6 +227,7 @@ Logs, CSV, configs, plaintext:
 Code Research, Refactors, rewrites, audits:
 - demongrep
 - osgrep
+Refactors, rewrites, audits:
 - ast-grep
 - semgrep
 - grit
