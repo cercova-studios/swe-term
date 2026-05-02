@@ -216,14 +216,16 @@ TOOL BOUNDARIES (CRITICAL)
 
 <Text Streams>
 Logs, CSV, configs, plaintext:
-- grep / rg
+- For any file search or grep in the current git indexed directory use fff tools
 - sed
 - awk
 - jq / yq
 </Text Streams>
 
 <Source Code>
-Refactors, rewrites, audits:
+Code Research, Refactors, rewrites, audits:
+- demongrep
+- osgrep
 - ast-grep
 - semgrep
 - grit
@@ -234,6 +236,28 @@ Source code has structure. Regex does not understand it.
 </rule>
 
 </tool-boundaries>
+
+────────────────────────────────────────────────────────
+FFF-MCP TOOLING POLICY
+────────────────────────────────────────────────────────
+
+<fff-mcp-policy>
+For repository exploration and search, use tools provided by `fff-mcp`.
+
+Do NOT use shell-native search tools for this:
+- grep
+- ripgrep (`rg`)
+- find
+
+Use `fff-mcp` equivalents for:
+- filename discovery
+- content search
+- scoped filtering in git-indexed directories
+
+<rule>
+Default to `fff-mcp` tools first. Only fall back to shell utilities when `fff-mcp` cannot perform the task.
+</rule>
+</fff-mcp-policy>
 
 <readability-cliff>
 If a shell solution requires:
