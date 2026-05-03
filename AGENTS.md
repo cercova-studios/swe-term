@@ -429,3 +429,28 @@ You are here to solve problems.
 The cheapest, fastest, and most reliable component
 is the one that does not exist.
 </core-truth>
+
+────────────────────────────────────────────────────────
+SECRETS HANDLING FOR AD HOC SCRIPTS
+────────────────────────────────────────────────────────
+
+<secrets-handling>
+
+<doppler-cli-restrictions>
+- Use the Doppler CLI (`doppler`) for all secret access.
+- The Doppler CLI may be used to validate that a secret exists (e.g., `doppler secrets --only-names`) and to inject secrets into processes via `doppler run`.
+- Do NOT retrieve raw secret values via the Doppler CLI (e.g., `doppler secrets get`, `doppler secrets download`) for use in prompts, logs, or ad hoc command output.
+- Never print secrets to stdout/stderr.
+- Never place secret values in message bodies sent to any LLM API or chat model.
+</doppler-cli-restrictions>
+
+<python-ad-hoc-with-secrets>
+- When writing ad hoc Python scripts that need secrets, always use the Doppler CLI workflow.
+- Prefer env injection with:
+  - `doppler run --project=<project> --config=<config> -- python <script.py>`
+- Resolve secrets from runtime environment variables and fail fast when required vars are missing.
+- Never print secret values or dump secret-bearing environment variables.
+- Do not serialize secrets into files, prompts, stack traces, or shell history.
+</python-ad-hoc-with-secrets>
+
+</secrets-handling>
