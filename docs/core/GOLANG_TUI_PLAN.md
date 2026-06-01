@@ -1,4 +1,7 @@
-# Harness: A Go Agent Framework
+# Harness: A Go Agent Framework (Detailed Reference)
+
+> This document is the long-form architecture rationale and reference.
+> Canonical architecture decisions live in `ARCHITECTURE.md`.
 
 > *Inspired by [pi-mono](https://github.com/badlogic/pi-mono). Distilled. Faster. Simpler.*
 
@@ -48,7 +51,7 @@ Analysis of Claude Code's source (~512K LoC, ~1900 files) reveals production-har
 
 ### What claw-code Proves Works (Credit: Rust port in this repo)
 
-[claw-code](../claw-code/) is a Rust reimplementation of a Claude Code–class agent (~40 tools, mock parity harness, typed policy). It is smaller and more explicit than upstream TypeScript — useful as a **second reference** beside pi-mono and Anthropic. Adopt the patterns below; do not port the full lane/team/PR orchestration surface unless Harness explicitly targets multi-lane SWE workflows.
+[claw-code](../../claw-code/) is a Rust reimplementation of a Claude Code–class agent (~40 tools, mock parity harness, typed policy). It is smaller and more explicit than upstream TypeScript — useful as a **second reference** beside pi-mono and Anthropic. Adopt the patterns below; do not port the full lane/team/PR orchestration surface unless Harness explicitly targets multi-lane SWE workflows.
 
 | Pattern | claw-code | Harness adoption |
 |---------|-----------|------------------|
@@ -71,7 +74,7 @@ Analysis of Claude Code's source (~512K LoC, ~1900 files) reveals production-har
 
 ### What Flue Proves Works (Credit: Astro harness on pi-mono)
 
-[flue](../flue/) (gitignored local copy; upstream [withastro/flue](https://github.com/withastro/flue)) is **“the agent harness framework”** built on `@earendil-works/pi-agent-core` / `pi-ai`. It is the closest product-shaped reference to what Go Harness aims to be: headless, deployable, sandbox-aware — not another LLM SDK and not a terminal IDE agent.
+[flue](../../flue/) (gitignored local copy; upstream [withastro/flue](https://github.com/withastro/flue)) is **“the agent harness framework”** built on `@earendil-works/pi-agent-core` / `pi-ai`. It is the closest product-shaped reference to what Go Harness aims to be: headless, deployable, sandbox-aware — not another LLM SDK and not a terminal IDE agent.
 
 ```text
 pi-mono     →  agent loop, tools, extensions (library)
@@ -1167,7 +1170,7 @@ The extension patterns above describe how a *human* writes a Go extension. But t
 
 ### The Capability Ladder
 
-The core insight (carried from `docs/PLAN.md`'s self-extension model and confirmed by Codex's "code mode" and Flue's skills): **don't make agents write compiled Go to extend the system.** Offer a ladder of extension surfaces, each trading friction for permanence/trust. Agents live mostly on the bottom rungs, where there is **no wiring and no rebuild** — and where mistakes are sandboxed and cheap.
+The core insight (carried from `./PLAN.md`'s self-extension model and confirmed by Codex's "code mode" and Flue's skills): **don't make agents write compiled Go to extend the system.** Offer a ladder of extension surfaces, each trading friction for permanence/trust. Agents live mostly on the bottom rungs, where there is **no wiring and no rebuild** — and where mistakes are sandboxed and cheap.
 
 | Rung | Surface | Agent authors | Persistence | Isolation | Wiring cost |
 |------|---------|---------------|-------------|-----------|-------------|
@@ -1777,7 +1780,7 @@ This project teaches through building. Each module exercises specific engineerin
 
 ## Anti-Patterns: What NOT to Do
 
-*Derived from analysis of Claude Code (~512K LoC). See `docs/CLAUDE_CODE_CRITIQUE.md` for the full evaluation.*
+*Derived from analysis of Claude Code (~512K LoC). See `../research/CLAUDE_CODE_CRITIQUE.md` for the full evaluation.*
 
 These are explicit guardrails for Harness development. Each anti-pattern was observed in a production system and represents a trap that seems reasonable at first.
 
@@ -1841,11 +1844,11 @@ Claude Code maintains a ~15K-line custom Ink fork (layout engine, reconciler, ev
 
 ### Architecture Inspiration
 - [pi-mono](https://github.com/badlogic/pi-mono) — The TypeScript agent framework this design evolves from. Extension docs: [extensions.md](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/extensions.md). Subprocess tool example: [truncated-tool.ts](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/examples/extensions/truncated-tool.ts).
-- [extensions/swe_distiller/ARCHITECTURE.md](../extensions/swe_distiller/ARCHITECTURE.md) — Native extraction service wrapped by `cli/distiller`
-- [claw-code](../claw-code/) — Rust agent port in this repo: mock parity harness, permission modes, typed events/reports, RAG sidecar, lean `claw-analog`. See `claw-code/rust/PARITY.md`, `claw-code/rust/MOCK_PARITY_HARNESS.md`, `claw-code/docs/g004-events-reports-contract.md`.
-- [flue](../flue/) — Local reference copy (gitignored) of [withastro/flue](https://github.com/withastro/flue): headless harness on pi-mono, sandbox tiers, instance/harness/session API, structured `prompt` results, `flue run` / HTTP deploy. Read `flue/README.md`, `flue/packages/runtime/src/session.ts`, `flue/packages/runtime/src/compaction.ts`, `flue/packages/runtime/src/result.ts`.
-- [Deep Agents](https://github.com/langchain-ai/deepagents) — LangChain's middleware-over-LangGraph harness; the survey's strongest *organizational* reference (composition, pluggable backends, FS-as-overflow, thin ACP/Harbor adapters). Local checkout at `../deepagents`. See `docs/DEEPAGENTS_DEEP_DIVE.md` and `docs/DEEPAGENTS_CRITIQUE.md`.
-- [Claude Code](https://github.com/anthropics/claude-code) — Anthropic's production agentic CLI. Studied for permission system, tool orchestration, compaction, and startup patterns. See `docs/CLAUDE_CODE_CRITIQUE.md` and `docs/CLAUDE_DEEP_DIVE.md`.
+- [extensions/swe_distiller/ARCHITECTURE.md](../../extensions/swe_distiller/ARCHITECTURE.md) — Native extraction service wrapped by `cli/distiller`
+- [claw-code](../../claw-code/) — Rust agent port in this repo: mock parity harness, permission modes, typed events/reports, RAG sidecar, lean `claw-analog`. See `claw-code/rust/PARITY.md`, `claw-code/rust/MOCK_PARITY_HARNESS.md`, `claw-code/docs/g004-events-reports-contract.md`.
+- [flue](../../flue/) — Local reference copy (gitignored) of [withastro/flue](https://github.com/withastro/flue): headless harness on pi-mono, sandbox tiers, instance/harness/session API, structured `prompt` results, `flue run` / HTTP deploy. Read `flue/README.md`, `flue/packages/runtime/src/session.ts`, `flue/packages/runtime/src/compaction.ts`, `flue/packages/runtime/src/result.ts`.
+- [Deep Agents](https://github.com/langchain-ai/deepagents) — LangChain's middleware-over-LangGraph harness; the survey's strongest *organizational* reference (composition, pluggable backends, FS-as-overflow, thin ACP/Harbor adapters). Local checkout at `../../deepagents`. See `../research/DEEPAGENTS_DEEP_DIVE.md` and `../research/DEEPAGENTS_CRITIQUE.md`.
+- [Claude Code](https://github.com/anthropics/claude-code) — Anthropic's production agentic CLI. Studied for permission system, tool orchestration, compaction, and startup patterns. See `../research/CLAUDE_CODE_CRITIQUE.md` and `../research/CLAUDE_DEEP_DIVE.md`.
 - [Aider](https://github.com/Aider-AI/aider) — Repository map and AST-based code analysis patterns
 - [OpenAI Codex CLI](https://github.com/openai/codex) — Agent-client protocol design
 
@@ -1858,7 +1861,7 @@ Claude Code maintains a ~15K-line custom Ink fork (layout engine, reconciler, ev
 
 ### Self-Extension & Agent Ergonomics
 - [Use boring languages with LLMs](https://jry.io/writing/use-boring-languages-with-llms/) (Jacob Young) — low-variance, strong-convention ecosystems produce reliable agent output; the external grounding for the Go bet and the capability ladder.
-- [docs/PLAN.md](./PLAN.md) — authoritative self-extension model (Starlark/Monty/Go tiers, rule of three, recursive self-build) that the Metaengineering section reconciles into this plan.
+- [docs/core/PLAN.md](./PLAN.md) — authoritative self-extension model (Starlark/Monty/Go tiers, rule of three, recursive self-build) that the Metaengineering section reconciles into this plan.
 - [go.starlark.net](https://pkg.go.dev/go.starlark.net/starlark) — embedding Starlark (Rung 2 tool defs); [Starlark spec](https://github.com/bazelbuild/starlark/blob/master/spec.md).
 - [Monty](https://github.com/pydantic/monty) — sandboxed Python subset via subprocess (Rung 1 hot-path code).
 
@@ -1886,4 +1889,4 @@ Claude Code maintains a ~15K-line custom Ink fork (layout engine, reconciler, ev
 - [Modal Sandboxes](https://modal.com/docs/guide/sandbox) — secure containers for agent code; gVisor exec, FS, snapshots, Go SDK. Backs the `Sandbox` Remote tier (`platform/modal`).
 - [turbopuffer architecture](https://turbopuffer.com/architecture) — vector + BM25 + metadata search on object storage; namespace-per-prefix. Backs the `Retriever` port (`platform/turbopuffer`).
 - [Ports & Adapters (Hexagonal Architecture)](https://alistair.cockburn.us/hexagonal-architecture/) (Cockburn) — the pattern behind `core/platform` + `platform/*`.
-- [docs/AST_SERVICE_ARCHITECTURE.md](./AST_SERVICE_ARCHITECTURE.md) — object-store-backed AST/embeddings; retrieval tier that turbopuffer can serve.
+- [docs/services/AST_SERVICE_ARCHITECTURE.md](../services/AST_SERVICE_ARCHITECTURE.md) — object-store-backed AST/embeddings; retrieval tier that turbopuffer can serve.

@@ -5,7 +5,7 @@
 > goroutine-native concurrency, content-addressable caching, single binary.
 >
 > pi-mono is not just *a* reference — it is *the* reference swe-term ports from
-> (`docs/PLAN.md`). This critique expands the PLAN's 12-row gap analysis into a
+> (`../core/PLAN.md`). This critique expands the PLAN's 12-row gap analysis into a
 > Harness-aligned assessment: what to keep, what to fix, what to discard.
 
 ---

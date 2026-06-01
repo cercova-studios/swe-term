@@ -342,7 +342,7 @@ explicit thing swe-term decomposes.
 
 ## Why swe-term Ports It
 
-`docs/PLAN.md` states the thesis directly: *"Porting the architecture of pi-mono — without its
+`../core/PLAN.md` states the thesis directly: *"Porting the architecture of pi-mono — without its
 gaps."* pi-mono is chosen as the reference because its **layering is right** (provider / agent /
 coding / UI) and its **scope is sane** (a hackable agent, not a 512K-LoC product). swe-term keeps
 the layering and the loop, and fixes the twelve enumerated gaps — chiefly: decompose the
@@ -350,7 +350,7 @@ the layering and the loop, and fixes the twelve enumerated gaps — chiefly: dec
 replace URL-substring provider detection with a clean `Provider` interface, replace JSONL
 tree-walking with SQLite, and replace `chars/4` estimation with a real tokenizer.
 
-See `docs/PLAN.md` → "pi-mono Gap Analysis" for the full 12-row table; the critique companion to
+See `../core/PLAN.md` → "pi-mono Gap Analysis" for the full 12-row table; the critique companion to
 this document (`PI_MONO_CRITIQUE.md`) expands each gap against the Harness philosophy.
 
 ---
@@ -381,5 +381,5 @@ this document (`PI_MONO_CRITIQUE.md`) expands each gap against the Harness philo
 ---
 
 *Validated against the local pi-mono source checkout at `/home/rohit/sandbox/pi-mono` (`0.65.2`)
-plus the swe-term gap analysis in `docs/PLAN.md`. File-level line counts are taken from that
+plus the swe-term gap analysis in `../core/PLAN.md`. File-level line counts are taken from that
 checkout.*
