@@ -1,0 +1,174 @@
+docs/core/GOLANG_TUI_PLAN.md
+  s_9210175be5baa4::t_3d89c8b277c6fa 54,77,1847-1849
+  s_2bb9f03abdc057::t_b0ccc7f33c507b 1850
+  s_8ed7eac1d5aaff::t_f538824bdeff70 1851
+  s_09aef9f09d843d::t_018056a9057caf 1864
+  s_20658d7bee1978::t_6b9cc9b807880e 1892
+  s_7f79c92a8f26a4::t_a91ace6ac2c08a 1173
+  s_abdbda15fb78a7::t_e216bd6d6312f1 1783
+docs/services/README.md
+  s_bd234dfba7056d::t_6068c881e265fd 1-6
+  s_7109a6e0b55d54::t_1e9056f7fccf5b 7
+docs/core/README.md
+  s_25fb02125c5657::t_7da344b45d0ff3 7-11
+  s_bd234dfba7056d::t_6329710820bfa1 1-6
+docs/README.md
+  s_bd234dfba7056d::t_86ed040e5277ff 5-6,10,41-43
+  s_b76b371a7f4ce2::t_c32e8b3d91c1c7 7-9,13-18,22,24-28,30,34-40,44-46
+  s_bd234dfba7056d::t_102c8a4103f96b 1-4,11-12,19-21,23,29,31-33
+docs/core/PLAN.md
+  s_78ecdb64545a0c::t_50d3e57f9d8508 111
+docs/core/BACKLOG.md
+  ai_agent 1-20
+docs/core/ARCHITECTURE.md
+  ai_agent 1-110
+docs/core/FRAMEWORKS.md
+  s_74b4d71b75f31c::t_e915fe1f358773 28-33
+docs/research/README.md
+  s_bd234dfba7056d::t_8c1d59b31e2e60 1-6,17
+  s_114b84dfffa457::t_420991bf79fb9e 7-16,18
+AGENTS.md
+  s_13c13eea608371::t_e237c01f5a3888 468
+docs/TODO.md
+  s_bd234dfba7056d::t_a0bc20a7d76091 1-46
+docs/research/PI_MONO_CRITIQUE.md
+  s_074c50ea3c2a49::t_5f258213f7d95d 8
+docs/research/PI_MONO_DEEP_DIVE.md
+  s_074c50ea3c2a49::t_5f258213f7d95d 345,353,384
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4ea20d7f071357fd09b1541ffe931dd3635192ea",
+  "prompts": {},
+  "sessions": {
+    "s_074c50ea3c2a49": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcSU9a5cuxc3Vg8CILt",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_09aef9f09d843d": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcSDqK5Rx8lA9LjtZNP",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_114b84dfffa457": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcTEiwZWFVPMKZ6u7F9",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_13c13eea608371": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcSbND4R8N8gI7qWYy9",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_20658d7bee1978": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcSMD0wjEn0gZFSswoC",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_25fb02125c5657": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcT7ilb0KO33maHNhO2",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_2bb9f03abdc057": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcR8vxasRApHES9egNW",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_7109a6e0b55d54": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcTPQmcBIoShIGTIaDs",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_74b4d71b75f31c": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcQhYLS0XWXNhRFcOiI",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_78ecdb64545a0c": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcQYw9S7HQP2uqzoVQz",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_7f79c92a8f26a4": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcQv3VIi5M3sWSJzpmu",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_8ed7eac1d5aaff": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcRFpPZ7ruwcgLK5xuw",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_9210175be5baa4": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcS3b2xwUNs1dZ1Mrlh",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_abdbda15fb78a7": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcR2Ce8xLCcComkV5g7",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_b76b371a7f4ce2": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcSkaFSwnKiLNrPDoVo",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_bd234dfba7056d": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "a64516f7-0e6c-4d4b-976f-d4a29ea1a27e",
+        "model": "default"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
