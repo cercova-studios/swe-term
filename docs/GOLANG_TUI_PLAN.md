@@ -100,6 +100,24 @@ Harness     →  Go core + Bubble Tea + extensions/* (planned)
 
 **Explicitly defer from Flue** (different language/runtime goals): depending on pi-agent-core at runtime, Cloudflare Durable Objects / wrangler build pipeline, Astro-style multi-target bundler, connector marketplace hosted at flueframework.com — adopt **patterns**, not the TS stack.
 
+### What Deep Agents Proves Works (Credit: LangChain harness on LangGraph)
+
+[Deep Agents](https://github.com/langchain-ai/deepagents) is LangChain's "harness as composition": it writes **no agent loop**, assembling ~11 `AgentMiddleware` over `create_agent`/LangGraph. It's the opposite of Harness at the *substrate* level (three-framework Python stack, no single binary, asyncio not goroutines, LangSmith-coupled), but the **best organizational reference** in the survey — and its ACP and Harbor adapters are the patterns to copy for protocol + evals. Adopt the *organization*; do not inherit the stack.
+
+| Pattern | Deep Agents | Harness adoption |
+|---------|-------------|------------------|
+| **Harness = composition, not a forked loop** | ~11 middleware (todos, FS, subagents, summarize, skills, HITL) handed to a generic loop | Validates our model: capabilities are ordered `Hook`/`Analyzer`/`Tool` interfaces; add a capability ≠ fork the loop |
+| **One backend protocol, many impls** | `BackendProtocol` (state/disk/store/composite/remote); agent sees only tools | `Sandbox`/`Filesystem` interface; add **path-routed composite** (`/memories/` → store, rest → sandbox) |
+| **Filesystem as context-overflow substrate** | Summaries → `/conversation_history/{thread}.md`; tool results >20K tok → `/large_tool_results/<id>`, leave a handle | Offload to the **content-addressable cache**, pass a `sha256` handle not bytes — cheaper *and* more debuggable than in-memory truncation |
+| **Any compiled agent is a valid sub-agent** | `CompiledSubAgent` — delegation and composition share one seam | `SubAgent` interface accepts any `Harness` instance; `SpawnChild` already isolates context |
+| **Two-tier eval scoring** | `.success()` hard-fails correctness; `.expect()` logs efficiency, never fails CI | Steal verbatim: correctness gates merges, trajectory efficiency is observed not gated |
+| **ACP / Harbor as thin external adapters** | `AgentServerACP(acp.Agent)`; `DeepAgentsWrapper(BaseAgent)` + `HarborSandbox` — protocol/eval frameworks stay *out* of core | `frontend/acp` and `eval/harbor` adapters implement the *other* system's interface; core stays clean |
+| **Model switch keeps session state** | `set_config_option` rebuilds the graph, reuses checkpointer + `thread_id` | Rebuild provider/config, keep `SessionStore` + thread — swap model mid-conversation |
+| **ACP completeness gap (anti-lesson)** | Brings its *own* backend; skips client `fs/*`+`terminal/*`, full tool-status, reasoning stream, `session/load` | Do the half they skipped (below) — under ACP the **editor is the environment** |
+| **"Trust the LLM" security (anti-lesson)** | Default `LocalShellBackend` runs on host with no isolation | Confirms our stance: layered `Approver` in core, on by default, *before* any sandbox |
+
+**Explicitly defer from Deep Agents:** the three-framework dependency stack (LangGraph→create_agent→deepagents), asyncio/GIL concurrency, LangSmith-required observability and evals, Python-env deployment.
+
 ### Where Harness Improves
 
 1. **No GC pressure** — Go's GC is simpler than V8's; goroutines are lighter than Promises
@@ -210,6 +228,8 @@ This means:
 - Integrate an AST analyzer as a specialized tool
 - Wrap a Rust/Python service (like `swe_distiller`) with a thin Go `Tool` adapter — same role pi-mono extensions play for `rg` or custom CLIs, without dynamic `import()`
 - Expose hosted agents via `POST /agents/{name}/{instanceID}` with stable instance scope (Flue) while keeping the interactive path on Bubble Tea
+- Back each infrastructure concern (compute, retrieval, blobs, KV) with the *best* provider behind a narrow port — Modal for sandboxes, turbopuffer for retrieval, S3/GCS/R2 for blobs — none of them load-bearing, each swappable for a self-host adapter
+- Let **agents extend the framework** without writing Go — author a Markdown skill, a sandboxed Monty program, or a Starlark tool def at runtime; promote to a compiled `Tool` only when proven (see *Metaengineering: A Framework Agents Can Extend*)
 
 ---
 
@@ -360,6 +380,14 @@ harness/
 │   │   ├── sandbox.go               # Sandbox interface (virtual / local / remote)
 │   │   ├── virtual.go               # Restricted in-process exec (Flue just-bash analogue)
 │   │   └── local.go                 # Host FS + shell, env allowlist (Flue local())
+│   ├── platform/
+│   │   ├── platform.go              # Narrow ports: BlobStore, KVStore, Secrets, Queue, Lock
+│   │   ├── runtime.go               # Runtime capability descriptor (FS? subprocess? ephemeral GB?)
+│   │   └── retrieve.go              # Retriever port (vector + BM25 + metadata filter)
+│   ├── archive/
+│   │   ├── catalog.go               # ArchiveCatalog — list entries w/o full extraction
+│   │   ├── reader.go                # ArchiveReader — JIT stream a single path from zip/tar.gz
+│   │   └── search.go                # ArchiveSearch — grep over streamed entries (archaeology)
 │   ├── bus/
 │   │   ├── bus.go                   # Typed event bus (channels, fan-out)
 │   │   ├── events.go                # All event types (agent, turn, message, tool)
@@ -392,7 +420,20 @@ harness/
 │   │   └── ollama.go                # implements harness.Provider
 │   └── registry.go                  # ModelRegistry (like pi-mono's ModelRegistry)
 │
-├── tools/                           # Built-in tool extensions
+├── selfext/                         # Self-extension tiers — the agent-facing extension surface
+│   ├── go.mod                       # module github.com/user/harness/selfext
+│   ├── skills/
+│   │   └── loader.go                # Rung 0: Markdown sub-programs, read at call time (Flue-style)
+│   ├── starlark/
+│   │   ├── loader.go                # Rung 2: load .star tool defs, dynamic register
+│   │   ├── runtime.go               # Sandboxed Starlark execution environment
+│   │   └── bridge.go                # Expose curated Go fns to Starlark (file I/O, HTTP)
+│   └── monty/
+│       ├── executor.go              # Rung 1: spawn monty-cli, run throwaway Python
+│       ├── bridge.go                # External functions the Python code may call
+│       └── sandbox.go               # Resource limits, timeout, isolation
+│
+├── tools/                           # Built-in tool extensions (Rung 3: compiled Go)
 │   ├── go.mod                       # module github.com/user/harness/tools
 │   ├── filesystem/
 │   │   └── fs.go                    # Read, write, list, search — implements Tool
@@ -403,6 +444,8 @@ harness/
 │   │                                # bashSecurity.ts, sedValidation.ts, pathValidation.ts)
 │   ├── browser/
 │   │   └── browse.go                # Web fetch, screenshot — implements Tool
+│   ├── skill/
+│   │   └── skill.go                 # Tool that invokes a selfext/skills Markdown sub-program
 │   └── approval/                    # Approver implementations
 │       ├── rules.go                 # Glob-based allow/deny rules — implements Approver
 │       ├── auto.go                  # Auto-classify command safety — implements Approver
@@ -424,6 +467,23 @@ harness/
 │   │   └── render.go                # Glamour-based markdown rendering
 │   └── streaming/
 │       └── stream.go                # Real-time token streaming display
+│
+├── acp/                             # Agent Client Protocol frontend (Zed, editors)
+│   ├── go.mod                       # module github.com/user/harness/acp
+│   ├── server.go                    # Implements Frontend; acp.Agent over JSON-RPC/stdio
+│   ├── translate.go                 # Stream events ↔ session/update; full tool-status lifecycle
+│   ├── permission.go                # HITL interrupt → session/request_permission
+│   ├── bridge.go                    # Client fs/* + terminal/* → Sandbox (editor IS the environment)
+│   └── session.go                   # session/new|load|fork|resume via core SessionStore
+│
+├── eval/                            # Eval adapters (frameworks stay OUT of core)
+│   ├── go.mod                       # module github.com/user/harness/eval
+│   ├── scorer.go                    # Two-tier: Success() gates, Expect() logs (Deep Agents)
+│   ├── parity/                      # Deterministic mock-parity scenarios (claw-code) — gates CI
+│   └── harbor/
+│       ├── agent.go                 # Wraps Harness as Harbor BaseAgent-equivalent
+│       ├── sandbox.go               # HarborSandbox: exec for read/grep; upload/download for write
+│       └── trajectory.go            # ATIF trajectory.json; Harbor verifier produces reward
 │
 ├── cli/                             # Agent-facing adapters (implement Tool)
 │   ├── go.mod                       # module github.com/user/harness/cli
@@ -458,6 +518,21 @@ harness/
 │       ├── dependency.go            # Dependency graph builder
 │       ├── ranking.go               # PageRank, betweenness centrality
 │       └── repomap.go               # Repository map generation (aider-style)
+│
+├── platform/                        # Cloud backend adapters (implement core/platform ports)
+│   ├── go.mod                       # module github.com/user/harness/platform
+│   ├── local/
+│   │   └── local.go                 # Filesystem blobs, BoltDB KV — dev + self-host
+│   ├── gcp/
+│   │   └── gcp.go                   # GCS BlobStore, Firestore KV, Secret Manager
+│   ├── aws/
+│   │   └── aws.go                   # S3 BlobStore, DynamoDB KV, Secrets Manager, SQS
+│   ├── cf/
+│   │   └── cf.go                    # R2 BlobStore, KV/DO — NO local FS / subprocess tier
+│   ├── modal/
+│   │   └── modal.go                 # Remote Sandbox via modal.Sandbox (exec/fs/snapshot)
+│   └── turbopuffer/
+│       └── turbopuffer.go           # Retriever: namespace-per-repo, vector + BM25 + filters
 │
 ├── cmd/                             # Binaries
 │   ├── harness/                     # Interactive agent CLI (Bubble Tea)
@@ -743,7 +818,8 @@ Compactor implementations (all in extensions, not core):
 - **SummaryCompactor**: LLM-generated summary of old messages (like Claude Code's autoCompact)
 - **SlidingWindowCompactor**: drop oldest messages beyond a window
 - **MemoryExtractCompactor**: extract key learnings before compacting (from Claude Code's sessionMemoryCompact — this is the most valuable strategy)
-- **ChainCompactor**: extract memories THEN summarize THEN truncate
+- **OffloadCompactor**: spill summarized history and oversized tool results to the **content-addressable cache / filesystem**, leaving a `sha256` handle in the transcript (Deep Agents' `/conversation_history/` + `/large_tool_results/` pattern). A single huge grep/read result is stored once and referenced, not re-sent — cheaper and more debuggable than in-memory truncation. This is where Harness's content-addressable cache pays off that other harnesses lack.
+- **ChainCompactor**: extract memories THEN offload large artifacts THEN summarize THEN truncate
 
 ### 7. Multi-Agent Spawning
 
@@ -1072,6 +1148,77 @@ func (h *DistillerPolicyHook) OnToolCall(ctx context.Context, e *core.ToolCallEv
 
 ---
 
+## Metaengineering: A Framework Agents Can Extend
+
+The extension patterns above describe how a *human* writes a Go extension. But the primary extenders of Harness are **AI agents** (and the OSS community working through agents). The framework's structure must therefore align with how agents *succeed* and *fail* — so that a strong, stable Go core can be extended by the community without anyone (human or model) holding the whole framework in their head, and without the maintainers patching every time a frontier lab ships a new agentic tool.
+
+> **Meta-principle:** *A correct extension is the path of least resistance; an incorrect one fails loudly, locally, and early — before the agent has burned context or done damage.*
+
+### Agent strengths/weaknesses → design implications
+
+| Agent is **good** at | Agent is **bad** at | Framework therefore… |
+|---|---|---|
+| Imitating a clear example | Inventing structure from scratch | Ships a golden-path template per extension point |
+| Local, bounded reasoning | Holding a 500K-LoC mental model | Keeps extensions single-file, single-directory, zero-core-edit |
+| Following explicit schemas/types | Tracking implicit global invariants | Encodes invariants in types + a validator, not docs/convention |
+| Iterating against feedback | Knowing when it's wrong | Offers a fast, deterministic, offline loop (mock provider + parity test) |
+| Generating code in known languages | Novel framework-specific glue | Lets agents author in **Python/Starlark/Markdown they already know** |
+| Reading error text and acting | Spooky action at a distance | Teaching errors; unidirectional deps enforced by the compiler |
+
+### The Capability Ladder
+
+The core insight (carried from `docs/PLAN.md`'s self-extension model and confirmed by Codex's "code mode" and Flue's skills): **don't make agents write compiled Go to extend the system.** Offer a ladder of extension surfaces, each trading friction for permanence/trust. Agents live mostly on the bottom rungs, where there is **no wiring and no rebuild** — and where mistakes are sandboxed and cheap.
+
+| Rung | Surface | Agent authors | Persistence | Isolation | Wiring cost |
+|------|---------|---------------|-------------|-----------|-------------|
+| **0** | **Skill** (Markdown sub-program, Flue-style) | natural language | file, read at call time | n/a (prompt-level) | none |
+| **1** | **Monty** (Python subset, `monty-cli` subprocess) | throwaway code | discarded after run | **sandboxed subprocess** | none |
+| **2** | **Starlark** tool definition (`go.starlark.net`) | a tool def | session/runtime | **sandboxed interpreter** | dynamic register |
+| **3** | **Go `Tool`/`Hook`** (compiled) | Go (agent or human) | permanent | in-process (compiled) | **explicit (`main.go`)** |
+
+```
+Hot path:   need capability NOW    → write Python  → Monty executes → throwaway
+Warm path:  reusable tool          → write Starlark→ dynamic register, no rebuild
+Cold path:  recurring / proven     → write Go tool → go build (~3s) → restart → permanent
+Rule of three: 1st ad-hoc (Monty) → 2nd notice → 3rd promote to Go.
+```
+
+This is also why Go was chosen: it is *simple enough for an LLM to self-modify*, so the cold-path promotion (and the Phase 7 recursive self-build — agent writes Go, `go build`, exec the new binary) is realistic rather than aspirational.
+
+### Three properties that make agent authorship safe
+
+1. **Sandboxed-by-default authoring.** Monty runs in a resource-limited subprocess; Starlark runs in a restricted interpreter with only the bridges we expose. An agent-written extension on rungs 0–2 *cannot* escape its tier, so agents can experiment freely — the blast radius is contained by construction. This is the single biggest enabler of agent self-extension.
+2. **Host-side execution, schema-only to the agent** (Flue). A `Tool`'s *implementation* reads secrets from env/config host-side; the agent only ever sees the tool's JSON Schema. Agents author and invoke behavior without ever touching credentials — secrets never enter args, prompts, or filesystem context.
+3. **Rule-of-three promotion as a workflow.** Agents iterate cheaply at the bottom; only proven, recurring capabilities graduate to typed, reviewed Go. This plays to agent strengths (fast, disposable iteration) and human strengths (reviewing the small permanent surface). Codex's code-mode corollary: let agents **batch many tool calls in one Monty/Starlark program** instead of one-call-per-round-trip.
+
+### Why explicit wiring (not codegen) for the cold path — for now
+
+The `Approver`-in-core boundary, immutable state, and compiler-enforced unidirectional module deps already make Go extensions safe to *write*. The only friction left is *connecting* a compiled tool to the binary. Three options exist — explicit `main.go` wiring, `go:generate` codegen, and `init()` self-registration — but the **rule of three makes cold-path promotion deliberately rare and review-worthy**, so we choose the simplest:
+
+- **v1: explicit wiring in `main.go`** (the one obvious, fully compile-checked, 3am-debuggable place). For a rare, intentional, reviewed commitment, "visible in one file" is a feature, not a tax.
+- **Defer codegen** (`go:generate` scanning a manifest) until the number of compiled extensions makes `main.go` churn a *measured* pain. Static Go has no autoloading, so codegen — not `init()`+blank-import (a runtime registry with silent-failure modes) — would be the eventual answer. But building that subsystem now is the "leave the mass / measure before heroics" anti-pattern every reference critique warns against.
+
+A `harness new tool|skill|starlark <name>` scaffold and a `harness doctor` validator (deterministic pass/fail beyond compilation: naming, schema validity, banned imports, contract-test presence) give agents crisp feedback across *all* rungs — that, not codegen, is where the leverage is.
+
+### The framework is itself a corpus
+
+Jacob Young's *Use boring languages with LLMs* argues that agents produce reliable output in **low-variance, strong-convention** ecosystems (one Rails) and unreliable output in fragmented ones (a dozen JS frameworks). The non-obvious corollary: **Harness's own API surface is a mini-corpus the agent pattern-matches against.** If there are three ways to write a `Tool`, a god-context, or feature-flags-as-architecture, we recreate the JS-fragmentation problem *inside our own framework* — every extra degree of freedom is variance the model must gamble on.
+
+So the goal is *"there is essentially one Rails"* applied to ourselves: **there is essentially one way to write a Harness `Tool`.** This is *why* the Anti-Patterns section is load-bearing for agent extensibility, not just for human maintainers — singularity of the extension surface is a feature the model consumes. It also corroborates the wiring choice: explicit `core.WithTools(...)` is plain, in-corpus Go any agent recognizes; a bespoke `// +harness:tool` codegen DSL is novel and out-of-corpus.
+
+### One-right-way tooling is the agent's feedback substrate
+
+The same essay is emphatic that one-right-way *runtime tooling* is the best half of the combo — it enforces conventions *without prompting the agent into compliance*. Harness makes the standard Go trinity a **first-class, documented part of the extension loop**, not an afterthought:
+
+- **`gopls`** — real-time semantic feedback while the agent edits (types, references, undefined symbols).
+- **`go vet`** — catches the bounded footgun set (shadowed `err`, unused `Errorf`, lock copies).
+- **`golangci-lint`** — statically enforces house style and banned primitives via committed config, so review comments become compile-time failures.
+- **`harness doctor`** + the **mock-parity harness** (claw-code) — framework-specific contracts and offline, network-free behavioral checks.
+
+This is the deterministic, teaching feedback agents iterate against. Pair it with Go's GC (agents fight Rust's borrow checker; Rust stays confined to the TUI renderer + tokenizer) and the result is the essay's exact prescription: a boring, consistent substrate where the *median* agent output is already correct.
+
+---
+
 ## Wiring: The Main Binary
 
 The power of the harness pattern: everything is composed at the top level.
@@ -1138,6 +1285,128 @@ h := core.New(
     core.WithTools(filesystem.NewReadFile()),
     core.WithFrontend(rpc.NewGRPCServer(":50051")),
 )
+```
+
+---
+
+## Cloud Portability & Composable Backends
+
+Harness runs three ways: a local single binary (default), a hosted server, and an unbundled cloud deployment where each infrastructure concern is backed by a best-of-breed provider. The interactive path never needs any of this — these ports only exist so the *deployed* harness isn't married to one cloud.
+
+### Two workloads, two homes
+
+The single biggest deployment mistake is treating "run it in the cloud" as one thing. Harness has two workloads with opposite shapes:
+
+| Workload | Shape | Wants |
+|----------|-------|-------|
+| **Orchestrator** (`harness-server`, agent loop, sessions, run registry) | long-lived, light CPU, stateful | live near your DB/secrets; steady-state economics |
+| **Sandbox / archaeology** (clone, extract, `rg`/`bsdtar`/`swe_distiller`, agent-authored code) | ephemeral, per-repo, untrusted, bursty | FS + arbitrary subprocess; per-job isolation; scale-to-zero |
+
+Cloudflare Workers can host the orchestrator but **cannot** be the sandbox (no FS, no subprocess). That asymmetry is the whole argument for keeping the sandbox tier behind a swappable port.
+
+### Capability ports (decouple from any one cloud)
+
+Everything cloud-specific hides behind narrow, behavior-first interfaces in `core/platform`. The core depends on these, never on a vendor SDK:
+
+```go
+package platform
+
+// BlobStore — object storage (S3 / GCS / R2 / local FS).
+type BlobStore interface {
+    Get(ctx context.Context, key string) (io.ReadCloser, error)
+    Put(ctx context.Context, key string, r io.Reader) error
+    List(ctx context.Context, prefix string) ([]string, error)
+}
+
+// KVStore — small mutable state (DynamoDB / Firestore / CF KV / BoltDB).
+type KVStore interface {
+    Get(ctx context.Context, key string) ([]byte, bool, error)
+    Put(ctx context.Context, key string, val []byte) error
+    Delete(ctx context.Context, key string) error
+}
+
+// Secrets, Queue, Lock follow the same shape — minimal verbs, no vendor types.
+
+// Retriever — vector + BM25 + metadata filter (turbopuffer / pgvector / OpenSearch).
+// ns maps to one repo/instance (turbopuffer namespace-per-prefix).
+type Retriever interface {
+    Upsert(ctx context.Context, ns string, docs []Doc) error   // batch — respect WAL cadence
+    Query(ctx context.Context, ns string, q Query) ([]Hit, error)
+    Warm(ctx context.Context, ns string) error                 // pre-flight cache hint
+}
+```
+
+A `Runtime` capability descriptor lets the core adapt to environments that lack a filesystem or subprocess execution (Cloudflare) instead of crashing:
+
+```go
+type Runtime struct {
+    LocalFS       bool   // can we write to a real disk?
+    Subprocess    bool   // can we exec rg / bsdtar / swe_distiller?
+    EphemeralGB   int    // scratch budget for hydration
+    Region        string
+}
+```
+
+When `Subprocess` is false, archaeology tools degrade to the `Remote` sandbox tier (Modal/Fargate) instead of running in-process.
+
+### Ports × tiers: pick a backend per concern
+
+The payoff of narrow ports: each one is backed by the *best* provider, none load-bearing, every one with a self-host fallback.
+
+| Port | Self-host | Cloud-native | Bespoke best-of-breed |
+|------|-----------|--------------|----------------------|
+| `Sandbox` (compute) | local subprocess | Fargate / Cloud Run Jobs | **Modal**, Daytona, E2B |
+| `Retriever` (index) | pgvector, Qdrant | OpenSearch, Vertex | **turbopuffer** |
+| `BlobStore` | MinIO / local FS | S3 / GCS / R2 | — (commodity) |
+| `KVStore` | BoltDB | DynamoDB / Firestore / CF KV | — (commodity) |
+| `Provider` (LLM) | Ollama | Bedrock / Vertex | OpenAI / Anthropic |
+
+### Sandbox compute tier (Modal vs cloud-native)
+
+`modal.Sandbox` is purpose-built for "execute agent code": gVisor isolation, `sb.Exec([...])` runs **any** binary (so `swe_distiller`, `rg`, `bsdtar` work unchanged), volumes, FS snapshots, web tunnels, idle-timeout + scale-to-zero, and a **Go SDK** (`mc.Sandboxes.Create`, `sb.Exec`) that maps onto our `Sandbox` interface 1:1. It's the same role Flue gives Daytona — a *remote sandbox connector*, not foundational.
+
+```go
+// platform/modal — Remote tier of core/sandbox.Sandbox
+func (m *ModalSandbox) Exec(ctx context.Context, argv []string, o ExecOpts) (ExecResult, error) {
+    p, err := m.sb.Exec(ctx, argv, &modal.SandboxExecParams{Timeout: o.Timeout})
+    // stream stdout/stderr, map exit code → ExecResult
+}
+```
+
+- **Reach for Modal** when code is untrusted/agent-generated, load is bursty, ops budget is thin, or GPU is occasionally needed.
+- **Reach for Fargate / Cloud Run Jobs** when data-residency, VPC-private DBs, or high *sustained* throughput (reserved capacity) dominate.
+
+### Retrieval tier (turbopuffer)
+
+turbopuffer is the natural backend for the RAG sidecar (the `claw-code` lesson) and `AST_SERVICE_ARCHITECTURE.md`'s embeddings layer: Rust query nodes over object storage, **namespace-per-prefix** (≈ per-repo index), cheap scale-to-zero storage, hybrid **BM25 + ANN + metadata filter** in one query (ideal for code: exact symbols *and* semantics), cold ~500ms / warm p50 ~14ms with a warm-up hint, strong consistency by default.
+
+- **Index in batch** — one WAL entry/sec/namespace, batched. Bulk-index a repo; never per-keystroke.
+- **Data gravity** — embeddings live in turbopuffer's layout; migration = re-embed + re-upsert. BYOC exists for residency.
+
+### Archive archaeology (search without extraction)
+
+For code archaeology over large repos/archives, prefer **one-time hydration** to local ephemeral storage over live object-store mounts (`gcsfuse` is convenient but each `stat`/`open` is a network round-trip). When full extraction is wasteful, the `core/archive` ports JIT-stream individual paths:
+
+- **`ArchiveCatalog`** lists entries from the central directory (ZIP) or index without inflating the body — cheap `git ls-tree`-style traversal.
+- **`ArchiveReader`** streams exactly one path on demand (range-read the blob, inflate only that member).
+- **`ArchiveSearch`** wraps the catalog + reader to grep across entries lazily — the archaeology equivalent of `unzip -p file.zip path | rg pattern` without ever expanding the archive to disk.
+
+Shallow clone vs archive is an agent-need decision: shallow `git clone --depth=1` when history/blame matters; a `.tar.gz`/`.zip` + catalog when the agent only reads current state (smaller, no `.git`, streamable from `BlobStore`).
+
+### Decision rule & the real risk
+
+Buy a bespoke managed primitive when **all** hold: (1) the capability is genuinely hard (secure sandboxes, object-store vector search), (2) it sits behind a narrow port, (3) its data gravity is acceptable or BYOC exists, (4) the alternative is operating stateful infra at 3am. Otherwise use cloud-native or self-host.
+
+The risk being managed is **not** "bespoke vs big cloud" — it's **vendor sprawl**: N providers = N auth surfaces, DPAs, and failure domains. Bound it by buying bespoke only for hard capabilities and always shipping a self-host/cloud-native adapter behind the same port, so any provider is replaceable in an afternoon.
+
+```text
+Composable backend map → Harness ports
+
+  Modal sandbox        →  platform/modal        (core/sandbox Remote tier)
+  turbopuffer          →  platform/turbopuffer  (core/platform Retriever)
+  S3 / GCS / R2        →  platform/{aws,gcp,cf}  (core/platform BlobStore)
+  Cloudflare (no FS)   →  Runtime{Subprocess:false} → degrade to Remote sandbox
+  zip/tar.gz on blobs  →  core/archive (catalog → reader → search, JIT stream)
 ```
 
 ---
@@ -1209,8 +1478,10 @@ Build the Bubble Tea frontend. This is purely a rendering concern — no agent l
 | `tui/components/` | Chat, input, status, tool views | Component composition, lipgloss styling |
 | `tui/markdown/` | Glamour markdown rendering | Terminal rendering, ANSI codes |
 | `tui/streaming/` | Real-time token display | Buffering, render throttling |
+| `acp/server.go` | ACP `Frontend` (Zed/editors) over JSON-RPC/stdio | Protocol-as-frontend seam; thin adapter implementing `acp.Agent` |
+| `acp/bridge.go` | Route file/shell ops through client `fs/*`+`terminal/*` | "Editor is the environment" — the half Deep Agents skipped |
 
-**Deliverable:** Full interactive TUI that renders agent state from immutable snapshots.
+**Deliverable:** Full interactive TUI that renders agent state from immutable snapshots. The same `Frontend` interface also drives an ACP server: file/terminal ops bridge to the editor's capabilities, tool status reports the full `pending→in_progress→completed/failed` lifecycle, and `session/load`/fork/resume ride on the core `SessionStore`.
 
 ### Phase 5: CLI Plugins + Analyzers (Weeks 7–9)
 
@@ -1220,6 +1491,7 @@ The extensions that make this an **agent harness**, not just an agent.
 |--------|------|-------|
 | `cli/runner` | Shared subprocess + truncation for native CLIs | `process.Runner`, argv-only spawn, output limits |
 | `cli/distiller` | Go `Tool` adapter for `extensions/swe_distiller` | Polyglot extension pattern (pi `registerTool` → compile-time `Tool`) |
+| `core/archive` | Catalog/reader/search over zip+tar.gz w/o extraction | JIT streaming, central-directory parsing, lazy grep |
 | `cli/xsearch` | X API search as a tool | OAuth, API clients, pagination |
 | `cli/webmd` | Optional pure-Go fallback if distiller binary absent | When not to subprocess |
 | `cli/pdfparse` | PDF→text extraction | Binary formats, streaming parsers |
@@ -1237,12 +1509,38 @@ The extensions that make this an **agent harness**, not just an agent.
 |---------|------|-------|
 | Observability | Structured logging (`slog`), OpenTelemetry traces | `log/slog`, trace propagation |
 | Persistence | Session save/restore, SQLite history | Atomic writes, migrations; instance-scoped keys (Flue) |
+| Platform ports | `BlobStore`/`KVStore`/`Secrets` + `Runtime` capability descriptor | Ports-and-adapters, capability negotiation, cloud-neutral core |
+| Compute tier | `platform/modal` Remote sandbox; `platform/{aws,gcp,cf}` blobs/KV | Vendor SDK isolation, scale-to-zero, gVisor exec |
+| Retrieval tier | `platform/turbopuffer` RAG sidecar (namespace-per-repo) | Hybrid BM25+ANN, batch upsert, warm-up hints |
 | HTTP agents | `harness-server`: `/agents/{name}/{instanceID}`, run registry | REST design, idempotent instance routing |
 | Structured API results | `finish`/`give_up` on webhook agents | JSON Schema validation, CI-friendly responses |
+| Context offload | `OffloadCompactor`: spill large results/history to content-addressable cache, pass `sha256` handle | Deep Agents' FS-as-overflow on our cache substrate |
+| Eval scoring | `eval/scorer`: two-tier `Success()` (gates) / `Expect()` (logs) | Deep Agents two-tier scoring; correctness gates, efficiency observed |
+| Harbor evals | `eval/harbor`: BaseAgent wrapper + `HarborSandbox`; Terminal-Bench 2.0 | Agent-on-orchestrator/IO-in-container; ATIF trajectory; Harbor verifies |
 | Configuration | TOML/YAML config, env vars, flags | `flag`, config layering; provider gateway (Flue `configureProvider`) |
 | Testing | Integration tests, mock provider/tools | Table-driven tests, `httptest` |
 | Connectors docs | `docs/connectors/*.md` install recipes | Extension onboarding without dynamic plugin load |
 | Release | GoReleaser, cross-compilation | Build systems, CI/CD |
+
+---
+
+### Phase 7: Self-Extension & Recursive Self-Build (Weeks 10–12)
+
+The capability ladder that makes Harness extensible *by agents* (see *Metaengineering*). Build bottom-up so each rung is usable before the next exists.
+
+| Module | What | Learn |
+|--------|------|-------|
+| `selfext/skills` | Rung 0: Markdown sub-programs, read at call time (Flue-style) | Frontmatter parsing, prompt assembly, hot-reload from disk |
+| `tools/skill` | `Tool` that invokes a skill by name | Bridging prompt-level extension into the tool protocol |
+| `selfext/monty` | Rung 1: spawn `monty-cli`, run throwaway sandboxed Python | Subprocess sandboxing, resource limits, external-fn bridges |
+| `selfext/starlark` | Rung 2: load `.star` tool defs, dynamic register (`go.starlark.net`) | Embedding interpreters, hermetic execution, curated bridges |
+| `cmd/harness new` | Scaffold a skill / starlark def / Go tool from a template | Code generation from templates, golden-path DX |
+| `cmd/harness doctor` | Validator: naming, schema validity, banned imports, contract-test presence | Deterministic, teaching feedback beyond `go build` |
+| (recursive self-build) | Agent writes a Go tool → `go build ./cmd/...` → exec new binary | The cold-path promotion loop; Go-as-self-modifiable substrate |
+
+**Deliverable:** An agent can (a) drop a Markdown skill, (b) run a one-shot Monty program, (c) register a Starlark tool at runtime with no rebuild, and (d) promote a proven capability to a compiled Go `Tool` — each rung sandboxed and validated by `harness doctor` + the Go toolchain.
+
+**Boring-language alignment (Jacob Young, *Use boring languages with LLMs*):** the agent's feedback substrate on every rung is the **one-right-way Go toolchain** — `gopls` (semantic), `go vet`, and `golangci-lint` — plus `harness doctor` and the mock-parity harness. These enforce conventions *without prompting the agent into compliance*. Watch the **Monty/Starlark variance caveat**: we keep Python/Starlark *syntax* (high model recall) but strip the ecosystem (no package managers, curated bridges); the further the subset drifts from the stdlib idioms the model expects (`requests`, `asyncio`, comprehensions), the more inconsistency we reintroduce. Keep bridges aligned to the most-reinforced idioms and lean on teaching errors.
 
 ---
 
@@ -1409,6 +1707,47 @@ Flue lesson map → Harness modules
   flue add connectors          →  docs/connectors/*.md
 ```
 
+### 10. Composable Backends & Cloud Portability (Capability Ports)
+
+The deployed harness must not be married to one cloud. Rather than an "AWS adapter" and a "GCP adapter" that each reimplement everything, Harness defines **narrow, behavior-first ports** in `core/platform` (`BlobStore`, `KVStore`, `Secrets`, `Queue`, `Lock`, `Retriever`) plus a `Runtime` capability descriptor. The core depends only on these interfaces; vendor SDKs live in `platform/{gcp,aws,cf,modal,turbopuffer,local}`.
+
+Three principles:
+
+- **Split workloads, not clouds.** The orchestrator (stateful, steady) and the sandbox (ephemeral, untrusted, FS+subprocess) have opposite shapes and belong in different homes. Cloudflare can host the former but never the latter — encode that with `Runtime{Subprocess:false}` and degrade archaeology to the `Remote` sandbox tier.
+- **Buy bespoke only for hard capabilities.** Modal (`Sandbox`) and turbopuffer (`Retriever`) solve genuinely hard problems — secure agent-code execution and object-store vector+BM25 search — that we don't want to operate ourselves. They map onto existing ports 1:1 (Modal's Go SDK ≈ our `Sandbox`; turbopuffer's namespace-per-prefix ≈ per-repo index). Commodity concerns (blobs, KV) use whatever the host cloud provides.
+- **Never let a vendor be load-bearing.** Every port ships a self-host adapter (`platform/local`: filesystem blobs, BoltDB KV, pgvector). The managed provider is a swap, not a foundation. This bounds **vendor sprawl** — the real risk — to "one afternoon to replace," not "rewrite the core."
+
+This is the same inversion applied to infrastructure: the core calls *out* to platform ports exactly as it calls out to `Provider`/`Tool`/`Analyzer`. Cloud choice becomes a wiring decision in `main.go`, not an architectural commitment.
+
+### 11. The Capability Ladder (Designed for Agent Extension)
+
+Because the primary extenders are AI agents, the framework offers a **ladder of extension surfaces** rather than a single "write a Go plugin" path (see *Metaengineering: A Framework Agents Can Extend*). Agents author on the bottom rungs — Markdown **skills**, sandboxed **Monty** Python, runtime **Starlark** tool defs — with **no wiring and no rebuild**, and with mistakes contained by sandboxing. Only proven, recurring capabilities (rule of three) graduate to a compiled Go `Tool` on the top rung.
+
+This reconciles with §2 ("Why Interfaces, Not a Plugin Registry"): §2 governs the **compiled** tier, where interface satisfaction is compiler-checked and there is no runtime registry. The runtime tiers (Starlark/Monty) deliberately *do* allow dynamic registration — but **sandboxed**, so the safety argument holds without dynamic in-process Go loading (the thing pi-mono's `jiti` import model gets wrong for a static binary).
+
+For the rare cold-path promotion, wiring is **explicit in `main.go`** (most legible, fully compile-checked, least machinery). Codegen (`go:generate`) is deferred until compiled-extension count makes that churn a *measured* pain — building it now would be the accretion every reference critique warns against. A `harness new <kind>` scaffold and a `harness doctor` validator provide deterministic, teaching feedback across all rungs.
+
+### 12. Lessons from Deep Agents (Composition, ACP Completeness, Harbor Evals)
+
+Deep Agents (LangChain's middleware-over-LangGraph harness) is the survey's strongest *organizational* reference. We adopt its composition lessons and — per the integration focus — its protocol and eval adapter shapes, while rejecting its three-framework Python substrate (see *What Deep Agents Proves Works*).
+
+**Adopt now:**
+
+1. **Filesystem-as-context-overflow → content-addressable cache.** Offload summarized history and oversized tool results (Deep Agents evicts >20K-token results) to the cache, leaving a `sha256` handle. This is the concrete payoff of our content-addressable cache tenet (`OffloadCompactor`, §6).
+2. **Path-routed composite backend.** A `CompositeBackend`-style router over the `Sandbox`/`Filesystem` interface (`/memories/` → store, workspace → sandbox) — the agent sees only tools; the backend decides where bytes live.
+3. **Two-tier eval scoring.** `.success()` correctness assertions gate merges; `.expect()` efficiency metrics (step count, tool-call shape) are logged but never fail. Pairs with our deterministic mock-parity harness: parity tests gate (fast, offline), behavioral evals observe (statistical).
+
+**ACP frontend — do the half Deep Agents skipped.** Their `AgentServerACP` is the right *shape* (thin adapter implementing `acp.Agent`, translating stream events → `session/update`, HITL interrupts → `session/request_permission`, model-switch reusing checkpointer+`thread_id`) but covers only the prompt-turn core. Because ACP's value is that **the editor is the environment**, our `frontend/acp` must:
+
+- **Bridge the client's `fs/*` and `terminal/*` capabilities** when present — route file/shell ops through the *client's* filesystem/terminal (a `Sandbox` backed by ACP host capabilities), not the agent's own disk, so the editor owns the diff/permission surface. (Deep Agents brought its own backend — "only using half the protocol.")
+- **Model the full tool-status lifecycle** (`pending → in_progress → completed/failed`), not just `pending → completed` — our typed `LoopState`/events map cleanly.
+- **Emit the reasoning stream** (`agent_thought_chunk`) for thinking models.
+- **Support real session lifecycle** (`session/load`, fork/resume/close) — our `SessionStore` + `InstanceID` + branchable SQLite tree make this *structurally easier* than Deep Agents' uuid-in-memory sessions (a place we're better, not just at parity).
+
+**Harbor evals — thin external adapter.** Run Terminal-Bench 2.0 (and later SWE-bench) without entangling the core: a `eval/harbor` package where a Go `BaseAgent`-equivalent wraps the harness and a `HarborSandbox` satisfies Harbor's environment contract. Copy the proven split — **agent on the orchestrator, only tool I/O in the container** (read/grep/glob via shell `exec`; write/edit via native upload/download to dodge `ARG_MAX`) — write an ATIF `trajectory.json`, and **let Harbor's in-container verifier produce the reward** (don't self-grade). Keep observability behind our event bus; an *optional* subscriber posts rewards anywhere — never require a SaaS (Deep Agents' LangSmith coupling is the anti-lesson).
+
+**Do not adopt:** the LangGraph→create_agent→deepagents dependency depth, asyncio/GIL concurrency, LangSmith-required evals/tracing, "trust the LLM" default (our `Approver` is core and on by default), or claiming MCP at the product layer while the core lacks it.
+
 ---
 
 ## Learning Map
@@ -1419,9 +1758,12 @@ This project teaches through building. Each module exercises specific engineerin
 |-------------|---------|----------|
 | **Go Fundamentals** | protocol, transport | Structs, interfaces, error handling, testing |
 | **Concurrency** | bus, agent/loop | Goroutines, channels, `select`, `errgroup`, `context` |
-| **Systems Programming** | process, sandbox, cli/runner, cli/distiller | Sandbox tiers, subprocess adapters, env allowlists |
+| **Systems Programming** | process, sandbox, cli/runner, cli/distiller, archive | Sandbox tiers, subprocess adapters, env allowlists, JIT archive streaming |
+| **Cloud Portability** | platform/*, core/platform, core/retrieve | Ports-and-adapters, capability negotiation, composable backends (Modal, turbopuffer) |
+| **Self-Extension / Metaengineering** | selfext/{skills,monty,starlark}, cmd/harness new\|doctor | Embedded interpreters, sandboxed subprocess, capability ladder, low-variance API as corpus |
 | **Product/API design** | instance, session, result, harness-server | Multi-tenant instance IDs, structured prompt results, HTTP agents |
-| **Protocol Design** | protocol, transport | JSON-RPC, framing, capability negotiation |
+| **Protocol Design** | protocol, transport, acp/* | JSON-RPC, framing, capability negotiation, ACP fs/terminal bridging |
+| **Evaluation** | eval/{scorer,parity,harbor} | Two-tier scoring, deterministic parity gates, container-based Harbor evals |
 | **State Machines** | agent/state, agent/loop | State transitions, immutable snapshots |
 | **API Design** | interfaces, provider/* | Interface design, composition, dependency injection |
 | **Caching** | cache | Content-addressable storage, LRU, disk persistence |
@@ -1502,6 +1844,7 @@ Claude Code maintains a ~15K-line custom Ink fork (layout engine, reconciler, ev
 - [extensions/swe_distiller/ARCHITECTURE.md](../extensions/swe_distiller/ARCHITECTURE.md) — Native extraction service wrapped by `cli/distiller`
 - [claw-code](../claw-code/) — Rust agent port in this repo: mock parity harness, permission modes, typed events/reports, RAG sidecar, lean `claw-analog`. See `claw-code/rust/PARITY.md`, `claw-code/rust/MOCK_PARITY_HARNESS.md`, `claw-code/docs/g004-events-reports-contract.md`.
 - [flue](../flue/) — Local reference copy (gitignored) of [withastro/flue](https://github.com/withastro/flue): headless harness on pi-mono, sandbox tiers, instance/harness/session API, structured `prompt` results, `flue run` / HTTP deploy. Read `flue/README.md`, `flue/packages/runtime/src/session.ts`, `flue/packages/runtime/src/compaction.ts`, `flue/packages/runtime/src/result.ts`.
+- [Deep Agents](https://github.com/langchain-ai/deepagents) — LangChain's middleware-over-LangGraph harness; the survey's strongest *organizational* reference (composition, pluggable backends, FS-as-overflow, thin ACP/Harbor adapters). Local checkout at `../deepagents`. See `docs/DEEPAGENTS_DEEP_DIVE.md` and `docs/DEEPAGENTS_CRITIQUE.md`.
 - [Claude Code](https://github.com/anthropics/claude-code) — Anthropic's production agentic CLI. Studied for permission system, tool orchestration, compaction, and startup patterns. See `docs/CLAUDE_CODE_CRITIQUE.md` and `docs/CLAUDE_DEEP_DIVE.md`.
 - [Aider](https://github.com/Aider-AI/aider) — Repository map and AST-based code analysis patterns
 - [OpenAI Codex CLI](https://github.com/openai/codex) — Agent-client protocol design
@@ -1511,6 +1854,17 @@ Claude Code maintains a ~15K-line custom Ink fork (layout engine, reconciler, ev
 - [Uber Go Style Guide](https://github.com/uber-go/guide/blob/master/style.md)
 - [100 Go Mistakes](https://100go.co/)
 - [Concurrency in Go](https://www.oreilly.com/library/view/concurrency-in-go/9781491941294/)
+- [gopls](https://pkg.go.dev/golang.org/x/tools/gopls) · [golangci-lint](https://golangci-lint.run/) — the one-right-way feedback substrate for agent-authored Go
+
+### Self-Extension & Agent Ergonomics
+- [Use boring languages with LLMs](https://jry.io/writing/use-boring-languages-with-llms/) (Jacob Young) — low-variance, strong-convention ecosystems produce reliable agent output; the external grounding for the Go bet and the capability ladder.
+- [docs/PLAN.md](./PLAN.md) — authoritative self-extension model (Starlark/Monty/Go tiers, rule of three, recursive self-build) that the Metaengineering section reconciles into this plan.
+- [go.starlark.net](https://pkg.go.dev/go.starlark.net/starlark) — embedding Starlark (Rung 2 tool defs); [Starlark spec](https://github.com/bazelbuild/starlark/blob/master/spec.md).
+- [Monty](https://github.com/pydantic/monty) — sandboxed Python subset via subprocess (Rung 1 hot-path code).
+
+### Protocol & Evals
+- [Agent Client Protocol (ACP)](https://agentclientprotocol.com/protocol/overview) — JSON-RPC/stdio protocol where the editor *is* the environment; [prompt-turn lifecycle](https://agentclientprotocol.com/protocol/prompt-turn). Backs the `acp/*` frontend; bridge client `fs/*`+`terminal/*` (the half Deep Agents skipped).
+- [Harbor](https://www.harborframework.com/docs) — container-based agent evaluation (Terminal-Bench 2.0 successor). Backs `eval/harbor`: agent on orchestrator, tool I/O in container, Harbor verifier produces the reward.
 
 ### TUI
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea)
@@ -1527,3 +1881,9 @@ Claude Code maintains a ~15K-line custom Ink fork (layout engine, reconciler, ev
 - [Designing Data-Intensive Applications](https://dataintensive.net/) (Kleppmann)
 - [The Linux Programming Interface](https://man7.org/tlpi/) (Kerrisk)
 - [Systems Performance](https://www.brendangregg.com/systems-performance-2nd-edition-book.html) (Gregg)
+
+### Cloud & Composable Backends
+- [Modal Sandboxes](https://modal.com/docs/guide/sandbox) — secure containers for agent code; gVisor exec, FS, snapshots, Go SDK. Backs the `Sandbox` Remote tier (`platform/modal`).
+- [turbopuffer architecture](https://turbopuffer.com/architecture) — vector + BM25 + metadata search on object storage; namespace-per-prefix. Backs the `Retriever` port (`platform/turbopuffer`).
+- [Ports & Adapters (Hexagonal Architecture)](https://alistair.cockburn.us/hexagonal-architecture/) (Cockburn) — the pattern behind `core/platform` + `platform/*`.
+- [docs/AST_SERVICE_ARCHITECTURE.md](./AST_SERVICE_ARCHITECTURE.md) — object-store-backed AST/embeddings; retrieval tier that turbopuffer can serve.

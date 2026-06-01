@@ -21,6 +21,8 @@ wheels/
 .demongrep.db/
 .fastembed_cache/
 claude-code/
+flue/
+claw-code/
 codex/
 defuddle/
 pi-mono/
@@ -33,5 +35,7 @@ extensions/swe_distiller/webpage-llm.md
 extensions/swe_distiller/target/
 
 .pi/npm/
+deepagents/
+swe-term
 .gemini/
 setup_agents.sh
