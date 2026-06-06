@@ -25,7 +25,7 @@
 9. [Session Storage (JSONL Tree)](#session-storage-jsonl-tree)
 10. [Context Compaction](#context-compaction)
 11. [pi-tui: The Terminal UI](#pi-tui-the-terminal-ui)
-12. [Modes (Interactive / Print)](#modes-interactive--print)
+ 12. [Modes (Interactive / Print / RPC)](#modes-interactive--print--rpc)
 13. [Key Design Patterns](#key-design-patterns)
 14. [Why swe-term Ports It](#why-swe-term-ports-it)
 15. [Summary Statistics](#summary-statistics)
