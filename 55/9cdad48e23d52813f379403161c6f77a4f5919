@@ -1,0 +1,46 @@
+docs/GOLANG_TUI_PLAN.md
+  s_846a5b48b04b5d::t_21a0b4b0f4de08 211
+  s_846a5b48b04b5d::t_0748975b442cb5 463,465-468
+  s_846a5b48b04b5d::t_93b0f8010c970b 1088
+  s_846a5b48b04b5d::t_9b46c98ea5abc0 1109
+  s_846a5b48b04b5d::t_54d347091f8818 1316-1361
+  s_846a5b48b04b5d::t_719322744a5498 428,430,433-434,436
+  s_846a5b48b04b5d::t_b2764b0bb17cd6 1362-1411
+  s_846a5b48b04b5d::t_9bac781a008049 1503
+  s_846a5b48b04b5d::t_8f74d8ac9a3eb7 1164-1165
+  s_846a5b48b04b5d::t_21d218e8a52cdf 72-102
+  s_846a5b48b04b5d::t_0c5ceab85ae63c 186-196
+  s_846a5b48b04b5d::t_d57ff5689f92d6 310-324,327
+  s_846a5b48b04b5d::t_eba47b13f7b97b 49-71
+  s_846a5b48b04b5d::t_c2f25b8461f167 1044
+  s_846a5b48b04b5d::t_a5fe00a72c4d09 1221-1222,1224
+  s_846a5b48b04b5d::t_ef591f7268e26a 29-30
+  s_846a5b48b04b5d::t_e2b31ef5605785 212
+  s_846a5b48b04b5d::t_b8612937b57dea 483-489
+  s_846a5b48b04b5d::t_68d8b2a60ebcd7 884-1043,1045-1072
+  s_846a5b48b04b5d::t_10aa7eb8c75cb4 202,204
+  s_846a5b48b04b5d::t_62ee3a5dff3e6e 353-354,356-362
+  s_846a5b48b04b5d::t_77afb9aa119723 1162-1163,1170
+  s_846a5b48b04b5d::t_17b12eb51e37a0 1239-1242,1244
+  s_846a5b48b04b5d::t_0381ba7bfb23b1 481
+  s_846a5b48b04b5d::t_0dc56e060b2c30 1422-1423
+  s_846a5b48b04b5d::t_d70c35e9239184 1501-1502
+  s_846a5b48b04b5d::t_ddf976bc930b8c 1504
+  s_846a5b48b04b5d::t_c385bf5670cbcf 1306-1315
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "559cdad48e23d52813f379403161c6f77a4f5919",
+  "prompts": {},
+  "sessions": {
+    "s_846a5b48b04b5d": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "831815a1-a359-452e-a25c-9ce3221c2ec1",
+        "model": "composer-2"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
