@@ -1,0 +1,19 @@
+AGENTS.md
+  s_f93137b69d5e3b::t_6a5792de5d3abc 434-435,437-438,440,448,457,459-469,471-473
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "0ead3e0b11130a042b5187674c9d602d6e5daa4e",
+  "prompts": {},
+  "sessions": {
+    "s_f93137b69d5e3b": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ee5750c6-df1c-4951-8b27-3abf1b9ccd38",
+        "model": "claude-opus-4-8-thinking-high"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+main.go
+  4ab7b648808d7587 1-7
+src/prompts.yaml
+  4ab7b648808d7587 1-272
+go.mod
+  4ab7b648808d7587 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "6207d4b1f261de2e9a0253ff1a4e14859707f048",
+  "prompts": {
+    "4ab7b648808d7587": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019df0d9-4f11-710a-9c4f-2a585ac241fb",
+        "model": "grok-4.3"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>",
+      "total_additions": 282,
+      "total_deletions": 292,
+      "accepted_lines": 282,
+      "overriden_lines": 0
+    }
+  }
+}

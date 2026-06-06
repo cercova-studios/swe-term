@@ -1,0 +1,19 @@
+docs/research/PI_MONO_DEEP_DIVE.md
+  s_074c50ea3c2a49::t_5f258213f7d95d 345,353,384
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "93f8eb6b2fba8ccacd3c9e5d11f6da6f61b9e1ff",
+  "prompts": {},
+  "sessions": {
+    "s_074c50ea3c2a49": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-033QcSU9a5cuxc3Vg8CILt",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
