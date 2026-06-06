@@ -4,7 +4,7 @@
 > ("badlogic") agent monorepo and the **reference implementation swe-term is porting from**.
 > Runtime: Node.js. Language: TypeScript. Distribution: npm workspaces.
 >
-> **Validated against a local source checkout** at `/home/rohit/sandbox/pi-mono`
+> **Validated against a local source checkout** of pi-mono version 0.65.2
 > (version `0.65.2`). In this checkout the npm scope is **`@mariozechner/*`**; the packages
 > have since been renamed to `@earendil-works/*` upstream (which is the scope Flue's checkout
 > depends on). Line counts below are exact (from the local source) unless noted; corrections
