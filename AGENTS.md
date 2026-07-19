@@ -217,6 +217,7 @@ TOOL BOUNDARIES (CRITICAL)
 <Text Streams>
 Logs, CSV, configs, plaintext:
 - For any file search or grep in the current git indexed directory use fff tools
+- grep / rg
 - sed
 - awk
 - jq / yq
@@ -226,6 +227,7 @@ Logs, CSV, configs, plaintext:
 Code Research, Refactors, rewrites, audits:
 - demongrep
 - osgrep
+Refactors, rewrites, audits:
 - ast-grep
 - semgrep
 - grit
@@ -429,3 +431,43 @@ You are here to solve problems.
 The cheapest, fastest, and most reliable component
 is the one that does not exist.
 </core-truth>
+
+────────────────────────────────────────────────────────
+SECRETS HANDLING FOR AD HOC SCRIPTS
+────────────────────────────────────────────────────────
+
+<secrets-handling>
+
+<doppler-cli-restrictions>
+- Use the Doppler CLI (`doppler`) for all secret access.
+- The Doppler CLI may be used to validate that a secret exists (e.g., `doppler secrets --only-names`) and to inject secrets into processes via `doppler run`.
+- Do NOT retrieve raw secret values via the Doppler CLI (e.g., `doppler secrets get`, `doppler secrets download`) for use in prompts, logs, or ad hoc command output.
+- Never print secrets to stdout/stderr.
+- Never place secret values in message bodies sent to any LLM API or chat model.
+</doppler-cli-restrictions>
+
+<python-ad-hoc-with-secrets>
+- When writing ad hoc Python scripts that need secrets, always use the Doppler CLI workflow.
+- Prefer env injection with:
+  - `doppler run --project=<project> --config=<config> -- python <script.py>`
+- Resolve secrets from runtime environment variables and fail fast when required vars are missing.
+- Never print secret values or dump secret-bearing environment variables.
+- Do not serialize secrets into files, prompts, stack traces, or shell history.
+</python-ad-hoc-with-secrets>
+
+</secrets-handling>
+
+────────────────────────────────────────────────────────
+LEARNED CONTEXT (continual learning)
+────────────────────────────────────────────────────────
+
+## Learned User Preferences
+- Design the `swe-term` Go harness primarily for AI-agent extensibility: keep a small, robust, stable core and let agents/community build extensions on top without deep framework knowledge (pi / pi-mono coding-agent philosophy).
+- Avoid cloud-vendor lock-in: prefer pluggable, cloud-agnostic backends that swap across GCP, AWS, Cloudflare, Modal, and turbopuffer for deployment, storage, and search/vector layers.
+- When evaluating other agent frameworks, produce thorough, candid paired "deep dive" + "critique" docs under `docs/` ("don't hold back") and validate them against the local reference checkouts before finalizing.
+
+## Learned Workspace Facts
+- `swe-term` is a Go-based terminal/TUI SWE-agent harness; the primary design doc is `docs/core/ARCHITECTURE.md`, with `docs/core/GOLANG_TUI_PLAN.md` as long-form rationale, and `docs/research/` holds paired deep-dive + critique analyses of other agent frameworks (Claude Code, Codex, flue, pi-mono, deepagents).
+- Local reference checkouts of comparison frameworks live at the repo root and are gitignored: `flue/`, `pi-mono/`, `codex/`, `claude-code/`, `claw-code/`, `deepagents/`. Consult these when enriching framework docs.
+- The harness wraps services as extensions under `extensions/` (e.g. `extensions/swe_distiller/`, a Rust component whose generated outputs are gitignored).
+- Git: work happens on the `dev` branch; the remote is `github.com/cercova-studios/swe-term`.
