@@ -1,0 +1,41 @@
+.gitignore
+  s_96046a7e57b738::t_b1ef4920e183b4 45
+  s_96046a7e57b738::t_cddf7942ac1ea9 42-44
+  s_96046a7e57b738::t_31ebc7da9f5033 46
+AGENTS.md
+  s_0ad2de7851a514::t_91a043d791a780 465-467,472,474
+  s_06cdd48a890c96::t_450d5a950f596a 226-227,242,245-249,252-255,259-260,262
+  s_06cdd48a890c96::t_5481301a9ed566 251,256
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "0f03d90dae4cb4e7ff21850b0528c1d87264ea80",
+  "prompts": {},
+  "sessions": {
+    "s_06cdd48a890c96": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fbf51-4d32-7003-8f53-3b099a7bd1ff",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_0ad2de7851a514": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "e694b7a3-1616-4426-acd7-4bae3c496edc",
+        "model": "cursor-grok-4.5-high-fast"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_96046a7e57b738": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a008b4-e5c4-7ac2-8dc1-99b26133e61e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
