@@ -358,11 +358,18 @@ mod tests {
         let html =
             Html::parse_fragment(r#"<pre class="language-rust"><code>fn main() {}</code></pre>"#);
         let selector = Selector::parse("pre").expect("valid selector");
-        let pre = html
-            .select(&selector)
-            .next()
-            .expect("pre element");
+        let pre = html.select(&selector).next().expect("pre element");
 
         assert_eq!(detect_code_language(&pre).as_deref(), Some("rust"));
+    }
+
+    #[test]
+    fn converts_br_and_hr_tags_to_line_breaks() {
+        let md = html_to_markdown("<p>alpha<br />beta</p><hr /><p>gamma</p>", None);
+        assert!(md.contains("alpha"));
+        assert!(md.contains("beta"));
+        assert!(md.contains("gamma"));
+        // Paragraph whitespace collapse may turn <br> into a space; <hr> must remain a rule.
+        assert!(md.contains("---"), "expected hr rule, got {md:?}");
     }
 }

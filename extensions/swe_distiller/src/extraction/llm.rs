@@ -11,7 +11,7 @@ use crate::extraction::checks::{passes_safety_checks, structure_noise_score};
 use crate::observability;
 
 const DEFAULT_PROVIDERS: &str = "gemma4:31b-cloud,reader-lm:1.5b,jina";
-const DEFAULT_TIMEOUT_MS: u64 = 60_000;
+const DEFAULT_TIMEOUT_MS: u64 = 12_000;
 const DEFAULT_MAX_INPUT_CHARS: usize = 60_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,14 +20,23 @@ pub enum LlmOutcome {
     Applied,
 }
 
-pub async fn extract_via_llm(html: &str, source_url: &str, debug_enabled: bool) -> Option<String> {
+pub async fn extract_via_llm(
+    html: &str,
+    source_url: &str,
+    debug_enabled: bool,
+    heuristic_baseline: Option<&str>,
+) -> Option<String> {
     let providers = provider_list();
     if providers.is_empty() {
         return None;
     }
 
     let preprocessed = preprocess_html(html);
-    let baseline_markdown = crate::markdown_ast::html_to_markdown(html, Some(source_url));
+    // Prefer the already-cleaned heuristic markdown so safety gates compare like-for-like.
+    let baseline_markdown = match heuristic_baseline.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(baseline) => baseline.to_string(),
+        None => crate::markdown_ast::html_to_markdown(&preprocessed, Some(source_url)),
+    };
     let baseline_score = structure_noise_score(&baseline_markdown);
     observability::debug(
         debug_enabled,
@@ -131,7 +140,7 @@ async fn run_jina_provider(source_url: &str) -> Result<String> {
         anyhow::bail!("jina provider failed: {}", response.status());
     }
     let text = response.text().await?;
-    let markdown = extract_jina_markdown_payload(&text).unwrap_or_else(|| text.as_str());
+    let markdown = extract_jina_markdown_payload(&text).unwrap_or(text.as_str());
     Ok(sanitize_markdown(markdown))
 }
 

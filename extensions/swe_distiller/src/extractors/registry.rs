@@ -25,12 +25,6 @@ pub fn run_extractors(html: &Html, url: &str) -> Option<ExtractorResult> {
     None
 }
 
-pub async fn run_extractors_async_preferred(html: &Html, url: &str) -> Option<ExtractorResult> {
-    // Placeholder for async-first extractors (e.g. transcript/API-backed sources)
-    // while preserving a stable registry entrypoint shape.
-    run_extractors(html, url)
-}
-
 #[derive(Clone)]
 enum UrlPattern {
     Domain(&'static str),

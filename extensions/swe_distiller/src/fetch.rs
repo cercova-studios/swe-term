@@ -71,8 +71,11 @@ pub async fn fetch_page(
             .header("Accept-Encoding", "gzip, deflate, br")
             .header("Connection", "keep-alive")
             .header("Upgrade-Insecure-Requests", "1")
-            .header("DNT", "1")
-            .header("Referer", "https://medium.com/");
+            .header("DNT", "1");
+
+        if is_medium_url(target_url) {
+            req = req.header("Referer", "https://medium.com/");
+        }
 
         if let Some(lang) = language {
             req = req.header("Accept-Language", lang);
@@ -116,8 +119,7 @@ pub async fn fetch_page(
 
             ensure_declared_size_within_limit(response.content_length())?;
 
-            let bytes = response.bytes().await?;
-            ensure_actual_size_within_limit(bytes.len())?;
+            let bytes = read_body_capped(response).await?;
 
             let encoding = detect_charset(&content_type, &bytes);
             let (decoded, _, _) = encoding.decode(&bytes);
@@ -321,8 +323,7 @@ async fn fetch_medium_via_feed(
             .and_then(|v| v.to_str().ok())
             .unwrap_or("application/rss+xml")
             .to_string();
-        let bytes = response.bytes().await?;
-        ensure_actual_size_within_limit(bytes.len())?;
+        let bytes = read_body_capped(response).await?;
         let encoding = detect_charset(&content_type, &bytes);
         let (decoded, _, _) = encoding.decode(&bytes);
         let xml = decoded.into_owned();
@@ -375,6 +376,23 @@ fn ensure_actual_size_within_limit(actual_len: usize) -> Result<()> {
     Ok(())
 }
 
+async fn read_body_capped(mut response: reqwest::Response) -> Result<Vec<u8>> {
+    let mut buf = Vec::new();
+    if let Some(len) = response.content_length() {
+        let capped = usize::try_from(len).unwrap_or(MAX_SIZE).min(MAX_SIZE);
+        buf.reserve(capped);
+    }
+
+    while let Some(chunk) = response.chunk().await? {
+        let next_len = buf.len().saturating_add(chunk.len());
+        ensure_actual_size_within_limit(next_len)?;
+        buf.extend_from_slice(&chunk);
+    }
+
+    ensure_actual_size_within_limit(buf.len())?;
+    Ok(buf)
+}
+
 fn medium_feed_candidates(target_url: &str) -> Result<Vec<String>> {
     let url = Url::parse(target_url)?;
     let host = url.host_str().ok_or_else(|| anyhow!("Missing host"))?;
@@ -386,11 +404,7 @@ fn medium_feed_candidates(target_url: &str) -> Result<Vec<String>> {
             .map(|s| s.filter(|p| !p.is_empty()).collect())
             .unwrap_or_default();
         if let Some(first) = segments.first() {
-            if first.starts_with('@') {
-                out.push(format!("https://{host}/feed/{first}"));
-            } else {
-                out.push(format!("https://{host}/feed/{first}"));
-            }
+            out.push(format!("https://{host}/feed/{first}"));
         }
         out.push(format!("https://{host}/feed"));
     }
@@ -505,7 +519,7 @@ fn apply_feed_field(item: &mut MediumFeedItem, field: Option<&[u8]>, text: &str)
 }
 
 fn wrap_medium_item_as_html(item: &MediumFeedItem) -> String {
-    let title = item.title.trim();
+    let title = escape_html(item.title.trim());
     let body_html = if !item.content_html.trim().is_empty() {
         item.content_html.trim()
     } else {
@@ -513,9 +527,23 @@ fn wrap_medium_item_as_html(item: &MediumFeedItem) -> String {
     };
 
     format!(
-        "<html><head><title>{}</title></head><body><article><h1>{}</h1>{}</article></body></html>",
-        title, title, body_html
+        "<html><head><title>{title}</title></head><body><article><h1>{title}</h1>{body_html}</article></body></html>"
     )
+}
+
+fn escape_html(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for c in input.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#39;"),
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -571,5 +599,19 @@ mod tests {
         assert!(ensure_declared_size_within_limit(Some((MAX_SIZE as u64) + 1)).is_err());
         assert!(ensure_actual_size_within_limit(MAX_SIZE).is_ok());
         assert!(ensure_actual_size_within_limit(MAX_SIZE + 1).is_err());
+    }
+
+    #[test]
+    fn escapes_medium_titles_in_synthetic_html() {
+        let item = MediumFeedItem {
+            title: r#"Hi <script>alert(1)</script>"#.to_string(),
+            link: "https://medium.com/p/abc".to_string(),
+            content_html: "<p>Body</p>".to_string(),
+            description_html: String::new(),
+        };
+        let html = wrap_medium_item_as_html(&item);
+        assert!(html.contains("&lt;script&gt;"));
+        assert!(!html.contains("<script>alert(1)</script>"));
+        assert!(html.contains("<p>Body</p>"));
     }
 }
