@@ -1,0 +1,86 @@
+extensions/swe_distiller/src/fetch.rs
+  s_178a69da1c80c0::t_62bfaed3a96a1c 522,530,534-546,616
+  s_178a69da1c80c0::t_1d7dfcc4f8afa5 603-615
+  s_178a69da1c80c0::t_3cda2049a89119 74-78
+  s_178a69da1c80c0::t_eab91e09c9b019 326
+  s_178a69da1c80c0::t_bec27f2e1acaa4 379-385,390-393
+  s_178a69da1c80c0::t_7e02a3613570e9 122
+  s_96046a7e57b738::t_26ef46779a2aaf 386-389,407
+  s_178a69da1c80c0::t_d7cc3fb776fe82 394-395
+  s_178a69da1c80c0::t_c04036116fe1a4 547-548
+extensions/swe_distiller/src/extractors/chat_llm.rs
+  s_2bd6ff6e5a7df8::t_2237800e139330 71-76
+extensions/swe_distiller/src/removal/selectors.rs
+  s_2bd6ff6e5a7df8::t_2237800e139330 11,50-53
+  s_178a69da1c80c0::t_75774a7255bd75 2,4-7,9-10,12-17,21-26,29-32,34-43,48-49,54-55,59-61,82-98
+extensions/swe_distiller/src/removal/small_images.rs
+  s_178a69da1c80c0::t_7cb65279716526 2-4,8-9,12-26,28-40,43-46
+  s_2bd6ff6e5a7df8::t_2237800e139330 41-42
+extensions/swe_distiller/src/dom_ops.rs
+  s_178a69da1c80c0::t_16683787d944e6 13,17-20
+  s_178a69da1c80c0::t_0298af1f43489b 42
+  s_178a69da1c80c0::t_1bed8b31edfe54 1-4,7-12,14-16,21-41,43-86
+  s_2bd6ff6e5a7df8::t_2237800e139330 5-6
+extensions/swe_distiller/src/extraction/llm.rs
+  s_178a69da1c80c0::t_0060a7ab5bb9fa 14
+  s_178a69da1c80c0::t_5ab6ee31016154 23-28,35-39
+  s_96046a7e57b738::t_26ef46779a2aaf 143
+extensions/swe_distiller/src/markdown_ast.rs
+  s_178a69da1c80c0::t_2cac20046852a7 368-370,373
+  s_2bd6ff6e5a7df8::t_2237800e139330 361
+  s_178a69da1c80c0::t_3311071797202d 365-367,371
+  s_178a69da1c80c0::t_1406d2608dc760 372
+  s_96046a7e57b738::t_af00066f39602c 374
+extensions/swe_distiller/src/removal/hidden.rs
+  s_178a69da1c80c0::t_035bee37b0f0fc 2,4,6-7,11-56
+extensions/swe_distiller/src/removal/content_patterns.rs
+  s_178a69da1c80c0::t_d7dbd780b63a84 3-5,14-18,20,24-37,39-42,46-47,49-53,55,57-86,89,95,97-126
+  s_2bd6ff6e5a7df8::t_2237800e139330 10-11,127
+  s_178a69da1c80c0::t_3b4c79618df9f6 43,54,56,90-94,96
+extensions/swe_distiller/src/lib.rs
+  s_2bd6ff6e5a7df8::t_2237800e139330 134-137
+  s_178a69da1c80c0::t_b3a26487814fb3 3,36,39-56,59,72,80,96,106-107,109,111-112,123-124,146-149,155-156,218,242,256,260,266,270,272-274,357-363,365-366,407-414
+extensions/swe_distiller/ARCHITECTURE.md
+  s_178a69da1c80c0::t_dbf347cd618f38 16-17,26-29,31-32,44,47-48,51,64-65,75-80,95-96,99-102
+  s_96046a7e57b738::t_dd74fbfca2acfb 103
+extensions/swe_distiller/src/markdown.rs
+  s_2bd6ff6e5a7df8::t_2237800e139330 254
+extensions/swe_distiller/src/removal/metadata_block.rs
+  s_178a69da1c80c0::t_6652bfe10e1958 3,7,20-21,24-25,28-29,32,35-37,39-47,55-56
+  s_2bd6ff6e5a7df8::t_2237800e139330 5
+extensions/swe_distiller/src/removal/scoring.rs
+  s_2bd6ff6e5a7df8::t_2237800e139330 8-10
+  s_178a69da1c80c0::t_ed2a4ab8a7faa0 1-2,5,11,13-14,16,26,30-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "958735ed0a672f8a23f8aa210fcf9095b689021e",
+  "prompts": {},
+  "sessions": {
+    "s_178a69da1c80c0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "cb047fd8-04e4-4fe7-b904-4a008eb44b1f",
+        "model": "grok-4.5"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_2bd6ff6e5a7df8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a008b4-e5c4-7ac2-8dc1-99b26133e61e",
+        "model": "unknown"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_96046a7e57b738": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a008b4-e5c4-7ac2-8dc1-99b26133e61e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
