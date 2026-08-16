@@ -39,3 +39,8 @@ deepagents/
 swe-term
 .gemini/
 setup_agents.sh
+codesearch/
+.codesearch.db/
+pi/
+/target/
+.DS_Store

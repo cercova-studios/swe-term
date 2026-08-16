@@ -216,7 +216,6 @@ TOOL BOUNDARIES (CRITICAL)
 
 <Text Streams>
 Logs, CSV, configs, plaintext:
-- For any file search or grep in the current git indexed directory use fff tools
 - grep / rg
 - sed
 - awk
@@ -224,10 +223,10 @@ Logs, CSV, configs, plaintext:
 </Text Streams>
 
 <Source Code>
-Code Research, Refactors, rewrites, audits:
+Code research, navigation, refactors, rewrites, and audits:
+- `$code-search` (`/Users/rohit/.agents/skills/code-search/SKILL.md`)
 - demongrep
 - osgrep
-Refactors, rewrites, audits:
 - ast-grep
 - semgrep
 - grit
@@ -240,26 +239,27 @@ Source code has structure. Regex does not understand it.
 </tool-boundaries>
 
 ────────────────────────────────────────────────────────
-FFF-MCP TOOLING POLICY
+CODE SEARCH (MANDATORY)
 ────────────────────────────────────────────────────────
 
-<fff-mcp-policy>
-For repository exploration and search, use tools provided by `fff-mcp`.
-
-Do NOT use shell-native search tools for this:
-- grep
-- ripgrep (`rg`)
-- find
-
-Use `fff-mcp` equivalents for:
-- filename discovery
-- content search
-- scoped filtering in git-indexed directories
+<code-search-policy>
+Use `$code-search` for project preparation, index setup/warmup, tool selection,
+call tracing, architecture deep dives, and exhaustive cleanup searches. The skill
+is the canonical reusable workflow; do not duplicate its generic tool guidance
+in this file.
 
 <rule>
-Default to `fff-mcp` tools first. Only fall back to shell utilities when `fff-mcp` cannot perform the task.
+For normal `swe-term` work, scope searches to tracked source plus intentional
+dirty changes. Exclude `.codesearch.db/`, `target/`, and local comparison
+checkouts such as `pi/` and `codesearch/` unless the task explicitly targets
+those artifacts or frameworks.
 </rule>
-</fff-mcp-policy>
+
+<rule>
+When comparing agent frameworks, include only the named reference checkout and
+keep `swe-term` implementation claims anchored to tracked project code.
+</rule>
+</code-search-policy>
 
 <readability-cliff>
 If a shell solution requires:
@@ -462,12 +462,14 @@ LEARNED CONTEXT (continual learning)
 ────────────────────────────────────────────────────────
 
 ## Learned User Preferences
-- Design the `swe-term` Go harness primarily for AI-agent extensibility: keep a small, robust, stable core and let agents/community build extensions on top without deep framework knowledge (pi / pi-mono coding-agent philosophy).
+- Design the `swe-term` Go harness primarily for AI-agent extensibility: keep a small, robust, stable core and let agents/community build extensions on top without deep framework knowledge (pi / pi-mono coding-agent philosophy). Go owns the agent loop, approvals, schemas, and Tool adapters; heavy engines (Rust/etc.) run as sidecar binaries behind thin Go adapters — not as the primary FFI/plugin surface.
+- Prefer agent-facing UX through `swe-term` / `st`; keep extension CLIs as thin spawn/debug contracts, not parallel product CLIs.
+- When simplifying extensions (e.g. `swe_distiller`), pare complexity without dropping functionality and lock behavior with regression tests.
 - Avoid cloud-vendor lock-in: prefer pluggable, cloud-agnostic backends that swap across GCP, AWS, Cloudflare, Modal, and turbopuffer for deployment, storage, and search/vector layers.
 - When evaluating other agent frameworks, produce thorough, candid paired "deep dive" + "critique" docs under `docs/` ("don't hold back") and validate them against the local reference checkouts before finalizing.
 
 ## Learned Workspace Facts
-- `swe-term` is a Go-based terminal/TUI SWE-agent harness; the primary design doc is `docs/core/ARCHITECTURE.md`, with `docs/core/GOLANG_TUI_PLAN.md` as long-form rationale, and `docs/research/` holds paired deep-dive + critique analyses of other agent frameworks (Claude Code, Codex, flue, pi-mono, deepagents).
+- `swe-term` is a Go-based terminal/TUI SWE-agent harness intended to be invoked as `swe-term` or `st`; the primary design doc is `docs/core/ARCHITECTURE.md`, with `docs/core/GOLANG_TUI_PLAN.md` as long-form rationale, and `docs/research/` holds paired deep-dive + critique analyses of other agent frameworks (Claude Code, Codex, flue, pi-mono, deepagents).
 - Local reference checkouts of comparison frameworks live at the repo root and are gitignored: `flue/`, `pi-mono/`, `codex/`, `claude-code/`, `claw-code/`, `deepagents/`. Consult these when enriching framework docs.
-- The harness wraps services as extensions under `extensions/` (e.g. `extensions/swe_distiller/`, a Rust component whose generated outputs are gitignored).
+- The harness wraps services as extensions under `extensions/`; `extensions/swe_distiller/` is a Rust URL→markdown extractor sidecar (thin CLI for Go spawn/debug; generated outputs are gitignored).
 - Git: work happens on the `dev` branch; the remote is `github.com/cercova-studios/swe-term`.
