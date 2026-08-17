@@ -26,6 +26,10 @@ Deep dives and critiques are retained as supporting evidence under `research/`:
 - [`research/PI_MONO_DEEP_DIVE.md`](research/PI_MONO_DEEP_DIVE.md), [`research/PI_MONO_CRITIQUE.md`](research/PI_MONO_CRITIQUE.md)
 - [`research/FLUE_DEEP_DIVE.md`](research/FLUE_DEEP_DIVE.md), [`research/FLUE_CRITIQUE.md`](research/FLUE_CRITIQUE.md)
 - [`research/DEEPAGENTS_DEEP_DIVE.md`](research/DEEPAGENTS_DEEP_DIVE.md), [`research/DEEPAGENTS_CRITIQUE.md`](research/DEEPAGENTS_CRITIQUE.md)
+- [`research/PRIME_AGENT_DEEP_DIVE.md`](research/PRIME_AGENT_DEEP_DIVE.md), [`research/PRIME_AGENT_CRITIQUE.md`](research/PRIME_AGENT_CRITIQUE.md)
+- [`research/DEEPSEEK_HARNESS_DEEP_DIVE.md`](research/DEEPSEEK_HARNESS_DEEP_DIVE.md), [`research/DEEPSEEK_HARNESS_CRITIQUE.md`](research/DEEPSEEK_HARNESS_CRITIQUE.md)
+- [`research/OH_MY_PI_DEEP_DIVE.md`](research/OH_MY_PI_DEEP_DIVE.md), [`research/OH_MY_PI_CRITIQUE.md`](research/OH_MY_PI_CRITIQUE.md)
+- [`research/JOERN_DEEP_DIVE.md`](research/JOERN_DEEP_DIVE.md), [`research/JOERN_CRITIQUE.md`](research/JOERN_CRITIQUE.md)
 
 Use `core/FRAMEWORKS.md` first; read deep dives/critiques only when detailed evidence is needed.
 

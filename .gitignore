@@ -36,6 +36,9 @@ extensions/swe_distiller/target/
 
 .pi/npm/
 deepagents/
+prime-agent/
+deepseek-harness/
+oh-my-pi/
 swe-term
 .gemini/
 setup_agents.sh
@@ -44,3 +47,4 @@ codesearch/
 pi/
 /target/
 .DS_Store
+joern

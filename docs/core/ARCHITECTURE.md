@@ -66,8 +66,24 @@ The core loop orchestrates these contracts; it should not absorb their implement
 
 - Policy-gated approval for risky and mutating actions.
 - Clear separation between read-only and mutating tool paths.
+- A single read-only boolean is a scheduling signal, not a complete safety
+  declaration: tools should be able to declare bounded effects (paths
+  touched, processes spawned, network destinations, secret access) so
+  approval can reason about risk independently of concurrency scheduling.
+  Observed effects exceeding the declaration fail closed and emit an
+  auditable mismatch event.
 - Timeouts/cancellation propagated consistently.
+- Split a durable ordered **control journal** from lossy telemetry. Approval,
+  mutation lease, observed effects, snapshot, and verification-receipt events
+  must not drop; frontend/metrics subscribers may. A small deterministic
+  monitor over that journal enforces core ordering (approval before mutation,
+  one active mutation owner, effects within declaration, receipts still
+  current). Rule IDs are hand-authored and closed — not a model-authored
+  policy language.
 - Explicit event emission for approvals, denials, and side effects.
+- Tool output is never silently lossy: truncation, timeout, and cancellation
+  are distinct, explicit states with a durable handle to the omitted
+  remainder — never flattened into an ambiguous text blob.
 - Sandbox/escalation strategy is adapter-driven, not hardcoded per vendor/runtime.
 
 ---
@@ -75,9 +91,29 @@ The core loop orchestrates these contracts; it should not absorb their implement
 ## State and Context
 
 - Prefer explicit state snapshots and typed transitions over ad-hoc mutable global state.
-- Maintain token/context budget with deterministic compaction triggers.
+- Maintain token/context budget with deterministic compaction triggers, but a
+  token threshold decides *when* to compact, not *what survives*. Compaction
+  is a typed checkpoint with a protected spine — active constraints and
+  approvals, unresolved errors, disproven hypotheses, dirty-file state,
+  artifact handles — that mechanical deduplication and summarization operate
+  around, never evict silently.
+- Every injected or analyzer-sourced context item (enrichment, tool result,
+  verification receipt) carries source, snapshot/version, and freshness.
+  Treat it as stale unless checked — the same contested-tree discipline
+  already required between parallel agents applies to context provenance.
+  A receipt is an **envelope**: file Merkle plus verifier identity (binary
+  digest, args, rule/config digest, sandbox/runtime, lockfile hashes) — not
+  file hashes alone. Record secret *names*, never secret values.
+- Graph reachability is three-valued (`found` / `not_found_in_complete_scope`
+  / `unknown`). Incomplete name-graph absence is not a safety proof; it opens
+  an obligation.
+- Obligation kind and risk policy set a **mechanical minimum V&V rung**. The
+  LLM may add or escalate checks; it must not downgrade required discharge.
 - Preserve recoverability: session persistence, resume semantics, and traceable events.
-- Support steerable single active task semantics by default; add parallelism intentionally.
+- One active mutation owner by default; multiple bounded, cancellable
+  read-only investigations may run concurrently under a shared budget, with
+  an explicit join before any mutation. Serial reasoning is a good default —
+  serial waiting on independent reads is not.
 
 ---
 
@@ -87,7 +123,20 @@ The core loop orchestrates these contracts; it should not absorb their implement
 - Support two lanes:
   - **Runtime/ad-hoc lane** for fast iteration.
   - **Compiled lane** for durable first-class capabilities.
+- Both lanes emit the same capability manifest and policy-relevant events.
+  The ad-hoc lane is exactly where trust-boundary drift appears first; it
+  does not get a lighter approval/audit contract for being faster to write.
 - Promotion path: repeated ad-hoc need -> formalized extension -> optional core contract if necessary.
+- Promotion test for what belongs in core rather than an extension:
+  something is core when independent extensions must agree on it for safety,
+  replay, or correctness — not merely once it becomes popular.   Cancellation,
+  effect accounting, artifact identity, context-retention rules, control-journal
+  semantics, and verification-receipt identity meet this bar; providers and
+  analyzers generally do not.
+- Capability discovery is lazy and task-scoped: expose a compact manifest by
+  default, load full tool/skill/policy contracts only on selection. Freeze
+  selected schema versions into the session snapshot so resume stays
+  reproducible. Do not inject every installed capability into every turn.
 
 ---
 
