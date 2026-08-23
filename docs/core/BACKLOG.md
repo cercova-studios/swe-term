@@ -109,3 +109,59 @@ still executable; `AgentState` is messages/UI; persistence in Phase 6).
 scalar “correctness score”; treating coverage or a missing fuzzy edge as
 absence-proof; AgentSpec/Progent-style LLM-generated policies at the safety
 boundary (steal deterministic enforcement only).
+
+## Tool output ergonomics (from axi.md, reviewed 2026-08-22)
+
+Evidence: <https://axi.md> — “Agent eXperience Interface”, 10 principles plus
+browser/GitHub benchmarks where a principled CLI beat both raw CLI and MCP on
+success/cost/turns (MCP conditions used 2.3× the input tokens, dominated by
+upfront schema loading). Caveats: author-run benchmarks, 14 tasks, one domain
+per study; code-mode's cost ranking flipped between the two studies. Direction
+agrees with Anthropic's code-execution-with-MCP findings; treat magnitudes as
+indicative, not settled.
+
+Scope: the CLI surface of swe-term-native tools (`swe_distiller`, future
+`swe_graph`, backlog CLIs above). AXI says nothing about approval, effects,
+mutation ownership, or receipts — it is read-path ergonomics only. Core
+contracts in `ARCHITECTURE.md` govern what tools may do; this governs what
+their output feels like. Where an AXI principle has a stronger swe-term
+counterpart, the swe-term version wins.
+
+**Adopt for swe-term-native tools:**
+
+- Minimal default schemas (3–4 fields per list item) with flag-gated detail.
+- Loud truncation with size hints and a `--full` escape hatch — subsumed by
+  the stronger ARCHITECTURE.md rule (truncation/timeout/cancellation are
+  distinct explicit states with a durable handle to the omitted remainder);
+  AXI is independent validation, not the spec.
+- Pre-computed aggregates in list output (counts, status rollups) to
+  eliminate follow-up round trips. For `swe_graph`, design query commands
+  to return rollups, and fuse common multi-step sequences into single
+  combined commands — trajectory analysis attributes most turn savings to
+  combined operations, more than to output format.
+- Definitive empty states — upgraded to the three-valued form already
+  adopted (`found` / `not_found_in_complete_scope` / `unknown`); never a
+  bare “0 results” when scope completeness is in question.
+- Strict exit-code contract: 0 success, 1 error, unknown flag → exit 2,
+  never silently ignored; no interactive prompts; idempotent mutations.
+  (Same doctrine as the interposed-coreutils exit-code contract.)
+- Consistent concise `--help` per subcommand.
+- Contextual next-step suggestions in output trailers, with a provenance
+  constraint AXI lacks: suggestion text is tool-authored context injection.
+  Permitted only when generated from tool-owned state, never templated from
+  wrapped untrusted data (issue titles, page content, chat messages) — that
+  is a prompt-injection surface. The ARCHITECTURE.md provenance rule
+  (source/snapshot/freshness on injected items) applies to trailers too.
+
+**Reject:**
+
+- TOON as default output format. The ~40% token saving is real for uniform
+  tabular data, but models have deep JSON/TSV priors and no TOON priors;
+  escaping edge cases (delimiters inside fields) are exactly the silent-
+  corruption class the shim-fidelity doctrine exists to prevent. Compact
+  output yes; TOON only as an experiment behind a flag.
+- Structured errors on stdout. Defensible for bespoke agent tools, but it
+  inverts the Unix contract and would break the ≥99.5% fidelity target for
+  anything interposed over real coreutils. swe-term-native tools keep
+  errors on stderr with structured machine-readable bodies; interposed
+  shims follow GNU reference behavior, no exceptions.

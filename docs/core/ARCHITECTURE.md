@@ -48,7 +48,8 @@ For deep rationale, alternatives, and long-form references, see `GOLANG_TUI_PLAN
 ## Canonical Interfaces
 
 - `Provider`
-  - Streams model output/events and exposes model capabilities.
+  - Streams model output/events, emits terminal provider-reported usage with
+    resolved model/reasoning metadata, and exposes model capabilities.
 - `Tool`
   - Declares schema/behavior and executes bounded actions.
 - `SessionStore`
@@ -97,6 +98,10 @@ The core loop orchestrates these contracts; it should not absorb their implement
   approvals, unresolved errors, disproven hypotheses, dirty-file state,
   artifact handles — that mechanical deduplication and summarization operate
   around, never evict silently.
+- Provider usage is a typed completion snapshot, not frontend-derived text.
+  Provider adapters own provider/model pricing rules; unknown or unsupported
+  pricing remains explicit rather than being reported as zero. Frontends may
+  aggregate snapshots for session display without absorbing provider logic.
 - Every injected or analyzer-sourced context item (enrichment, tool result,
   verification receipt) carries source, snapshot/version, and freshness.
   Treat it as stale unless checked — the same contested-tree discipline

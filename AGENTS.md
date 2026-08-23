@@ -458,13 +458,39 @@ SECRETS HANDLING FOR AD HOC SCRIPTS
 </secrets-handling>
 
 ────────────────────────────────────────────────────────
+TESTING
+────────────────────────────────────────────────────────
+
+<testing>
+Land a `*_test.go` only when it locks one of these:
+
+1) Fail-closed combinatorics  
+   Merge order, denylist, credential rejection, unknown provider, stream
+   completion protocol, usage/cost accounting that must not silently lie.
+
+2) User-journey e2e  
+   Mock provider, no live keys. Journeys such as `streaming_text`, later
+   `read_file_roundtrip`. Assert observable behavior, not helpers.
+
+Do not land:
+- helper / constructor / mapper tests
+- formatter, ranking, or string-snapshot tests
+- tests that only prove a function echoes its inputs
+- tests that break when copy or layout changes
+
+Scratch unit tests locally while debugging. Delete them before commit
+unless they meet (1) or (2). `go test ./...` staying green is not a reason
+to keep a file.
+</testing>
+
+────────────────────────────────────────────────────────
 LEARNED CONTEXT (continual learning)
 ────────────────────────────────────────────────────────
 
 ## Learned User Preferences
 - Design the `swe-term` Go harness primarily for AI-agent extensibility: keep a small, robust, stable core and let agents/community build extensions on top without deep framework knowledge (pi / pi-mono coding-agent philosophy). Go owns the agent loop, approvals, schemas, and Tool adapters; heavy engines (Rust/etc.) run as sidecar binaries behind thin Go adapters — not as the primary FFI/plugin surface.
 - Prefer agent-facing UX through `swe-term` / `st`; keep extension CLIs as thin spawn/debug contracts, not parallel product CLIs.
-- When simplifying extensions (e.g. `swe_distiller`), pare complexity without dropping functionality and lock behavior with regression tests.
+- When simplifying extensions (e.g. `swe_distiller`), pare complexity without dropping functionality and lock behavior with regression tests — only the fail-closed or journey tests above, not helper suites.
 - Avoid cloud-vendor lock-in: prefer pluggable, cloud-agnostic backends that swap across GCP, AWS, Cloudflare, Modal, and turbopuffer for deployment, storage, and search/vector layers.
 - When evaluating other agent frameworks, produce thorough, candid paired "deep dive" + "critique" docs under `docs/` ("don't hold back") and validate them against the local reference checkouts before finalizing.
 

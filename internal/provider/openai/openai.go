@@ -43,27 +43,58 @@ func (p *Provider) Stream(ctx context.Context, req core.StreamRequest) (<-chan c
 		model = p.model
 	}
 
-	ch := make(chan core.StreamEvent, 16)
+	params := responses.ResponseNewParams{
+		Input: responses.ResponseNewParamsInputUnion{
+			OfString: openai.String(flattenInput(req.Messages)),
+		},
+		Model: openai.ChatModel(model),
+	}
+	if reasoning, ok := reasoningParam(req.Reasoning); ok {
+		params.Reasoning = reasoning
+	}
+
+	ch := make(chan core.StreamEvent, 64)
 	go func() {
 		defer close(ch)
+		stream := p.client.Responses.NewStreaming(ctx, params)
+		defer stream.Close()
 
-		resp, err := p.client.Responses.New(ctx, responses.ResponseNewParams{
-			Input: responses.ResponseNewParamsInputUnion{
-				OfString: openai.String(flattenInput(req.Messages)),
-			},
-			Model: openai.ChatModel(model),
-		})
-		if err != nil {
+		send := func(ev core.StreamEvent) bool {
 			select {
-			case ch <- core.StreamEvent{Kind: core.EventError, Err: err}:
+			case ch <- ev:
+				return true
 			case <-ctx.Done():
+				return false
 			}
-			return
 		}
 
-		select {
-		case ch <- core.StreamEvent{Kind: core.EventText, Text: resp.OutputText()}:
-		case <-ctx.Done():
+		for stream.Next() {
+			switch v := stream.Current().AsAny().(type) {
+			case responses.ResponseTextDeltaEvent:
+				if v.Delta == "" {
+					continue
+				}
+				if !send(core.StreamEvent{Kind: core.EventText, Text: v.Delta}) {
+					return
+				}
+			case responses.ResponseCompletedEvent:
+				if !send(core.StreamEvent{Kind: core.EventComplete, Usage: usageFromResponse(v.Response, model)}) {
+					return
+				}
+			case responses.ResponseErrorEvent:
+				err := fmt.Errorf("openai: %s", v.Message)
+				if v.Code != "" {
+					err = fmt.Errorf("openai: %s (%s)", v.Message, v.Code)
+				}
+				send(core.StreamEvent{Kind: core.EventError, Err: err})
+				return
+			case responses.ResponseFailedEvent:
+				send(core.StreamEvent{Kind: core.EventError, Err: fmt.Errorf("openai: response failed")})
+				return
+			}
+		}
+		if err := stream.Err(); err != nil {
+			send(core.StreamEvent{Kind: core.EventError, Err: err})
 		}
 	}()
 	return ch, nil
