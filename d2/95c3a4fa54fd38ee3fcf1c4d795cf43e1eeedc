@@ -1,0 +1,47 @@
+internal/core/usage_test.go
+  s_f2a9b5e9520670::t_3e72ed6e238638 3-7
+  s_f2a9b5e9520670::t_d96ee8c2c783a9 69-97
+docs/core/BACKLOG.md
+  s_f2a9b5e9520670::t_5e214b50be1689 147-148
+  s_f2a9b5e9520670::t_913616017451df 161-162,164-169
+internal/tui/status.go
+  s_f2a9b5e9520670::t_dd8a0ce504a375 64-68
+main.go
+  s_f2a9b5e9520670::t_2b3abf71e73435 7-9
+  s_f2a9b5e9520670::t_aaf7bba9aabaee 63-73
+  s_f2a9b5e9520670::t_24faa354b9a571 37
+internal/tui/tui.go
+  s_f2a9b5e9520670::t_33641c0d8e8aad 132
+  s_f2a9b5e9520670::t_6b87177d991927 354-361
+  s_f2a9b5e9520670::t_f94c670e04637f 230-232,234-237
+  s_f2a9b5e9520670::t_4348dcb404ae83 395-410,412,417,419
+  s_f2a9b5e9520670::t_4046513971bf6d 657-664
+  s_f2a9b5e9520670::t_8c9b82cdbc2df6 311-314,324,329,331,333
+  s_f2a9b5e9520670::t_bcaae9e95e869d 47,64,66,71,87,93,95,98-100
+  s_f2a9b5e9520670::t_b567201b98ff6f 167-169,177,180-182,186,192,202,204,207,219
+internal/provider/openai/openai.go
+  s_f2a9b5e9520670::t_57b189eee6691d 80-86,91-97
+internal/core/usage.go
+  s_f2a9b5e9520670::t_d09a484d83c61b 63,65-67,71-72,77-78,83-87,91-93
+internal/tui/stream_test.go
+  s_f2a9b5e9520670::t_8103cb422a2519 7-8
+  s_f2a9b5e9520670::t_0d553ae37b8236 10
+  s_f2a9b5e9520670::t_86600b405ca00d 63
+  s_f2a9b5e9520670::t_b9e2dd9bd04b11 48-62,64-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "d295c3a4fa54fd38ee3fcf1c4d795cf43e1eeedc",
+  "prompts": {},
+  "sessions": {
+    "s_f2a9b5e9520670": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "4706b6b3-0ccc-44c1-a015-05b3461da43d",
+        "model": "grok-4.6"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
