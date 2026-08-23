@@ -1,0 +1,14 @@
+docs/plans/2026-08-23-tui-telemetry-design.md
+  h_f55e8856ec8c19 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "0f11e6f8836be770871462430dd1dd597aaf74c3",
+  "prompts": {},
+  "humans": {
+    "h_f55e8856ec8c19": {
+      "author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
