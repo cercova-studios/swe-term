@@ -17,16 +17,10 @@ type statusState struct {
 
 func formatStatusLine(state statusState) string {
 	model := state.Model
-	if state.Last.Model != "" {
-		model = state.Last.Model
-	}
 	if model == "" {
 		model = "no-model"
 	}
 	reasoning := state.Reasoning
-	if state.Last.Reasoning != "" {
-		reasoning = state.Last.Reasoning
-	}
 	if reasoning == "" {
 		reasoning = "auto"
 	}
@@ -67,6 +61,11 @@ func formatTokens(value int64) string {
 		unit++
 	}
 	text := strconv.FormatFloat(amount, 'f', 1, 64)
+	if text == "1000.0" && unit < len(units)-1 {
+		amount = 1
+		unit++
+		text = "1.0"
+	}
 	text = strings.TrimSuffix(text, ".0")
 	return text + units[unit]
 }

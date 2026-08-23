@@ -77,10 +77,24 @@ func (p *Provider) Stream(ctx context.Context, req core.StreamRequest) (<-chan c
 				if !send(core.StreamEvent{Kind: core.EventText, Text: v.Delta}) {
 					return
 				}
+			case responses.ResponseRefusalDeltaEvent:
+				if v.Delta == "" {
+					continue
+				}
+				if !send(core.StreamEvent{Kind: core.EventText, Text: v.Delta}) {
+					return
+				}
 			case responses.ResponseCompletedEvent:
 				if !send(core.StreamEvent{Kind: core.EventComplete, Usage: usageFromResponse(v.Response, model)}) {
 					return
 				}
+			case responses.ResponseIncompleteEvent:
+				reason := v.Response.IncompleteDetails.Reason
+				if reason == "" {
+					reason = "unknown"
+				}
+				send(core.StreamEvent{Kind: core.EventError, Err: fmt.Errorf("openai: response incomplete (%s)", reason)})
+				return
 			case responses.ResponseErrorEvent:
 				err := fmt.Errorf("openai: %s", v.Message)
 				if v.Code != "" {

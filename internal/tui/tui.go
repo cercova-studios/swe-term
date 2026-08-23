@@ -44,6 +44,7 @@ type Options struct {
 	Provider    core.Provider // nil if construction failed
 	ProviderErr error
 	LoadArgs    []string
+	NewProvider func(config.Config) (core.Provider, error)
 }
 
 type model struct {
@@ -60,11 +61,14 @@ type model struct {
 	loadArgs    []string
 	provider    core.Provider
 	providerErr error
+	newProvider func(config.Config) (core.Provider, error)
 	busy        bool
+	history     []core.Message
 
 	slashHits []slashCmd
 	slashSel  int
 
+	streamID        uint64
 	streamCh        <-chan core.StreamEvent
 	streamCancel    context.CancelFunc
 	streamRaw       string
@@ -80,15 +84,20 @@ type model struct {
 
 type tickMsg time.Time
 type streamStartMsg struct {
+	id  uint64
 	ch  <-chan core.StreamEvent
 	err error
 }
 
 type streamDeltaMsg struct {
+	id uint64
 	ev core.StreamEvent
+	ch <-chan core.StreamEvent
 }
 
-type streamDoneMsg struct{}
+type streamDoneMsg struct {
+	id uint64
+}
 
 func Run(opts Options) error {
 	m := newModel(opts)
@@ -120,6 +129,7 @@ func newModel(opts Options) model {
 		loadArgs:    opts.LoadArgs,
 		provider:    opts.Provider,
 		providerErr: opts.ProviderErr,
+		newProvider: opts.NewProvider,
 		streamLine:  -1,
 		follow:      true,
 	}
@@ -154,6 +164,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case streamStartMsg:
+		if msg.id != m.streamID {
+			return m, waitStream(msg.id, msg.ch)
+		}
 		if msg.err != nil {
 			m.busy = false
 			m.stopStream()
@@ -161,43 +174,37 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.streamCh = msg.ch
-		return m, waitStream(msg.ch)
+		return m, waitStream(msg.id, msg.ch)
 
 	case streamDeltaMsg:
+		if msg.id != m.streamID {
+			return m, waitStream(msg.id, msg.ch)
+		}
 		switch msg.ev.Kind {
 		case core.EventText:
 			if m.streamCompleted {
-				m.busy = false
-				m.stopStream()
-				m.append("error", "provider stream: text after completion")
-				return m, nil
+				return m, m.failStream(msg.id, msg.ch, "provider stream: text after completion")
 			}
 			m.streamRaw += msg.ev.Text
 			m.paintAssistant(m.streamRaw, false)
 		case core.EventComplete:
 			if m.streamCompleted {
-				m.busy = false
-				m.stopStream()
-				m.append("error", "provider stream: duplicate completion")
-				return m, nil
+				return m, m.failStream(msg.id, msg.ch, "provider stream: duplicate completion")
 			}
 			m.streamCompleted = true
 			m.lastUsage = msg.ev.Usage
 			m.sessionUsage.Add(msg.ev.Usage)
 		case core.EventError:
-			m.busy = false
-			m.stopStream()
 			err := msg.ev.Err
 			if err == nil {
 				err = fmt.Errorf("stream error")
 			}
-			m.append("error", err.Error())
-			return m, nil
+			return m, m.failStream(msg.id, msg.ch, err.Error())
 		}
-		return m, waitStream(m.streamCh)
+		return m, waitStream(msg.id, msg.ch)
 
 	case streamDoneMsg:
-		if !m.busy {
+		if msg.id != m.streamID || !m.busy {
 			return m, nil
 		}
 		m.busy = false
@@ -209,6 +216,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.append("error", "provider stream: closed without completion")
 			return m, nil
 		}
+		m.history = append(m.history, core.Message{Role: core.RoleAssistant, Content: m.streamRaw})
 		m.stopStream()
 		return m, nil
 
@@ -219,12 +227,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "esc":
 			if m.busy {
-				m.busy = false
-				m.stopStream()
-				if m.streamRaw == "" {
-					m.append("system", "interrupted")
+				if m.streamRaw != "" {
+					m.history = append(m.history, core.Message{Role: core.RoleAssistant, Content: m.streamRaw})
+					m.paintAssistant(m.streamRaw, true)
 				}
-				return m, nil
+				oldID, oldCh := m.abandonStream()
+				m.busy = false
+				m.append("system", "interrupted")
+				return m, waitStream(oldID, oldCh)
 			}
 		case "pgup", "ctrl+u":
 			if m.scrollHistory(-1, true) {
@@ -298,6 +308,10 @@ func (m model) handleLine(line string) (tea.Model, tea.Cmd) {
 		m.append("error", err.Error())
 		return m, nil
 	}
+	m.history = append(m.history, core.Message{Role: core.RoleUser, Content: line})
+	messages := append([]core.Message(nil), m.history...)
+	m.streamID++
+	id := m.streamID
 	m.busy = true
 	m.follow = true
 	m.workStarted = time.Now()
@@ -307,15 +321,16 @@ func (m model) handleLine(line string) (tea.Model, tea.Cmd) {
 	m.streamCompleted = false
 	p := m.provider
 	modelID := m.cfg.Model
+	reasoning := m.cfg.Reasoning
 	ctx, cancel := context.WithCancel(context.Background())
 	m.streamCancel = cancel
 	return m, tea.Batch(func() tea.Msg {
 		ch, err := p.Stream(ctx, core.StreamRequest{
-			Messages:  []core.Message{{Role: core.RoleUser, Content: line}},
+			Messages:  messages,
 			Model:     modelID,
-			Reasoning: m.cfg.Reasoning,
+			Reasoning: reasoning,
 		})
-		return streamStartMsg{ch: ch, err: err}
+		return streamStartMsg{id: id, ch: ch, err: err}
 	}, waitTick())
 }
 
@@ -336,6 +351,14 @@ func (m model) handleSlash(line string) (tea.Model, tea.Cmd) {
 		m.cfg = res.Config
 		m.userPath = res.UserPath
 		m.projectPath = res.ProjectPath
+		if m.newProvider != nil {
+			p, perr := m.newProvider(m.cfg)
+			m.provider = p
+			m.providerErr = perr
+			if perr != nil {
+				m.append("error", perr.Error())
+			}
+		}
 		m.append("", config.Dump(res.UserPath, res.ProjectPath))
 		return m, nil
 	default:
@@ -369,16 +392,31 @@ func (m *model) stopStream() {
 	m.streamCompleted = false
 }
 
-func waitStream(ch <-chan core.StreamEvent) tea.Cmd {
+func (m *model) abandonStream() (uint64, <-chan core.StreamEvent) {
+	id := m.streamID
+	ch := m.streamCh
+	m.streamID++
+	m.stopStream()
+	return id, ch
+}
+
+func (m *model) failStream(id uint64, ch <-chan core.StreamEvent, message string) tea.Cmd {
+	m.busy = false
+	m.abandonStream()
+	m.append("error", message)
+	return waitStream(id, ch)
+}
+
+func waitStream(id uint64, ch <-chan core.StreamEvent) tea.Cmd {
 	if ch == nil {
-		return func() tea.Msg { return streamDoneMsg{} }
+		return func() tea.Msg { return streamDoneMsg{id: id} }
 	}
 	return func() tea.Msg {
 		ev, ok := <-ch
 		if !ok {
-			return streamDoneMsg{}
+			return streamDoneMsg{id: id}
 		}
-		return streamDeltaMsg{ev: ev}
+		return streamDeltaMsg{id: id, ev: ev, ch: ch}
 	}
 }
 
@@ -616,7 +654,14 @@ func renderMarkdown(text string, width int) string {
 	if width < 20 {
 		width = 80
 	}
-	out, err := glamour.Render(text, "dark")
+	r, err := glamour.NewTermRenderer(
+		glamour.WithStandardStyle("dark"),
+		glamour.WithWordWrap(width),
+	)
+	if err != nil {
+		return text
+	}
+	out, err := r.Render(text)
 	if err != nil {
 		return text
 	}

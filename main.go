@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
+
+	"charm.land/glamour/v2"
 
 	"swe-term/internal/config"
 	"swe-term/internal/core"
@@ -31,6 +34,7 @@ func main() {
 			Provider:    provider,
 			ProviderErr: perr,
 			LoadArgs:    os.Args[1:],
+			NewProvider: newProvider,
 		}); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
@@ -56,18 +60,18 @@ func runOnce(provider core.Provider, res config.Result) error {
 	if err != nil {
 		return err
 	}
-	for ev := range ch {
-		switch ev.Kind {
-		case core.EventText:
-			fmt.Print(ev.Text)
-		case core.EventError:
-			if ev.Err != nil {
-				return ev.Err
-			}
-			return fmt.Errorf("stream error")
-		}
+	response, err := core.CollectResponse(ch)
+	if err != nil {
+		return err
 	}
-	fmt.Print("\n")
+	out, err := glamour.Render(response.Text, "dark")
+	if err != nil {
+		return err
+	}
+	fmt.Print(out)
+	if !strings.HasSuffix(out, "\n") {
+		fmt.Print("\n")
+	}
 	return nil
 }
 

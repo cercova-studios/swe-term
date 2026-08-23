@@ -144,7 +144,8 @@ counterpart, the swe-term version wins.
   bare “0 results” when scope completeness is in question.
 - Strict exit-code contract: 0 success, 1 error, unknown flag → exit 2,
   never silently ignored; no interactive prompts; idempotent mutations.
-  (Same doctrine as the interposed-coreutils exit-code contract.)
+  Proposed for interposed coreutils as well; not yet a landed
+  ARCHITECTURE.md contract.
 - Consistent concise `--help` per subcommand.
 - Contextual next-step suggestions in output trailers, with a provenance
   constraint AXI lacks: suggestion text is tool-authored context injection.
@@ -157,11 +158,12 @@ counterpart, the swe-term version wins.
 
 - TOON as default output format. The ~40% token saving is real for uniform
   tabular data, but models have deep JSON/TSV priors and no TOON priors;
-  escaping edge cases (delimiters inside fields) are exactly the silent-
-  corruption class the shim-fidelity doctrine exists to prevent. Compact
-  output yes; TOON only as an experiment behind a flag.
+  escaping edge cases (delimiters inside fields) are a silent-corruption
+  class. Compact output yes; TOON only as an experiment behind a flag.
 - Structured errors on stdout. Defensible for bespoke agent tools, but it
-  inverts the Unix contract and would break the ≥99.5% fidelity target for
-  anything interposed over real coreutils. swe-term-native tools keep
-  errors on stderr with structured machine-readable bodies; interposed
-  shims follow GNU reference behavior, no exceptions.
+  inverts the Unix contract and would diverge from GNU/POSIX stdout/stderr
+  and exit-code behavior for anything interposed over real coreutils.
+  A numeric fidelity SLO is not landed; the proposed bar is match-the-
+  reference. swe-term-native tools keep errors on stderr with structured
+  machine-readable bodies; interposed shims should follow GNU reference
+  behavior.

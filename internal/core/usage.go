@@ -60,27 +60,37 @@ func CollectResponse(ch <-chan StreamEvent) (Response, error) {
 	var response Response
 	var b strings.Builder
 	completed := false
+	var firstErr error
 	for ev := range ch {
+		if firstErr != nil {
+			continue
+		}
 		switch ev.Kind {
 		case EventText:
 			if completed {
-				response.Text = b.String()
-				return response, fmt.Errorf("provider stream: text after completion")
+				firstErr = fmt.Errorf("provider stream: text after completion")
+				continue
 			}
 			b.WriteString(ev.Text)
 		case EventComplete:
 			if completed {
-				response.Text = b.String()
-				return response, fmt.Errorf("provider stream: duplicate completion")
+				firstErr = fmt.Errorf("provider stream: duplicate completion")
+				continue
 			}
 			completed = true
 			response.Usage = ev.Usage
 		case EventError:
-			response.Text = b.String()
-			return response, ev.Err
+			if ev.Err != nil {
+				firstErr = ev.Err
+				continue
+			}
+			firstErr = fmt.Errorf("provider stream: error without details")
 		}
 	}
 	response.Text = b.String()
+	if firstErr != nil {
+		return response, firstErr
+	}
 	if !completed {
 		return response, fmt.Errorf("provider stream: closed without completion")
 	}

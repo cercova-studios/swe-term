@@ -1,6 +1,10 @@
 package core
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+	"time"
+)
 
 func TestUsageTotalsAddAccumulatesTokensAndKnownCosts(t *testing.T) {
 	firstCost := 0.0012
@@ -59,6 +63,35 @@ func TestCollectResponseRejectsInvalidCompletionSequence(t *testing.T) {
 				t.Fatal("CollectResponse returned nil error")
 			}
 		})
+	}
+}
+
+func TestCollectResponseDrainsAfterError(t *testing.T) {
+	ch := make(chan StreamEvent)
+	errc := make(chan error, 1)
+	go func() {
+		_, err := CollectResponse(ch)
+		errc <- err
+	}()
+	ch <- StreamEvent{Kind: EventText, Text: "hi"}
+	ch <- StreamEvent{Kind: EventError, Err: fmt.Errorf("boom")}
+	ch <- StreamEvent{Kind: EventText, Text: "late"}
+	close(ch)
+
+	select {
+	case err := <-errc:
+		if err == nil || err.Error() != "boom" {
+			t.Fatalf("err=%v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("CollectResponse blocked instead of draining")
+	}
+}
+
+func TestCollectResponseNilEventError(t *testing.T) {
+	_, err := CollectResponse(events(StreamEvent{Kind: EventError}))
+	if err == nil {
+		t.Fatal("nil EventError treated as success")
 	}
 }
 
