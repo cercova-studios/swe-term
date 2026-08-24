@@ -49,3 +49,7 @@ pi/
 /target/
 .DS_Store
 joern
+
+# VCS / Nix local state
+.jj/
+.direnv/

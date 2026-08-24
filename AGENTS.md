@@ -334,6 +334,20 @@ EXECUTION STANDARDS
 </execution-standards>
 
 ────────────────────────────────────────────────────────
+VCS & PRs
+────────────────────────────────────────────────────────
+
+<vcs-and-prs>
+Canonical contract: `CONTRIBUTING.md`. Command surface: `justfile`.
+
+- Prefer `just` for test / fmt / vet / setup / stack / fetch. Do not invent ad hoc `go`/`gh`/`jj` flag combinations for those jobs.
+- Use Jujutsu (`jj`) for status, diff, log, commit, bookmark, rebase, undo. Do not run `git`.
+- Trunk is `dev`. When asked to open PRs, split into stacked bookmarks (one concern each) and run `just stack bookmark...` (bottom to top), which is `gh stack link --base dev --open`. Never `gh pr create`. Never `gh stack init` / `add` / `submit`.
+- Commit and push only when the user asks. When they do, the mechanism is `jj commit` / bookmarks + `just stack`, not `git commit` / `gh pr create`.
+- Nix `flake.nix` is an optional toolchain. Do not fail if Nix is missing. Go version is `go.mod`.
+</vcs-and-prs>
+
+────────────────────────────────────────────────────────
 DEBUGGING DISCIPLINE
 ────────────────────────────────────────────────────────
 
@@ -498,4 +512,4 @@ LEARNED CONTEXT (continual learning)
 - `swe-term` is a Go-based terminal/TUI SWE-agent harness intended to be invoked as `swe-term` or `st`; the primary design doc is `docs/core/ARCHITECTURE.md`, with `docs/core/GOLANG_TUI_PLAN.md` as long-form rationale, and `docs/research/` holds paired deep-dive + critique analyses of other agent frameworks (Claude Code, Codex, flue, pi-mono, deepagents).
 - Local reference checkouts of comparison frameworks live at the repo root and are gitignored: `flue/`, `pi-mono/`, `codex/`, `claude-code/`, `claw-code/`, `deepagents/`. Consult these when enriching framework docs.
 - The harness wraps services as extensions under `extensions/`; `extensions/swe_distiller/` is a Rust URL→markdown extractor sidecar (thin CLI for Go spawn/debug; generated outputs are gitignored).
-- Git: work happens on the `dev` branch; the remote is `github.com/cercova-studios/swe-term`.
+- VCS is colocated Jujutsu; trunk is `dev` on `github.com/cercova-studios/swe-term`. PRs are stacked with `gh stack link --base dev` (`just stack`), not `gh pr create`.
