@@ -10,6 +10,7 @@ This directory is organized to keep architecture decisions centralized and reduc
 
 ## Source-of-Truth Documents
 
+- [`../CONTRIBUTING.md`](../CONTRIBUTING.md) — How to develop and open stacked PRs (`just`, `jj`, `gh stack link`).
 - [`core/ARCHITECTURE.md`](core/ARCHITECTURE.md) — Canonical architecture spec.
 - [`core/PLAN.md`](core/PLAN.md) — Concise execution roadmap (phases, milestones, done criteria).
 - [`core/FRAMEWORKS.md`](core/FRAMEWORKS.md) — Condensed cross-framework comparison and porting guidance.
