@@ -1,15 +1,19 @@
-use scraper::{Html, Selector};
+use once_cell::sync::Lazy;
+use scraper::Selector;
 
 use crate::dom::count_words;
+use crate::dom_ops::{detach_nodes, parse_fragment, serialize_fragment, sort_shallow_first};
 use crate::scoring::{is_likely_content, score_non_content_block};
 
-pub fn remove_low_scoring_blocks(input: &str) -> String {
-    let html = Html::parse_fragment(input);
-    let block_sel =
-        Selector::parse("div, section, aside, nav, footer, header").expect("valid selector");
-    let mut output = input.to_string();
+static BLOCK_SEL: Lazy<Selector> = Lazy::new(|| {
+    Selector::parse("div, section, aside, nav, footer, header").expect("valid selector")
+});
 
-    for el in html.select(&block_sel) {
+pub fn remove_low_scoring_blocks(input: &str) -> String {
+    let mut doc = parse_fragment(input);
+    let mut ids = Vec::new();
+
+    for el in doc.select(&BLOCK_SEL) {
         if is_likely_content(&el) {
             continue;
         }
@@ -19,9 +23,11 @@ pub fn remove_low_scoring_blocks(input: &str) -> String {
         }
         let score = score_non_content_block(&el);
         if score < 0.0 {
-            output = output.replacen(&el.html(), "", 1);
+            ids.push(el.id());
         }
     }
 
-    output
+    sort_shallow_first(&doc, &mut ids);
+    detach_nodes(&mut doc, ids);
+    serialize_fragment(&doc)
 }

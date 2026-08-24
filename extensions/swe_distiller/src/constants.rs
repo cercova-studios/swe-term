@@ -14,8 +14,6 @@ pub const ENTRY_POINT_SELECTORS: &[&str] = &[
     "body",
 ];
 
-pub const EXACT_SELECTORS: &[&str] = &["script:not([type^=\"math/\"])", "style", "noscript"];
-
 pub const PARTIAL_PATTERNS: &[&str] = &[
     "advert",
     "ads",

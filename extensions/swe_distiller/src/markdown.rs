@@ -1,51 +1,7 @@
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use crate::dom::strip_tags;
-
-static SCRIPT_STYLE_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?is)<(?:script|style|button)[^>]*>.*?</(?:script|style|button)>")
-        .expect("valid regex")
-});
-static H_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?is)<h([1-6])[^>]*>(.*?)</h[1-6]>").expect("valid regex"));
-static PRE_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?is)<pre[^>]*>(.*?)</pre>").expect("valid regex"));
-static PARAGRAPH_BOUNDARY_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?is)</p>\s*<p[^>]*>").expect("valid regex"));
-static P_OPEN_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<p[^>]*>").expect("valid regex"));
-static P_CLOSE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)</p>").expect("valid regex"));
-static BLOCK_OPEN_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?is)<(?:div|section|article|header|footer|main|aside|figure|figcaption)[^>]*>")
-        .expect("valid regex")
-});
-static BLOCK_CLOSE_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?is)</(?:div|section|article|header|footer|main|aside|figure|figcaption)>")
-        .expect("valid regex")
-});
-static A_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"(?is)<a[^>]*href=["']([^"']+)["'][^>]*>(.*?)</a>"#).expect("valid regex")
-});
-static IMG_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"(?is)<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']*)["'][^>]*>"#)
-        .expect("valid regex")
-});
-static IMG_SRC_ONLY_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"(?is)<img[^>]*src=["']([^"']+)["'][^>]*>"#).expect("valid regex"));
-static BOLD_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?is)<(?:strong|b)[^>]*>(.*?)</(?:strong|b)>").expect("valid regex"));
-static EM_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?is)<(?:em|i)[^>]*>(.*?)</(?:em|i)>").expect("valid regex"));
-static CODE_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?is)<code[^>]*>(.*?)</code>").expect("valid regex"));
-static LI_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?is)<li[^>]*>(.*?)</li>").expect("valid regex"));
-static BR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<br\s*/?>").expect("valid regex"));
-static HR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<hr\s*/?>").expect("valid regex"));
-static TAG_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<[^>]+>").expect("valid regex"));
 static MULTI_NEWLINE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n{3,}").expect("valid regex"));
-static EMPTY_LINK_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?m)\[\]\([^)]+\)").expect("valid regex"));
 static LINK_TO_DATE_RUNON_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r"(?i)(\]\([^)]+\))(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec[a-z]*\s+\d{1,2},\s+\d{4})",
@@ -89,107 +45,6 @@ static MEDIUM_TAG_LINK_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"^\[[^\]]+\]\(https?://(?:www\.)?medium\.com/tag/[^)]+\)\s*$"#)
         .expect("valid regex")
 });
-
-pub fn html_to_markdown(html: &str, _url: Option<&str>) -> String {
-    let mut out = SCRIPT_STYLE_RE.replace_all(html, "").to_string();
-    out = BLOCK_OPEN_RE.replace_all(&out, "\n").to_string();
-    out = BLOCK_CLOSE_RE.replace_all(&out, "\n").to_string();
-    out = PARAGRAPH_BOUNDARY_RE.replace_all(&out, "\n\n").to_string();
-    out = P_OPEN_RE.replace_all(&out, "").to_string();
-    out = P_CLOSE_RE.replace_all(&out, "\n\n").to_string();
-
-    out = H_RE
-        .replace_all(&out, |caps: &regex::Captures<'_>| {
-            let level = caps
-                .get(1)
-                .and_then(|m| m.as_str().parse::<usize>().ok())
-                .unwrap_or(2);
-            let text = strip_tags(caps.get(2).map(|m| m.as_str()).unwrap_or_default());
-            format!("\n{} {}\n", "#".repeat(level), text.trim())
-        })
-        .to_string();
-
-    out = PRE_RE
-        .replace_all(&out, |caps: &regex::Captures<'_>| {
-            let code = html_entity_decode(
-                strip_tags(caps.get(1).map(|m| m.as_str()).unwrap_or_default()).trim(),
-            );
-            format!("\n```\n{code}\n```\n")
-        })
-        .to_string();
-
-    out = A_RE
-        .replace_all(&out, |caps: &regex::Captures<'_>| {
-            let href = caps.get(1).map(|m| m.as_str()).unwrap_or("#");
-            let text = strip_tags(caps.get(2).map(|m| m.as_str()).unwrap_or_default());
-            format!("[{}]({href})", text.trim())
-        })
-        .to_string();
-
-    out = IMG_RE
-        .replace_all(&out, |caps: &regex::Captures<'_>| {
-            let src = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
-            let alt = caps.get(2).map(|m| m.as_str()).unwrap_or_default();
-            format!("![{alt}]({src})")
-        })
-        .to_string();
-
-    out = IMG_SRC_ONLY_RE
-        .replace_all(&out, |caps: &regex::Captures<'_>| {
-            let src = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
-            format!("![]({src})")
-        })
-        .to_string();
-
-    out = BOLD_RE
-        .replace_all(&out, |caps: &regex::Captures<'_>| {
-            format!(
-                "**{}**",
-                strip_tags(caps.get(1).map(|m| m.as_str()).unwrap_or_default())
-            )
-        })
-        .to_string();
-    out = EM_RE
-        .replace_all(&out, |caps: &regex::Captures<'_>| {
-            format!(
-                "*{}*",
-                strip_tags(caps.get(1).map(|m| m.as_str()).unwrap_or_default())
-            )
-        })
-        .to_string();
-    out = CODE_RE
-        .replace_all(&out, |caps: &regex::Captures<'_>| {
-            format!(
-                "`{}`",
-                strip_tags(caps.get(1).map(|m| m.as_str()).unwrap_or_default())
-            )
-        })
-        .to_string();
-    out = LI_RE
-        .replace_all(&out, |caps: &regex::Captures<'_>| {
-            format!(
-                "\n- {}",
-                strip_tags(caps.get(1).map(|m| m.as_str()).unwrap_or_default()).trim()
-            )
-        })
-        .to_string();
-    out = BR_RE.replace_all(&out, "\n").to_string();
-    out = HR_RE.replace_all(&out, "\n---\n").to_string();
-    out = TAG_RE.replace_all(&out, "").to_string();
-
-    out = html_entity_decode(&out);
-    out = EMPTY_LINK_RE
-        .replace_all(&out, |caps: &regex::Captures<'_>| {
-            let matched = caps.get(0).map(|m| m.as_str()).unwrap_or_default();
-            if matched.starts_with("![](") {
-                matched.to_string()
-            } else {
-                String::new()
-            }
-        })
-        .to_string();
-    postprocess_markdown(&out)
-}
 
 pub fn guess_title(markdown: &str) -> Option<String> {
     markdown
@@ -396,10 +251,7 @@ fn count_marker(haystack: &str, needle: &str) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        fix_bold_spans_crossing_headings, html_to_markdown, normalize_metadata_runons,
-        strip_known_chrome,
-    };
+    use super::{fix_bold_spans_crossing_headings, normalize_metadata_runons, strip_known_chrome};
 
     #[test]
     fn strips_standalone_action_links_and_counters() {
@@ -531,13 +383,5 @@ Body paragraph.";
         let out = strip_known_chrome(input);
         assert!(!out.contains("system-design-interview"));
         assert!(out.contains("Body paragraph."));
-    }
-
-    #[test]
-    fn converts_br_and_hr_tags_to_line_breaks() {
-        let md = html_to_markdown("<p>alpha<br />beta<hr />gamma</p>", None);
-        assert!(md.contains("alpha\nbeta"));
-        assert!(md.contains("\n---\n"));
-        assert!(md.contains("gamma"));
     }
 }

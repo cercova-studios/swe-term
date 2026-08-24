@@ -1,50 +1,64 @@
 use once_cell::sync::Lazy;
-use regex::Regex;
+use scraper::Selector;
 
-use crate::constants::{EXACT_SELECTORS, PARTIAL_PATTERNS};
+use crate::constants::PARTIAL_PATTERNS;
+use crate::dom_ops::{
+    attr_match_blob, detach_nodes, parse_fragment, serialize_fragment, sort_shallow_first,
+};
 
-static BLOCK_TAG_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?is)<(?:nav|aside|footer|header)[^>]*>.*?</(?:nav|aside|footer|header)>")
-        .expect("valid regex")
+static SCRIPT_SEL: Lazy<Selector> =
+    Lazy::new(|| Selector::parse("script").expect("valid selector"));
+static STYLE_SEL: Lazy<Selector> = Lazy::new(|| Selector::parse("style").expect("valid selector"));
+static NOSCRIPT_SEL: Lazy<Selector> =
+    Lazy::new(|| Selector::parse("noscript").expect("valid selector"));
+static CHROME_SEL: Lazy<Selector> =
+    Lazy::new(|| Selector::parse("nav, aside, footer, header").expect("valid selector"));
+static PARTIAL_BLOCK_SEL: Lazy<Selector> = Lazy::new(|| {
+    Selector::parse("div, section, aside, nav, footer, header").expect("valid selector")
 });
 
 pub fn remove_by_selectors(input: &str, remove_exact: bool, remove_partial: bool) -> String {
-    let mut out = input.to_string();
+    if !remove_exact && !remove_partial {
+        return input.to_string();
+    }
+
+    let mut doc = parse_fragment(input);
+    let mut ids = Vec::new();
 
     if remove_exact {
-        for sel in EXACT_SELECTORS {
-            // String-first cleanup keeps implementation simple and safe for CLI mode.
-            if *sel == "script:not([type^=\"math/\"])" {
-                out = Regex::new(r"(?is)<script[^>]*>.*?</script>")
-                    .expect("valid regex")
-                    .replace_all(&out, "")
-                    .to_string();
-            } else if *sel == "style" {
-                out = Regex::new(r"(?is)<style[^>]*>.*?</style>")
-                    .expect("valid regex")
-                    .replace_all(&out, "")
-                    .to_string();
-            } else if *sel == "noscript" {
-                out = Regex::new(r"(?is)<noscript[^>]*>.*?</noscript>")
-                    .expect("valid regex")
-                    .replace_all(&out, "")
-                    .to_string();
+        for el in doc.select(&SCRIPT_SEL) {
+            let typ = el.value().attr("type").unwrap_or("");
+            if typ.starts_with("math/") {
+                continue;
             }
+            ids.push(el.id());
         }
-        out = BLOCK_TAG_RE.replace_all(&out, "").to_string();
+        for el in doc.select(&STYLE_SEL) {
+            ids.push(el.id());
+        }
+        for el in doc.select(&NOSCRIPT_SEL) {
+            ids.push(el.id());
+        }
+        for el in doc.select(&CHROME_SEL) {
+            ids.push(el.id());
+        }
     }
 
     if remove_partial {
-        for pattern in PARTIAL_PATTERNS {
-            let re = Regex::new(&format!(
-                r#"(?is)<(?:div|section|aside|nav|footer|header)[^>]*(?:class|id|data-[^=]+)=["'][^"']*{pattern}[^"']*["'][^>]*>.*?</(?:div|section|aside|nav|footer|header)>"#
-            ))
-            .expect("valid regex");
-            out = re.replace_all(&out, "").to_string();
+        for el in doc.select(&PARTIAL_BLOCK_SEL) {
+            let blob = attr_match_blob(&el);
+            if PARTIAL_PATTERNS
+                .iter()
+                .any(|pattern| blob.contains(pattern))
+            {
+                ids.push(el.id());
+            }
         }
     }
 
-    out
+    sort_shallow_first(&doc, &mut ids);
+    detach_nodes(&mut doc, ids);
+    serialize_fragment(&doc)
 }
 
 #[cfg(test)]
@@ -64,5 +78,22 @@ mod tests {
         let cleaned = remove_by_selectors(html, false, true);
         assert!(cleaned.contains("Alice Example"));
         assert!(cleaned.contains("Body paragraph"));
+    }
+
+    #[test]
+    fn exact_selector_removes_nav_and_scripts() {
+        let html = r#"
+        <article>
+          <nav>Menu</nav>
+          <script>alert(1)</script>
+          <script type="math/tex">x</script>
+          <p>Body</p>
+        </article>
+        "#;
+        let cleaned = remove_by_selectors(html, true, false);
+        assert!(!cleaned.to_lowercase().contains("<nav"));
+        assert!(!cleaned.contains("alert(1)"));
+        assert!(cleaned.contains("math/tex") || cleaned.contains(">x<"));
+        assert!(cleaned.contains("Body"));
     }
 }

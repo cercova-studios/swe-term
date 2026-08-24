@@ -68,7 +68,11 @@ mod tests {
 
     #[test]
     fn rejects_hosts_that_only_contain_supported_domains() {
-        assert!(!is_chat_share_url("https://chatgpt.com.evil.example/share/123"));
-        assert!(!is_chat_share_url("https://claude.ai.evil.example/share/123"));
+        assert!(!is_chat_share_url(
+            "https://chatgpt.com.evil.example/share/123"
+        ));
+        assert!(!is_chat_share_url(
+            "https://claude.ai.evil.example/share/123"
+        ));
     }
 }

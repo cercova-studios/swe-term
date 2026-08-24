@@ -1,17 +1,10 @@
 use once_cell::sync::Lazy;
 use regex::Regex;
+use scraper::{ElementRef, Node, Selector};
 
-static H1_FOLLOWING_DIV_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"(?is)(<h1\b[^>]*>.*?</h1>)\s*<div\b[^>]*>(.*?)</div>"#).expect("valid regex")
-});
-static H1_FOLLOWING_P_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"(?is)(<h1\b[^>]*>.*?</h1>)\s*<p\b[^>]*>(.*?)</p>"#).expect("valid regex")
-});
-static H1_FOLLOWING_SECTION_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"(?is)(<h1\b[^>]*>.*?</h1>)\s*<section\b[^>]*>(.*?)</section>"#)
-        .expect("valid regex")
-});
+use crate::dom_ops::{detach_nodes, next_element_sibling, parse_fragment, serialize_fragment};
 
+static H1_SEL: Lazy<Selector> = Lazy::new(|| Selector::parse("h1").expect("valid selector"));
 static DATE_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r"(?i)\b(\d{4}-\d{2}-\d{2}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},\s+\d{4}|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4})\b",
@@ -19,31 +12,39 @@ static DATE_RE: Lazy<Regex> = Lazy::new(|| {
     .expect("valid regex")
 });
 
-static TAG_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<[^>]+>").expect("valid regex"));
-
 pub fn remove_metadata_block(content_html: &str, has_author_or_published: bool) -> String {
     if !has_author_or_published {
         return content_html.to_string();
     }
 
-    let captures = H1_FOLLOWING_DIV_RE
-        .captures(content_html)
-        .or_else(|| H1_FOLLOWING_P_RE.captures(content_html))
-        .or_else(|| H1_FOLLOWING_SECTION_RE.captures(content_html));
-    let Some(caps) = captures else {
+    let mut doc = parse_fragment(content_html);
+    let Some(h1) = doc.select(&H1_SEL).next() else {
         return content_html.to_string();
     };
-    let Some(full_match) = caps.get(0) else {
-        return content_html.to_string();
-    };
-    let Some(h1_match) = caps.get(1) else {
-        return content_html.to_string();
-    };
-    let Some(following_match) = caps.get(2) else {
+    let h1_id = h1.id();
+    let Some(following_id) = next_element_sibling(&doc, h1_id) else {
         return content_html.to_string();
     };
 
-    let following_text = strip_tags(following_match.as_str()).trim().to_string();
+    let Some(following_node) = doc.tree.get(following_id) else {
+        return content_html.to_string();
+    };
+    let Node::Element(el) = following_node.value() else {
+        return content_html.to_string();
+    };
+    if !matches!(el.name(), "div" | "p" | "section") {
+        return content_html.to_string();
+    }
+
+    let Some(following) = ElementRef::wrap(following_node) else {
+        return content_html.to_string();
+    };
+    let following_text = following
+        .text()
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
     if following_text.is_empty() || following_text.len() > 300 {
         return content_html.to_string();
     }
@@ -51,16 +52,8 @@ pub fn remove_metadata_block(content_html: &str, has_author_or_published: bool) 
         return content_html.to_string();
     }
 
-    let replacement = h1_match.as_str().to_string();
-    let mut out = String::with_capacity(content_html.len());
-    out.push_str(&content_html[..full_match.start()]);
-    out.push_str(&replacement);
-    out.push_str(&content_html[full_match.end()..]);
-    out
-}
-
-fn strip_tags(input: &str) -> String {
-    TAG_RE.replace_all(input, " ").to_string()
+    detach_nodes(&mut doc, [following_id]);
+    serialize_fragment(&doc)
 }
 
 #[cfg(test)]
