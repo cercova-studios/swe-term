@@ -39,6 +39,22 @@ fmt:
 run *args:
     go run . {{args}}
 
+# Create and validate VCS-neutral research experiment specifications.
+experiment-new id:
+    go run ./cmd/experimentctl new {{id}}
+
+experiment-validate id:
+    go run ./cmd/experimentctl validate {{id}}
+
+experiment-ready id:
+    go run ./cmd/experimentctl ready {{id}}
+
+experiment-digest id:
+    go run ./cmd/experimentctl digest {{id}}
+
+experiment-list:
+    go run ./cmd/experimentctl list
+
 fetch:
     jj git fetch
 

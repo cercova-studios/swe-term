@@ -1,11 +1,14 @@
-# TODO: Docs Physical Grouping Pass
+# Docs Physical Grouping Pass
 
-This is a handoff checklist for physically moving docs into grouped folders after the initial logical grouping pass.
+The grouping pass is complete. The architecture contract subsequently moved to
+the repository root so repository-wide preflight instructions have one stable
+entrypoint; `docs/core/ARCHITECTURE.md` remains a compatibility pointer.
 
 ## Target Structure
 
+- `ARCHITECTURE.md` — authoritative repository contract
 - `docs/core/`
-  - `ARCHITECTURE.md`
+  - `ARCHITECTURE.md` — temporary compatibility pointer
   - `PLAN.md`
   - `FRAMEWORKS.md`
   - `BACKLOG.md`

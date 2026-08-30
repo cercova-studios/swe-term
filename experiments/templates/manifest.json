@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "experiment_id": "__EXPERIMENT_ID__",
+  "status": "draft",
+  "papers": [
+    {
+      "title": "",
+      "url": "",
+      "claim": ""
+    }
+  ],
+  "hypothesis": "",
+  "null_hypothesis": "",
+  "independent_variable": "",
+  "source": {
+    "kind": "directory",
+    "locator": "fixtures",
+    "revision": "",
+    "content_digest": ""
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "disabled",
+    "network_justification": "",
+    "allowed_env": [
+      "PATH"
+    ],
+    "resources": {
+      "timeout_seconds": 300,
+      "max_parallelism": 1,
+      "max_output_bytes": 1048576,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "control",
+      "description": "",
+      "command": [],
+      "config": {}
+    },
+    {
+      "name": "treatment",
+      "description": "",
+      "command": [],
+      "config": {}
+    }
+  ],
+  "repetitions": 1,
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": ""
+  },
+  "metrics": {
+    "primary": "",
+    "secondary": [],
+    "acceptance_rule": ""
+  },
+  "evaluator": {
+    "kind": "manual",
+    "command": [],
+    "rubric": "",
+    "rubric_digest": ""
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/__EXPERIMENT_ID__",
+    "curated": "experiments/evidence/__EXPERIMENT_ID__"
+  }
+}
