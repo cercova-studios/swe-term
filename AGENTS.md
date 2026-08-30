@@ -54,6 +54,39 @@ If you cannot justify a choice using items (1–5), it is probably bikeshedding.
 </decision-hierarchy>
 
 ────────────────────────────────────────────────────────
+CODEBASE PREFLIGHT (MANDATORY)
+────────────────────────────────────────────────────────
+
+<codebase-preflight>
+Before answering an architecture question, proposing a design, scoping a
+feature, reviewing code, or producing a non-trivial patch:
+
+1) Read <file>ARCHITECTURE.md</file> at the repository root.
+   - It is the authoritative map of layers, domain types, invariants,
+     extension points, and in-flight refactors.
+   - Do not infer structure from filenames or historical memory.
+
+2) Anchor architectural claims to `ARCHITECTURE.md` or current source.
+   - If the document contradicts current code, stop and name the drift before
+     proceeding.
+   - Distinguish `Implemented` contracts from `Target` contracts.
+
+3) For feature work, walk Sections 5 (Domain Types), 9 (Extension Points), and
+   10 (Invariants) before drafting a plan.
+
+4) For architectural proposals, also consult Section 12 (In-Flight Refactors)
+   so new work does not undo accepted direction silently.
+
+5) When a change touches Section 14 (How to Keep This Document Honest), update
+   `ARCHITECTURE.md` in the same change and search for superseded compatibility
+   surfaces.
+
+<rule>
+Skipping the root architecture contract is a correctness bug.
+</rule>
+</codebase-preflight>
+
+────────────────────────────────────────────────────────
 SYSTEMS PREFLIGHT (MANDATORY)
 ────────────────────────────────────────────────────────
 
@@ -226,7 +259,8 @@ Logs, CSV, configs, plaintext:
 Code research, navigation, refactors, rewrites, and audits:
 - `$code-search` (`/Users/rohit/.agents/skills/code-search/SKILL.md`)
 - demongrep
-- osgrep
+- sem
+- intentdiff
 - ast-grep
 - semgrep
 - grit
@@ -249,10 +283,29 @@ is the canonical reusable workflow; do not duplicate its generic tool guidance
 in this file.
 
 <rule>
+For repository orientation when the path or module is unknown, use FFF MCP
+`find_files` with a short fuzzy query. Use FFF MCP `grep` only for one bare
+identifier, or `multi_grep` once for naming variants; stop after two FFF content
+searches and read the current source. FFF ranking is a discovery hint, not
+completeness or absence evidence.
+</rule>
+
+<rule>
+For deep brownfield tracing, move from the FFF or indexed-search anchor to
+`sem` for entity definitions, callers, refs, bounded context, and impact. For
+PR triage, use `intentdiff` when the repository VCS permits its Git adapter, or
+feed the canonical `jj diff --git` patch to `sem diff --patch`. Keep `jj` as
+revision truth; verify all tool output in current source and tests.
+</rule>
+
+<rule>
 For normal `swe-term` work, scope searches to tracked source plus intentional
-dirty changes. Exclude `.codesearch.db/`, `target/`, and local comparison
-checkouts such as `pi/` and `codesearch/` unless the task explicitly targets
-those artifacts or frameworks.
+dirty changes. Exclude `.codesearch.db/`, `.demongrep.db/`, `.reflex/`, `target/`,
+and local comparison checkouts such as `claude-code/`, `claw-code/`, `codex/`,
+`deepagents/`, `deepseek-harness/`, `flue/`, `oh-my-pi/`, `opencode/`,
+`pi-mono/`, `prime-agent/`, `pi/`, and `codesearch/` unless the task explicitly
+targets those artifacts or frameworks. Apply the same exclusions as FFF MCP
+constraints when using its ranked file/content tools.
 </rule>
 
 <rule>
@@ -432,6 +485,22 @@ official docs → source code → issues → discussions → blogs
 Triangulate claims.
 Check dates.
 When in doubt, read the code.
+
+For paper-backed harness research, follow
+`docs/research/papers/README.md` before creating an experiment:
+
+1) Anchor discovery in an observed local failure or architecture decision.
+2) Search mechanism families through Hugging Face Papers; record queries,
+   source fallbacks, rejections, and unknowns.
+3) Deep-read method, evaluation, ablations, failures, and limitations. Do not
+   promote title, abstract, recency, upvotes, or code availability into an
+   evidence-quality claim.
+4) Apply the four admission gates: local fit, mechanism isolation,
+   falsifiability, and evidence legibility.
+5) Use qualitative dimensions without a summed score. Preserve evaluator risk,
+   boundary conditions, and what not to copy.
+6) Only an explicit `experiment-candidate` disposition may enter
+   preregistration; discovery never authorizes a result-producing run.
 </research>
 
 ────────────────────────────────────────────────────────
@@ -472,6 +541,45 @@ SECRETS HANDLING FOR AD HOC SCRIPTS
 </secrets-handling>
 
 ────────────────────────────────────────────────────────
+EXPERIMENTS
+────────────────────────────────────────────────────────
+
+<experiments>
+Before implementing or running a research experiment:
+
+1) Read `experiments/README.md` and the experiment's tracked specification.
+2) Create specifications with `just experiment-new <id>`; do not invent a
+   parallel directory or manifest format.
+3) Freeze directory fixtures with `just experiment-digest <id>`, run
+   `just experiment-validate <id>` while drafting, and run
+   `just experiment-ready <id>` before any result-producing run.
+4) Treat source materialization (`directory`, `generated`, `archive`, `jj`, or
+   `git`) as an adapter. Do not make the experiment control plane depend on a
+   VCS unless repository behavior is the hypothesis.
+5) Never mutate the author's working copy, expose ambient credentials, overwrite
+   completed runs, or promote raw results directly into architecture.
+6) Raw runs remain under ignored `experiments/runs/`; only reviewed, redacted
+   evidence belongs under `experiments/evidence/`.
+
+<measurement-adapters>
+Use `hyperfine` only as a measurement adapter inside an already-preregistered
+runner. Set repetitions and warmups explicitly; do not rely on hyperfine's
+automatic defaults. Preserve its JSON output as an artifact alongside the
+experiment manifest, command, tool version, source digest, and resource
+observations. Hyperfine timing does not replace the runner's terminal record,
+effect record, or evidence-promotion gates.
+
+Do not introduce a second workflow/control plane merely to run experiments. Add
+an adapter only after a reproducible lifecycle gap is demonstrated.
+</measurement-adapters>
+
+<rule>
+An experiment that has not passed the preregistration gate may debug its
+scaffold, but it may not produce evidence used for a claim.
+</rule>
+</experiments>
+
+────────────────────────────────────────────────────────
 TESTING
 ────────────────────────────────────────────────────────
 
@@ -509,7 +617,7 @@ LEARNED CONTEXT (continual learning)
 - When evaluating other agent frameworks, produce thorough, candid paired "deep dive" + "critique" docs under `docs/` ("don't hold back") and validate them against the local reference checkouts before finalizing.
 
 ## Learned Workspace Facts
-- `swe-term` is a Go-based terminal/TUI SWE-agent harness intended to be invoked as `swe-term` or `st`; the primary design doc is `docs/core/ARCHITECTURE.md`, with `docs/core/GOLANG_TUI_PLAN.md` as long-form rationale, and `docs/research/` holds paired deep-dive + critique analyses of other agent frameworks (Claude Code, Codex, flue, pi-mono, deepagents).
+- `swe-term` is a Go-based terminal/TUI SWE-agent harness intended to be invoked as `swe-term` or `st`; the primary design doc is the root `ARCHITECTURE.md`, with `docs/core/GOLANG_TUI_PLAN.md` as long-form rationale, and `docs/research/` holds paired deep-dive + critique analyses of other agent frameworks (Claude Code, Codex, flue, pi-mono, deepagents).
 - Local reference checkouts of comparison frameworks live at the repo root and are gitignored: `flue/`, `pi-mono/`, `codex/`, `claude-code/`, `claw-code/`, `deepagents/`. Consult these when enriching framework docs.
 - The harness wraps services as extensions under `extensions/`; `extensions/swe_distiller/` is a Rust URL→markdown extractor sidecar (thin CLI for Go spawn/debug; generated outputs are gitignored).
 - VCS is colocated Jujutsu; trunk is `dev` on `github.com/cercova-studios/swe-term`. PRs are stacked with `gh stack link --base dev` (`just stack`), not `gh pr create`.
