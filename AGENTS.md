@@ -504,6 +504,51 @@ For paper-backed harness research, follow
 </research>
 
 ────────────────────────────────────────────────────────
+EXPERIMENT LIFECYCLE
+────────────────────────────────────────────────────────
+
+<experiment-lifecycle>
+For paper-backed harness work, follow this order. This is the complete
+onboarding map; the linked documents contain the operating detail.
+
+```text
+observe a local failure or architecture decision
+  → discover and triage mechanisms
+  → synthesize evidence and select or reject a candidate
+  → preregister a bounded experiment
+  → execute in a confined, reproducible environment
+  → inspect component evidence and discordant cases
+  → accept, reject, revise, or propose human-approved architecture promotion
+```
+
+1) Read root [`ARCHITECTURE.md`](ARCHITECTURE.md), especially Sections 5, 9, 10,
+   and 12. Name the
+   local failure, affected seam, and implemented-versus-target boundary.
+2) Follow [`docs/research/papers/README.md`](docs/research/papers/README.md) to
+   create a discovery packet. Record queries, source fallbacks, rejected
+   candidates, paper notes, and synthesis.
+3) Only a synthesis disposition of `experiment-candidate` may proceed. Preserve
+   the exact claim, limits, evaluator risks, and machinery explicitly excluded
+   from the local transplant.
+4) Read [`experiments/README.md`](experiments/README.md), create a tracked
+   specification with `just experiment-new <id>`, and freeze the hypothesis,
+   null, one independent variable, fixtures, budgets, identities, evaluator,
+   and confinement.
+5) Run `just experiment-digest <id>`, `just experiment-validate <id>`, then
+   `just experiment-ready <id>`. A ready-gate failure stops result-producing
+   work; it is not a reason to weaken the contract.
+6) Execute only in the declared isolation boundary. Keep raw trajectories under
+   `experiments/runs/` and promote only reviewed, redacted evidence.
+7) Inspect component metrics, safety-critical failures, and discordant cases.
+   A human—not an agent—chooses whether to reject, revise, or propose an
+   architecture change tied to a named invariant or extension point.
+
+The general execution runner remains planned. A prototype may run only after
+preregistration and must obey the experiment contract; do not imply that a
+generic runner already exists.
+</experiment-lifecycle>
+
+────────────────────────────────────────────────────────
 CORE TRUTH
 ────────────────────────────────────────────────────────
 

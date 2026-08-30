@@ -8,4 +8,8 @@ just run --provider mock
 just run "Explain go.mod" # one-shot
 ```
 
-Architecture: [`docs/core/ARCHITECTURE.md`](docs/core/ARCHITECTURE.md). How to contribute: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md). How to contribute: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+Research starts with the
+[`Hugging Face Papers discovery contract`](docs/research/papers/README.md) and
+moves into [`preregistered harness experiments`](experiments/README.md).
