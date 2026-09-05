@@ -1,0 +1,32 @@
+experiments/specs/fleet-cpg-phase2-blast-radius-zod/manifest.json
+  s_841c2f8acbd867::t_93f5bfc869882e 1-3,8,12-13,17,22-24,27,31-32,34,36-49,62-63,90-91,93-98,108-109,117-122
+  s_841c2f8acbd867::t_0a73367e739372 4
+  s_841c2f8acbd867::t_2ba6767e4fa0d6 5-7,9-11,14-16,18-21,25-26,28-30,33,35,50-61,64-89,92,99-107,110-116
+experiments/specs/fleet-cpg-phase2-blast-radius-zod/run_phase2.sh
+  s_841c2f8acbd867::t_989523f345ea8d 1-55
+experiments/specs/fleet-cpg-phase2-blast-radius-zod/analyze_results.py
+  s_841c2f8acbd867::t_c4e4630f7536bc 1-67
+experiments/specs/fleet-cpg-phase2-blast-radius-zod/README.md
+  s_841c2f8acbd867::t_03e3207ad06160 3-54,58-107,111-134,138-142,146-153
+  s_841c2f8acbd867::t_93f5bfc869882e 1-2,55-57,108-110,135-137,143-145
+experiments/specs/fleet-cpg-phase2-blast-radius-zod/fixtures/README.md
+  s_841c2f8acbd867::t_93f5bfc869882e 1-3
+experiments/specs/fleet-cpg-phase2-blast-radius-zod/blast_radius.py
+  s_841c2f8acbd867::t_3dd996213b3ebb 1-333
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "c90fe819ff9d8e80e70678d9d1a60993683f47cb",
+  "prompts": {},
+  "sessions": {
+    "s_841c2f8acbd867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b733d4a-0117-4efb-9b62-94526c10dad9",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
