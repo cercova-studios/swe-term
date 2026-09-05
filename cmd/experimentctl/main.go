@@ -31,7 +31,9 @@ type manifest struct {
 	SchemaVersion       int         `json:"schema_version"`
 	ExperimentID        string      `json:"experiment_id"`
 	Status              string      `json:"status"`
+	Kind                string      `json:"kind"`
 	Papers              []paper     `json:"papers"`
+	DesignReferences    []paper     `json:"design_references"`
 	Hypothesis          string      `json:"hypothesis"`
 	NullHypothesis      string      `json:"null_hypothesis"`
 	IndependentVariable string      `json:"independent_variable"`
@@ -360,6 +362,7 @@ func validateManifest(m manifest, expectedID string, ready bool) []string {
 	add(experimentIDPattern.MatchString(m.ExperimentID), "experiment_id has an invalid format")
 	add(m.ExperimentID == expectedID, "experiment_id must match its specification directory")
 	add(contains([]string{"draft", "preregistered", "running", "complete", "rejected"}, m.Status), "status is unsupported")
+	add(contains([]string{"mechanism-hypothesis", "benchmark"}, m.Kind), "kind is unsupported")
 	add(contains([]string{"directory", "generated", "archive", "jj", "git"}, m.Source.Kind), "source.kind is unsupported")
 	add(contains([]string{"process", "container", "external"}, m.Environment.Adapter), "environment.adapter is unsupported")
 	add(contains([]string{"disabled", "loopback", "inherit"}, m.Environment.Network), "environment.network is unsupported")
@@ -414,9 +417,19 @@ func validateManifest(m manifest, expectedID string, ready bool) []string {
 	}
 
 	add(m.Status == "preregistered", "status must be preregistered before a result-producing run")
-	add(len(m.Papers) > 0, "at least one paper claim is required")
+	if m.Kind == "mechanism-hypothesis" {
+		add(len(m.Papers) > 0, "at least one paper claim is required for mechanism-hypothesis experiments")
+	} else {
+		add(len(m.DesignReferences) > 0, "at least one design reference is required for benchmark experiments")
+	}
 	for i, item := range m.Papers {
 		prefix := fmt.Sprintf("papers[%d]", i)
+		add(strings.TrimSpace(item.Title) != "", prefix+".title is required")
+		add(validHTTPURL(item.URL), prefix+".url must be an absolute http or https URL")
+		add(strings.TrimSpace(item.Claim) != "", prefix+".claim is required")
+	}
+	for i, item := range m.DesignReferences {
+		prefix := fmt.Sprintf("design_references[%d]", i)
 		add(strings.TrimSpace(item.Title) != "", prefix+".title is required")
 		add(validHTTPURL(item.URL), prefix+".url must be an absolute http or https URL")
 		add(strings.TrimSpace(item.Claim) != "", prefix+".claim is required")

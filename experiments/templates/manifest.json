@@ -2,6 +2,7 @@
   "schema_version": 1,
   "experiment_id": "__EXPERIMENT_ID__",
   "status": "draft",
+  "kind": "mechanism-hypothesis",
   "papers": [
     {
       "title": "",
@@ -9,6 +10,7 @@
       "claim": ""
     }
   ],
+  "design_references": [],
   "hypothesis": "",
   "null_hypothesis": "",
   "independent_variable": "",

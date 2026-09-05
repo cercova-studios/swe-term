@@ -62,6 +62,31 @@ Specifications are reviewed inputs. Raw runs are local working data. Evidence
 is a deliberate promotion of selected results after secret scanning and human
 review; it is never an automatic copy of a run directory.
 
+## Two experiment kinds
+
+Every manifest declares `kind`:
+
+- **`mechanism-hypothesis`** — the original shape. A paper-backed, falsifiable
+  causal claim about an agent-harness mechanism, tested as a control/treatment
+  A/B pair. Gated by `papers` (at least one, with title/url/claim) at the ready
+  gate.
+- **`benchmark`** — a direct, descriptive measurement of an existing tool or
+  artifact: no causal claim, nothing manipulated, no academic paper backing it.
+  Still fully preregistered, isolated, and evidence-promoted like any
+  experiment — but gated by `design_references` (title/url/claim, pointing at
+  an internal design document and the specific claim under measurement)
+  instead of `papers`. `hypothesis`, `null_hypothesis`, and
+  `independent_variable` stay required; frame them around what is actually
+  varied (e.g. cache state across repeated queries), not a fabricated causal
+  story. Fabricating a paper citation to satisfy the `papers` gate is not an
+  acceptable workaround — use `kind: benchmark` instead.
+
+A `benchmark` experiment exists to put a number on something a target
+architecture depends on (an external tool's baseline cost, a competitor
+system's ceiling) before that architecture is built. It is how a target
+extension point in `ARCHITECTURE.md` §9 earns evidence before code exists for
+it.
+
 ## Agent preflight
 
 Before implementing or running an experiment:
