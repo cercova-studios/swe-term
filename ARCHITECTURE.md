@@ -188,6 +188,12 @@ These are non-negotiable and require mechanical enforcement or tests:
   isolation, and evidence-promotion contract in
   [`experiments/README.md`](experiments/README.md). Experiment infrastructure is
   tooling around the core, not a second agent loop or state model.
+- Two experiment kinds share that contract: `mechanism-hypothesis` (paper-backed
+  causal A/B claims about harness mechanisms) and `benchmark` (descriptive
+  measurement of an external tool or artifact, gated by a design-document
+  reference instead of a paper). A `benchmark` experiment is how a `Target`
+  extension point in Section 9 — e.g. an analyzer/enrichment adapter — earns
+  evidence before it has code.
 - Paper-backed hypotheses enter that contract through the mechanism-first
   discovery, source fallback, signal/noise triage, and selection workflow in
   [`docs/research/papers/README.md`](docs/research/papers/README.md). Discovery

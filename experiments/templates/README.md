@@ -2,7 +2,10 @@
 
 Status: draft
 
-## Discovery provenance
+Kind: mechanism-hypothesis | benchmark — delete the section below that does not
+match `manifest.json`'s `kind`.
+
+## Discovery provenance (mechanism-hypothesis only)
 
 - Discovery packet:
 - Paper-note disposition:
@@ -13,10 +16,16 @@ Paper-backed experiments must link a discovery packet whose synthesis marks the
 mechanism `experiment-candidate`. Discovery is selection evidence, not proof that
 the mechanism works locally.
 
-## Paper claim
+## Paper claim (mechanism-hypothesis only)
 
 Identify the exact claim, method section, and boundary conditions being tested.
 Do not substitute the paper's headline result for a mechanism.
+
+## Design reference (benchmark only)
+
+Link the internal design document and quote the specific claim this benchmark
+puts a number on. State which target architecture, extension point, or
+in-flight refactor depends on that number.
 
 ## Hypothesis
 

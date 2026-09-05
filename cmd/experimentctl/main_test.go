@@ -85,6 +85,35 @@ func TestPreregistrationGateFailsClosed(t *testing.T) {
 	}
 }
 
+func TestBenchmarkKindRequiresDesignReferenceNotPaper(t *testing.T) {
+	m := validReadyManifest("test-experiment")
+	m.Kind = "benchmark"
+	m.Papers = nil
+
+	errs := validateManifest(m, "test-experiment", true)
+	if !hasErrorContaining(errs, "at least one design reference is required for benchmark experiments") {
+		t.Fatalf("expected missing design reference error, got %v", errs)
+	}
+	if hasErrorContaining(errs, "at least one paper claim is required") {
+		t.Fatalf("benchmark experiments must not require a paper claim, got %v", errs)
+	}
+
+	m.DesignReferences = []paper{{Title: "Design doc", URL: "https://example.com/design", Claim: "Baseline claim under measurement"}}
+	errs = validateManifest(m, "test-experiment", true)
+	if hasErrorContaining(errs, "design reference") {
+		t.Fatalf("expected a satisfied design reference requirement, got %v", errs)
+	}
+}
+
+func TestUnsupportedKindFailsClosed(t *testing.T) {
+	m := validReadyManifest("test-experiment")
+	m.Kind = "vibes"
+	errs := validateManifest(m, "test-experiment", false)
+	if !hasErrorContaining(errs, "kind is unsupported") {
+		t.Fatalf("expected kind rejection, got %v", errs)
+	}
+}
+
 func TestNewExperimentProducesValidDraftAndBlocksPrematureRun(t *testing.T) {
 	root := t.TempDir()
 	projectRoot, err := findRepositoryRoot()
@@ -182,6 +211,7 @@ func validReadyManifest(id string) manifest {
 		SchemaVersion:       1,
 		ExperimentID:        id,
 		Status:              "preregistered",
+		Kind:                "mechanism-hypothesis",
 		Papers:              []paper{{Title: "Paper", URL: "https://example.com/paper", Claim: "Mechanism claim"}},
 		Hypothesis:          "The treatment changes the primary metric.",
 		NullHypothesis:      "The treatment does not change the primary metric.",

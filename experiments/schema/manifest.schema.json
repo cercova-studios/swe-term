@@ -8,7 +8,9 @@
     "schema_version",
     "experiment_id",
     "status",
+    "kind",
     "papers",
+    "design_references",
     "hypothesis",
     "null_hypothesis",
     "independent_variable",
@@ -39,11 +41,26 @@
         "rejected"
       ]
     },
+    "kind": {
+      "enum": [
+        "mechanism-hypothesis",
+        "benchmark"
+      ],
+      "description": "mechanism-hypothesis: a paper-backed causal A/B claim, gated by `papers`. benchmark: a direct, descriptive measurement of an existing tool or artifact (no causal claim, no paper backing it), gated by `design_references` instead of `papers`."
+    },
     "papers": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/paper"
-      }
+      },
+      "description": "Required non-empty at the ready gate when kind is mechanism-hypothesis; optional otherwise."
+    },
+    "design_references": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/paper"
+      },
+      "description": "Required non-empty at the ready gate when kind is benchmark. Cites the internal design document and specific claim the benchmark measures, in place of an academic paper."
     },
     "hypothesis": {
       "type": "string"

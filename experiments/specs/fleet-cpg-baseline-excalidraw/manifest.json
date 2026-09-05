@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "experiment_id": "fleet-cpg-baseline-excalidraw",
+  "status": "complete",
+  "kind": "benchmark",
+  "papers": [],
+  "design_references": [
+    {
+      "title": "Fleet CPG Engine \u2014 Phase 0 (Baseline)",
+      "url": "https://claude.ai/code/artifact/0c277fff-2382-485d-8316-31af8f4179e7",
+      "claim": "Joern's cold-build cost and per-invocation overhead, measured across repos of different scale and language, set the baseline the Fleet CPG Engine's O(diff)-per-PR and always-resident serving design must beat. This is the third of the four repos in that spec, the medium-scale TypeScript/React case (~173k LOC in packages/excalidraw)."
+    }
+  ],
+  "hypothesis": "Full joern process wall time (JVM start, CPG open, golden-query execution, teardown) is lower when Joern reuses an existing workspace project with a warm OS page cache (variant warm) than when it opens the CPG for the first time with no existing workspace project (variant cold), for excalidraw's core package (packages/excalidraw) at a pinned revision. (fleet-cpg-baseline-zod already rejected this hypothesis once at smaller scale; this run checks whether a ~2x larger CPG changes the outcome.)",
+  "null_hypothesis": "Warm-variant process wall time is not meaningfully lower than cold-variant process wall time; any difference is within repetition noise.",
+  "independent_variable": "Workspace/page-cache state before the joern process starts (cold: no prior workspace project for this CPG; warm: workspace project and OS page cache already populated by the immediately preceding cold run). The CPG binary, source revision, and query set are held fixed.",
+  "source": {
+    "kind": "git",
+    "locator": "https://github.com/excalidraw/excalidraw.git",
+    "revision": "e1bb9ff8f8931e783c11d104abb8967ac6605c9a",
+    "content_digest": "sha256:b56b1ba712ba9960140a88bca7959097e6a7c4a899e701d23924f9f05d69f616"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "inherit",
+    "network_justification": "Materializes the pinned excalidraw revision via `git clone` from github.com. Joern is already installed locally from the fleet-cpg-baseline-zod run; no repeat download.",
+    "allowed_env": [
+      "PATH",
+      "HOME",
+      "JOERN_CLI"
+    ],
+    "resources": {
+      "timeout_seconds": 1800,
+      "max_parallelism": 1,
+      "max_output_bytes": 8388608,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "cold",
+      "description": "Fresh workspace: no prior joern project for this CPG, unwarmed OS page cache for the CPG's on-disk representation.",
+      "command": [
+        "joern",
+        "--script",
+        "queries.sc",
+        "artifacts/excalidraw.cpg.bin"
+      ],
+      "config": {
+        "workspace_state": "absent"
+      }
+    },
+    {
+      "name": "warm",
+      "description": "Reused workspace: joern project from the immediately preceding cold run still present, OS page cache warm.",
+      "command": [
+        "joern",
+        "--script",
+        "queries.sc",
+        "artifacts/excalidraw.cpg.bin"
+      ],
+      "config": {
+        "workspace_state": "present"
+      }
+    }
+  ],
+  "repetitions": 3,
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": ""
+  },
+  "metrics": {
+    "primary": "process_wall_time_ms",
+    "secondary": [
+      "cold_build_wall_time_ms",
+      "cold_build_peak_rss_bytes",
+      "query_latency_p50_ms_by_category"
+    ],
+    "acceptance_rule": "Accept: median warm process_wall_time_ms is at least 20% lower than median cold process_wall_time_ms, across all 3 repetitions. Reject: the two medians are within 20% of each other, or warm is higher. Either way, cold_build wall time and peak RSS from cold_build.log are reported as the Phase 0 baseline deliverable, independent of this hypothesis's outcome."
+  },
+  "evaluator": {
+    "kind": "command",
+    "command": [
+      "python3",
+      "analyze_results.py"
+    ],
+    "rubric": "Score each query row on: (1) status == \"ok\" for every query in the golden set \u2014 any \"error:*\" status is a hard failure of the benchmark, not a data point to average away; (2) result_count is stable across all repetitions of the same (query_id, variant) pair for a fixed source revision \u2014 a changing count indicates the CPG itself is nondeterministic and invalidates the run; (3) compare median process_wall_time_ms for variant=warm against variant=cold across repetitions per the acceptance rule in metrics.acceptance_rule; (4) report cold_build wall time and peak RSS from cold_build.log as baseline numbers regardless of the cold/warm outcome \u2014 they are the Phase 0 deliverable even if the cache-state hypothesis is rejected.",
+    "rubric_digest": "sha256:61bcb2cab58042894e754f0aa9818da0bc9acb71875a1919462f065cbefec0c4"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/fleet-cpg-baseline-excalidraw",
+    "curated": "experiments/evidence/fleet-cpg-baseline-excalidraw"
+  }
+}
