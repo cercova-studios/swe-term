@@ -1,0 +1,39 @@
+experiments/specs/fleet-cpg-phase4-second-language/lowering_typescript.py
+  s_841c2f8acbd867::t_d05090a6e3250b 1-85
+experiments/specs/fleet-cpg-phase4-second-language/README.md
+  s_841c2f8acbd867::t_15ce498dd6dad8 1-2,62-64,95-97,113-115,139-141,146-148
+  s_841c2f8acbd867::t_de9f04b5423ff0 3-61,65-94,98-112,116-138,142-145,149-158
+experiments/specs/fleet-cpg-phase4-second-language/core.py
+  s_841c2f8acbd867::t_433213b8881854 1-148
+experiments/specs/fleet-cpg-phase4-second-language/lowering_python.py
+  s_841c2f8acbd867::t_28da641f67315d 1-50,56-102
+  s_841c2f8acbd867::t_215ee806f2b21d 51-55
+experiments/specs/fleet-cpg-phase4-second-language/fixtures/README.md
+  s_841c2f8acbd867::t_15ce498dd6dad8 1-3
+experiments/specs/fleet-cpg-phase4-second-language/phase4_run.py
+  s_841c2f8acbd867::t_a411a6eb6c8968 1-134
+experiments/specs/fleet-cpg-phase4-second-language/manifest.json
+  s_841c2f8acbd867::t_2ea1d2793b6a79 4
+  s_841c2f8acbd867::t_238c22cf9407d1 5-7,9-11,14-16,18-21,25-26,28-31,34,36,51-61,64-75,78,85-93,96-102
+  s_841c2f8acbd867::t_15ce498dd6dad8 1-3,8,12-13,17,22-24,27,32-33,35,37-50,62-63,76-77,79-84,94-95,103-108
+experiments/specs/fleet-cpg-phase4-second-language/run_phase4.sh
+  s_841c2f8acbd867::t_67fcea9479da6b 1-64
+experiments/specs/fleet-cpg-phase4-second-language/analyze_results.py
+  s_841c2f8acbd867::t_9ea2b1d75b89bb 1-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "156a8cef33a47044d0e356907fa9e7c7db6819cb",
+  "prompts": {},
+  "sessions": {
+    "s_841c2f8acbd867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b733d4a-0117-4efb-9b62-94526c10dad9",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
