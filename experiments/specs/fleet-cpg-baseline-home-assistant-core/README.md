@@ -129,7 +129,7 @@ simply didn't trigger here again; it remains an open, unbisected question.
       cold/warm-irrelevant `--server` mode; test a huge repo shaped like many
       *unrelated* codebases to see if sublinear scaling is Home Assistant's
       integration-boilerplate structure or a general Joern property)
-- [ ] propose architecture promotion with human approval
+- [x] propose architecture promotion with human approval (proposed 2026-09-05; acceptance pending)
 
 Phase 0 is now complete for all four repos named in the design doc. The
 cold-build and process-wall-time numbers across all four, and the corrected

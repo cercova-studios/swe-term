@@ -142,7 +142,7 @@ upgrade) is meant to close.
       up concretely and is now documented rather than latent
 - [ ] reject hypothesis
 - [ ] revise and preregister a new experiment
-- [ ] propose architecture promotion with human approval
+- [x] propose architecture promotion with human approval (proposed 2026-09-05; acceptance pending)
 
 Promoting this into the design doc's Phase 2 gate as officially "passed"
 still requires the human review this framework's evidence-promotion rules

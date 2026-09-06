@@ -102,4 +102,4 @@ should not be trusted without measuring it directly.
 - [ ] revise and preregister a new experiment (candidate: bisect the
       `typehier-all-typedecls` nondeterminism — is it `jssrc2cpg` parallelism,
       file-enumeration order, or something in the type-recovery pass?)
-- [ ] propose architecture promotion with human approval
+- [x] propose architecture promotion with human approval (proposed 2026-09-05; acceptance pending)

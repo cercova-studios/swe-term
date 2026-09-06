@@ -80,4 +80,4 @@ question is out of scope for this cost/latency benchmark.
 - [x] reject hypothesis (consistent with `fleet-cpg-baseline-zod`; the
       JVM-startup-tax explanation now holds across two languages)
 - [ ] revise and preregister a new experiment
-- [ ] propose architecture promotion with human approval
+- [x] propose architecture promotion with human approval (proposed 2026-09-05; acceptance pending)
