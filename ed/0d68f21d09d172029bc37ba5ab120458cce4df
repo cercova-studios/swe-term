@@ -1,0 +1,85 @@
+experiments/evidence/fleet-cpg-phase1-overlay-zod/summary.json
+  s_841c2f8acbd867::t_f582fc100fd014 1-49
+experiments/specs/fleet-cpg-phase4-second-language/README.md
+  s_841c2f8acbd867::t_c97bb85ce6d7a2 148
+experiments/evidence/fleet-cpg-phase3-differential-zod/summary.json
+  s_841c2f8acbd867::t_f582fc100fd014 1-25
+experiments/evidence/fleet-cpg-phase2-blast-radius-zod/README.md
+  s_841c2f8acbd867::t_d3b69172b42bfd 1-54
+experiments/evidence/fleet-cpg-phase4-second-language/README.md
+  s_841c2f8acbd867::t_a6e0e8c4b358bd 1-48
+experiments/evidence/fleet-cpg-baseline-zod/README.md
+  s_841c2f8acbd867::t_e000359b17e34b 1-46
+experiments/evidence/fleet-cpg-phase2-blast-radius-zod/summary.json
+  s_841c2f8acbd867::t_f582fc100fd014 1-77
+experiments/evidence/fleet-cpg-phase4-second-language/summary.json
+  s_841c2f8acbd867::t_f582fc100fd014 1-56
+experiments/specs/fleet-cpg-phase3-differential-zod/README.md
+  s_841c2f8acbd867::t_c97bb85ce6d7a2 124
+experiments/evidence/fleet-cpg-baseline-zod/summary.json
+  s_841c2f8acbd867::t_f582fc100fd014 1-37
+experiments/specs/fleet-cpg-baseline-zod/README.md
+  s_841c2f8acbd867::t_c97bb85ce6d7a2 174
+experiments/specs/fleet-cpg-baseline-excalidraw/README.md
+  s_841c2f8acbd867::t_c97bb85ce6d7a2 105
+experiments/evidence/fleet-cpg-phase3-differential-zod/README.md
+  s_841c2f8acbd867::t_fffc01dcd1de8b 1-42
+experiments/evidence/fleet-cpg-baseline-home-assistant-core/README.md
+  s_841c2f8acbd867::t_9a88bf0659e032 1-46
+experiments/specs/fleet-cpg-baseline-home-assistant-core/README.md
+  s_841c2f8acbd867::t_c97bb85ce6d7a2 132
+experiments/evidence/fleet-cpg-baseline-excalidraw/summary.json
+  s_841c2f8acbd867::t_f582fc100fd014 1-46
+experiments/evidence/fleet-cpg-baseline-home-assistant-core/summary.json
+  s_841c2f8acbd867::t_f582fc100fd014 1-37
+ARCHITECTURE.md
+  s_841c2f8acbd867::t_a7b22bd6aa0f9d 141-152
+  s_841c2f8acbd867::t_7c3a83a3f04391 84
+  s_841c2f8acbd867::t_33b349fe3b6a56 208-210
+  s_841c2f8acbd867::t_ceb7e2b9699625 236-239
+experiments/evidence/fleet-cpg-phase1-commit-zod/README.md
+  s_841c2f8acbd867::t_b055618ec52b48 1-55
+experiments/specs/fleet-cpg-phase2-blast-radius-zod/README.md
+  s_841c2f8acbd867::t_c97bb85ce6d7a2 145
+experiments/evidence/fleet-cpg-baseline-excalidraw/README.md
+  s_841c2f8acbd867::t_3edda439ba1c7c 1-45
+docs/plans/2026-09-05-fleet-cpg-engine-implementation.md
+  s_841c2f8acbd867::t_90c3ad09e6de88 244
+  s_841c2f8acbd867::t_387e5baf087b8e 259-260
+  s_841c2f8acbd867::t_6ba576e21d271e 158-191,200-201,205-211,213-216,218-220,224-233
+  s_841c2f8acbd867::t_3a910d434f7ea0 1-36,38-56,61-62,64,67-70,83-84,94-157,192-199,202-204,212,217,221-223,234-243,245-258,261-264
+  s_841c2f8acbd867::t_bee45b12577bff 37
+  s_841c2f8acbd867::t_4ae99d6c55ecc1 66
+  s_841c2f8acbd867::t_ef104f55f2395e 57-60,63,65,71-82,85-93
+experiments/evidence/fleet-cpg-baseline-fastapi/summary.json
+  s_841c2f8acbd867::t_f582fc100fd014 1-37
+experiments/specs/fleet-cpg-phase1-commit-zod/README.md
+  s_841c2f8acbd867::t_1afb43e5e9a511 169-180
+  s_841c2f8acbd867::t_c97bb85ce6d7a2 191
+experiments/specs/fleet-cpg-phase1-overlay-zod/README.md
+  s_841c2f8acbd867::t_c97bb85ce6d7a2 139
+experiments/specs/fleet-cpg-baseline-fastapi/README.md
+  s_841c2f8acbd867::t_c97bb85ce6d7a2 83
+experiments/evidence/fleet-cpg-phase1-overlay-zod/README.md
+  s_841c2f8acbd867::t_7fc216d479d40a 1-48
+experiments/evidence/fleet-cpg-baseline-fastapi/README.md
+  s_841c2f8acbd867::t_64cb66de2cd0fc 1-39
+experiments/evidence/fleet-cpg-phase1-commit-zod/summary.json
+  s_841c2f8acbd867::t_f582fc100fd014 1-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "ed0d68f21d09d172029bc37ba5ab120458cce4df",
+  "prompts": {},
+  "sessions": {
+    "s_841c2f8acbd867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b733d4a-0117-4efb-9b62-94526c10dad9",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
