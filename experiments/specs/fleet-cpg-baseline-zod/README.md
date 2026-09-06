@@ -171,7 +171,7 @@ is dwarfed by a cost neither variant controls for.
 - [ ] revise and preregister a new experiment (candidate: `joern --server`
       resident-process wall time vs. per-invocation cold-start, which is the
       comparison this run's discordant case actually motivates)
-- [ ] propose architecture promotion with human approval
+- [x] propose architecture promotion with human approval (proposed 2026-09-05; acceptance pending)
 
 The cold-build wall-time and peak-RSS numbers stand as valid Phase 0 baseline
 data independent of the rejected hypothesis, but promotion into the design

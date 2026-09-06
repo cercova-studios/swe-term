@@ -81,6 +81,7 @@ provider event contract. There is not yet a multi-step tool-using agent loop.
 | `VerificationReceipt` | Target | Fresh, source-bound evidence that an obligation was discharged | [`internal/core/`](internal/core/) |
 | `Obligation` | Target | Required check with kind, risk policy, status, and minimum V&V rung | [`internal/core/`](internal/core/) |
 | `MutationLease` | Target | Enforces a single active mutation owner | [`internal/core/`](internal/core/) |
+| `ContextPacket` / `Provenance` | Target | Pre-model context item with source, snapshot version, freshness, three-valued scope completeness, and resolution tier | [`internal/core/`](internal/core/) |
 
 Target type names describe contracts, not frozen Go identifiers. A feature plan
 may refine their representation without weakening Sections 6 or 10.
@@ -137,7 +138,18 @@ may refine their representation without weakening Sections 6 or 10.
 - **Tool adapters — target.** Add bounded actions with the same manifest, effect,
   journal, and receipt contracts in every implementation language.
 - **Analyzer/enrichment adapters — target.** Add pre-model context with explicit
-  source, version, scope completeness, and freshness.
+  source, version, scope completeness, and freshness. The Fleet CPG engine is
+  the first such adapter (target; not yet implemented): a code property graph
+  engine producing a materialized context packet per PR, out-of-process
+  behind `internal/analyzer/cpg`. Evidence for its design is preregistered
+  `benchmark` experiments curated under `experiments/evidence/fleet-cpg-*`;
+  the implementation plan is
+  [`docs/plans/2026-09-05-fleet-cpg-engine-implementation.md`](docs/plans/2026-09-05-fleet-cpg-engine-implementation.md).
+  An adapter of this kind must refuse to merge a diff overlay against a base
+  snapshot whose revision is not the diff's parent revision, and report
+  staleness explicitly instead of merging — a base one unrelated commit away
+  from the true parent was measured to silently corrupt facts for files the
+  diff never touched.
 - **Session stores — target.** Swap persistence without changing state-machine
   semantics.
 - **Policy and lifecycle hooks — target.** Intercept declared phases without
@@ -193,7 +205,9 @@ These are non-negotiable and require mechanical enforcement or tests:
   measurement of an external tool or artifact, gated by a design-document
   reference instead of a paper). A `benchmark` experiment is how a `Target`
   extension point in Section 9 — e.g. an analyzer/enrichment adapter — earns
-  evidence before it has code.
+  evidence before it has code. The Fleet CPG engine's nine curated bundles
+  under [`experiments/evidence/fleet-cpg-*`](experiments/evidence/) are the
+  first `benchmark` evidence promoted under this contract.
 - Paper-backed hypotheses enter that contract through the mechanism-first
   discovery, source fallback, signal/noise triage, and selection workflow in
   [`docs/research/papers/README.md`](docs/research/papers/README.md). Discovery
@@ -219,6 +233,10 @@ These are accepted direction, not completed runtime claims:
 5. **Architecture path migration.** Root `ARCHITECTURE.md` is now authoritative;
    the old `docs/core/ARCHITECTURE.md` path remains a temporary compatibility
    pointer.
+6. **Analyzer adapter: Fleet CPG engine.** An out-of-process Rust sidecar
+   (`cpgd`, sibling Cargo workspace `engine/`) behind `internal/analyzer/cpg`;
+   slices defined in
+   [`docs/plans/2026-09-05-fleet-cpg-engine-implementation.md`](docs/plans/2026-09-05-fleet-cpg-engine-implementation.md).
 
 Plans that touch these items must state whether they advance, defer, or conflict
 with the refactor. Conflicts require an explicit architecture decision.

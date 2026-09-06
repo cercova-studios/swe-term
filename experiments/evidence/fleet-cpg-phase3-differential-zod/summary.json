@@ -1,0 +1,25 @@
+{
+  "n_repetitions": 6,
+  "buckets": {
+    "short-chain": {
+      "n_steps": 2,
+      "median_incremental_update_ms_by_step": {
+        "1": 7.991999999999999,
+        "2": 301.08162500000003
+      }
+    },
+    "full-chain": {
+      "n_steps": 6,
+      "median_incremental_update_ms_by_step": {
+        "1": 8.048083999999998,
+        "2": 305.265958,
+        "3": 7.836916999999999,
+        "4": 555.0235,
+        "5": 7.799499999999994,
+        "6": 182.832083
+      }
+    }
+  },
+  "all_steps_correct_all_reps": true,
+  "step_failures": []
+}

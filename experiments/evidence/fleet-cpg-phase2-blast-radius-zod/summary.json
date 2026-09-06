@@ -1,0 +1,77 @@
+{
+  "buckets": {
+    "small": {
+      "files_changed": 2,
+      "n_reps": 3,
+      "median_end_to_end_ms": 457.392708,
+      "stage_medians_ms": {
+        "overlay_extract_wall_time_ms": 11.378082999999997,
+        "commit_write_wall_time_ms": 412.21308300000004,
+        "merge_query_wall_time_ms": 14.792540999999993,
+        "blast_radius_compute_wall_time_ms": 10.22229200000002,
+        "packet_materialize_wall_time_ms": 0.7529169999999641,
+        "packet_consume_wall_time_ms": 0.07220799999996252
+      },
+      "impact_set_size": [
+        0,
+        0,
+        0
+      ],
+      "max_bfs_depth": [
+        0,
+        0,
+        0
+      ],
+      "packet_round_trips_all_reps": true
+    },
+    "medium": {
+      "files_changed": 3,
+      "n_reps": 3,
+      "median_end_to_end_ms": 460.350584,
+      "stage_medians_ms": {
+        "overlay_extract_wall_time_ms": 22.461541,
+        "commit_write_wall_time_ms": 397.982041,
+        "merge_query_wall_time_ms": 16.563667000000002,
+        "blast_radius_compute_wall_time_ms": 12.17795799999999,
+        "packet_materialize_wall_time_ms": 3.132208000000025,
+        "packet_consume_wall_time_ms": 0.42362500000003855
+      },
+      "impact_set_size": [
+        573,
+        573,
+        573
+      ],
+      "max_bfs_depth": [
+        3,
+        3,
+        3
+      ],
+      "packet_round_trips_all_reps": true
+    },
+    "large": {
+      "files_changed": 6,
+      "n_reps": 3,
+      "median_end_to_end_ms": 245.515541,
+      "stage_medians_ms": {
+        "overlay_extract_wall_time_ms": 10.943083,
+        "commit_write_wall_time_ms": 195.007708,
+        "merge_query_wall_time_ms": 13.898791999999993,
+        "blast_radius_compute_wall_time_ms": 10.800291000000017,
+        "packet_materialize_wall_time_ms": 3.2767920000000283,
+        "packet_consume_wall_time_ms": 0.42087499999998723
+      },
+      "impact_set_size": [
+        729,
+        729,
+        729
+      ],
+      "max_bfs_depth": [
+        5,
+        5,
+        5
+      ],
+      "packet_round_trips_all_reps": true
+    }
+  },
+  "all_packets_round_trip": true
+}

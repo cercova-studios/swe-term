@@ -166,6 +166,18 @@ overstate real per-commit cost accordingly.
 - One exploratory pilot run (`pilot-001`) preceded preregistration, using a
   since-fixed base-snapshot bug; its data is excluded from evidence and
   reported only as the discovery source for the freshness constraint above.
+- **Preregistration ordering slip, disclosed.** The manifest's `status` was
+  flipped to `preregistered` *after* the nine official `run-*` repetitions had
+  executed and their results been inspected, not before. The hypothesis,
+  acceptance rule, rubric, and driver were frozen before `run-001` (the only
+  change after the pilot was the base-freshness fix, made on pilot data
+  alone), and nothing in the manifest was altered afterward — but the letter
+  of `experiments/README.md`'s promotion rule 1 ("preregistered before result
+  inspection") was not met. Treat this experiment's evidence as
+  *corroborated* rather than independently qualifying: the same commit/merge
+  mechanism is re-verified against ground truth at every step, under proper
+  preregistration, in `fleet-cpg-phase3-differential-zod` and
+  `fleet-cpg-phase4-second-language`.
 
 ## Decision
 
@@ -176,7 +188,7 @@ overstate real per-commit cost accordingly.
       duplication" claim still holds by a wide margin on every bucket
 - [ ] reject hypothesis
 - [ ] revise and preregister a new experiment
-- [ ] propose architecture promotion with human approval
+- [x] propose architecture promotion with human approval (proposed 2026-09-05; acceptance pending)
 
 Promoting this into the design doc's Phase 1 gate as officially "passed"
 still requires the human review this framework's evidence-promotion rules

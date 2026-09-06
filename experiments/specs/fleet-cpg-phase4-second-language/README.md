@@ -145,7 +145,7 @@ it's saved to a script file.
       ground-truth-correct facts on real code.
 - [ ] reject hypothesis
 - [ ] revise and preregister a new experiment
-- [ ] propose architecture promotion with human approval
+- [x] propose architecture promotion with human approval (proposed 2026-09-05; acceptance pending)
 
 Promoting this into the design doc's Phase 4 gate as officially "passed"
 still requires the human review this framework's evidence-promotion rules

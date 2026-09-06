@@ -1,0 +1,56 @@
+{
+  "buckets": {
+    "typescript": {
+      "n_reps": 3,
+      "language": "typescript",
+      "merged_defs": [
+        1388,
+        1388,
+        1388
+      ],
+      "merged_calls": [
+        43888,
+        43888,
+        43888
+      ],
+      "impact_set_size": [
+        0,
+        0,
+        0
+      ],
+      "defs_match_truth_all_reps": true,
+      "calls_match_truth_all_reps": true,
+      "median_end_to_end_ms": 11348.909708000001
+    },
+    "python": {
+      "n_reps": 3,
+      "language": "python",
+      "merged_defs": [
+        502,
+        502,
+        502
+      ],
+      "merged_calls": [
+        2649,
+        2649,
+        2649
+      ],
+      "impact_set_size": [
+        76,
+        76,
+        76
+      ],
+      "defs_match_truth_all_reps": true,
+      "calls_match_truth_all_reps": true,
+      "median_end_to_end_ms": 1105.713333
+    }
+  },
+  "all_correctness_checks_pass": true,
+  "core_py_hash_identical_across_all_runs": true,
+  "core_py_hash_matches_current_file_on_disk": true,
+  "recorded_core_py_hashes": [
+    "f5c4c402b8fb17a2a9140d992975cd7407fce2fa594599ee2d58c7f27e862d87"
+  ],
+  "current_core_py_hash": "f5c4c402b8fb17a2a9140d992975cd7407fce2fa594599ee2d58c7f27e862d87",
+  "agnosticism_gate_passed": true
+}
