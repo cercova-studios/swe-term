@@ -56,6 +56,18 @@ Bookmark the immutable commit (`@-` after `jj commit`), not the empty working co
 
 History surgery stays native jj: `describe`, `new`, `squash`, `edit`, `undo`. Do not wrap those in just recipes.
 
+## Research and experiment hygiene
+
+`just setup` installs a `pre-commit` hook (`.githooks/`, wired via
+`core.hooksPath`) that blocks a commit touching `docs/research/papers/` or
+`experiments/{specs,evidence}/` unless
+[`docs/reports/research-and-experiments-summary.md`](docs/reports/research-and-experiments-summary.md)
+is updated in the same commit. It's a mechanical check — did the summary
+file change at all — not a content check; update the summary with what was
+actually found, citations included, don't just touch it to pass the hook.
+Bypass with `git commit --no-verify` for changes that carry no new finding
+(a typo fix, a formatting pass).
+
 ## Stacked pull requests
 
 One concern per bookmark. Chain layers with `jj new`. List bookmarks **bottom to top**.
