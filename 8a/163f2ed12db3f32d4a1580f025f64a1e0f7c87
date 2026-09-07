@@ -1,0 +1,126 @@
+docs/research/papers/temporal-journal-monitor/notes/2504.11703.md
+  s_afbd3357f9696c::t_b7748dfaaafb5b 1-31
+experiments/specs/verified-external-task-state/README.md
+  s_afbd3357f9696c::t_48e94d01d9cc1b 1-13
+experiments/specs/structured-verifier-feedback/manifest.json
+  s_afbd3357f9696c::t_48e94d01d9cc1b 1-20
+docs/plans/2026-09-05-agent-editable-harness.md
+  s_59550edd37781f::t_aad6a259ce103c 1-149
+experiments/specs/verified-external-task-state/fixtures/README.md
+  s_afbd3357f9696c::t_48e94d01d9cc1b 1-5
+experiments/specs/temporal-journal-monitor/fixtures/README.md
+  s_afbd3357f9696c::t_b7748dfaaafb5b 1-23
+experiments/specs/temporal-journal-monitor/manifest.json
+  s_afbd3357f9696c::t_1a2c72795683d3 21
+  s_afbd3357f9696c::t_b7748dfaaafb5b 1-20,22-75
+docs/research/papers/evidence-gated-lifecycle/synthesis.md
+  s_afbd3357f9696c::t_d88f45e231acaf 1-67
+docs/research/papers/temporal-journal-monitor/synthesis.md
+  s_afbd3357f9696c::t_b7748dfaaafb5b 1-59
+docs/research/papers/temporal-journal-monitor/notes/2512.23738.md
+  s_afbd3357f9696c::t_b7748dfaaafb5b 1-58
+experiments/specs/protected-spine-compaction/fixtures/README.md
+  s_afbd3357f9696c::t_2f5da994b7bb2d 1-6
+docs/research/papers/temporal-journal-monitor/notes/2503.18666.md
+  s_afbd3357f9696c::t_b7748dfaaafb5b 1-30
+experiments/specs/evidence-gated-lifecycle/manifest.json
+  s_841c2f8acbd867::t_eefa730aae085a 1-3,5-7,11-13,17-19,22-48,52-54,58-66,70-73,76-81
+  s_afbd3357f9696c::t_869de64b659e23 21,75
+  s_afbd3357f9696c::t_d88f45e231acaf 4,8-10,14-16,20,49-51,55-57,67-69,74
+docs/core/PLAN.md
+  s_59550edd37781f::t_aad6a259ce103c 16-18,70-78
+  s_59550edd37781f::t_9352c523d81879 79
+experiments/specs/structured-verifier-feedback/fixtures/README.md
+  s_afbd3357f9696c::t_48e94d01d9cc1b 1-7
+experiments/specs/temporal-journal-monitor/README.md
+  s_afbd3357f9696c::t_b7748dfaaafb5b 1-56
+docs/research/papers/model-dependent-harness/notes/2608.01964.md
+  s_afbd3357f9696c::t_a524da621287c7 1-16
+docs/research/papers/model-dependent-harness/notes/2606.25161.md
+  s_afbd3357f9696c::t_a524da621287c7 1-16
+internal/core/control_monitor.go
+  s_afbd3357f9696c::t_ec59535586fc77 22,177-180,217-218
+  s_841c2f8acbd867::t_11f595cbe05457 71-72
+  s_afbd3357f9696c::t_1cf53cfdf08444 1-2,4-21,23-70,73-176,181-216,219-243,245-250
+  s_afbd3357f9696c::t_3c92104c9a593c 3,244
+experiments/specs/verified-external-task-state/manifest.json
+  s_afbd3357f9696c::t_48e94d01d9cc1b 1-20
+docs/research/papers/model-dependent-harness/notes/2607.02577.md
+  s_afbd3357f9696c::t_a524da621287c7 1-16
+docs/plans/2026-08-27-harness-hypothesis-experiments.md
+  s_afbd3357f9696c::t_aa185f2aece5ab 3-17
+experiments/specs/protected-spine-compaction/manifest.json
+  s_afbd3357f9696c::t_7addf69cfc7a8e 12-13
+  s_afbd3357f9696c::t_f60f923aa4d9b5 1-11,14-20
+experiments/specs/protected-spine-compaction/README.md
+  s_afbd3357f9696c::t_2f5da994b7bb2d 1-12
+experiments/specs/evidence-gated-lifecycle/fixtures/README.md
+  s_afbd3357f9696c::t_d88f45e231acaf 1,3-5,7-23
+  s_841c2f8acbd867::t_eefa730aae085a 2,6
+internal/core/receipt_gate_test.go
+  s_afbd3357f9696c::t_f978ca95f90e7e 1-180,182-292
+  s_afbd3357f9696c::t_e73edefc3cc46d 181
+docs/research/papers/evidence-gated-lifecycle/notes/2607.14890.md
+  s_afbd3357f9696c::t_d88f45e231acaf 1-124
+docs/research/papers/temporal-journal-monitor/search-plan.md
+  s_afbd3357f9696c::t_b7748dfaaafb5b 1-63
+docs/research/papers/model-dependent-harness/synthesis.md
+  s_afbd3357f9696c::t_a524da621287c7 1-25
+experiments/specs/structured-verifier-feedback/README.md
+  s_afbd3357f9696c::t_48e94d01d9cc1b 1-16
+docs/research/papers/model-dependent-harness/notes/2607.14167.md
+  s_afbd3357f9696c::t_a524da621287c7 1-18
+docs/research/papers/model-dependent-harness/search-plan.md
+  s_afbd3357f9696c::t_a524da621287c7 1-40
+experiments/specs/evaluator-validity-audit/fixtures/README.md
+  s_afbd3357f9696c::t_2f5da994b7bb2d 1-6
+experiments/specs/evaluator-validity-audit/manifest.json
+  s_afbd3357f9696c::t_f60f923aa4d9b5 1-20
+internal/core/control_monitor_test.go
+  s_afbd3357f9696c::t_ec59535586fc77 1-3,5-10,12-32,64,67-75,78-105,108-177,179-203,205-233,236-246,251
+  s_afbd3357f9696c::t_b7748dfaaafb5b 33-63,247-250
+  s_841c2f8acbd867::t_11f595cbe05457 76-77,106-107
+  s_afbd3357f9696c::t_608559531d9e0a 11,65-66,178,234
+  s_afbd3357f9696c::t_b4c440a5e1827d 4,204,235
+experiments/specs/evidence-gated-lifecycle/README.md
+  s_afbd3357f9696c::t_d88f45e231acaf 3,5,9-16,22,24-28,32-34,38-39,43-45,49-55,59-64,68-71,75-79,83-87,91-92,96-97,101-103,107,109
+  s_841c2f8acbd867::t_eefa730aae085a 1-2,4,6-8,17-21,23,29-31,35-37,40-42,46-48,56-58,65-67,72-74,80-82,88-90,93-95,98-100,104-106,108,110
+docs/research/papers/evidence-gated-lifecycle/search-plan.md
+  s_afbd3357f9696c::t_d88f45e231acaf 1-57
+experiments/specs/evaluator-validity-audit/README.md
+  s_afbd3357f9696c::t_2f5da994b7bb2d 1-13
+internal/core/receipt_gate.go
+  s_afbd3357f9696c::t_f978ca95f90e7e 1-244
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "8a163f2ed12db3f32d4a1580f025f64a1e0f7c87",
+  "prompts": {},
+  "sessions": {
+    "s_59550edd37781f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07235-043c-7680-bdbb-02ad4754efd4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_841c2f8acbd867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b733d4a-0117-4efb-9b62-94526c10dad9",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_afbd3357f9696c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a02c00-ccf3-7ce3-b136-8a96749939ae",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
