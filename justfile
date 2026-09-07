@@ -23,6 +23,7 @@ setup:
     if [ ! -d .jj ]; then
         jj git init --colocate
     fi
+    git config core.hooksPath .githooks
     if ! gh stack --help >/dev/null 2>&1; then
         gh extension install github/gh-stack
     fi
