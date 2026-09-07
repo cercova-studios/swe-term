@@ -1,0 +1,25 @@
+.githooks/pre-commit
+  s_841c2f8acbd867::t_9a18991b707b31 1-25
+justfile
+  s_841c2f8acbd867::t_b6a6bd058b77d1 26
+docs/reports/research-and-experiments-summary.md
+  s_841c2f8acbd867::t_3ddc87be8aa444 1-176
+CONTRIBUTING.md
+  s_841c2f8acbd867::t_b0c6ba8b4139dc 59-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "b47968c3a63e62191d5b38d2d905554da98a2841",
+  "prompts": {},
+  "sessions": {
+    "s_841c2f8acbd867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b733d4a-0117-4efb-9b62-94526c10dad9",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
