@@ -13,6 +13,9 @@ Framework synthesis lives in `FRAMEWORKS.md`.
 - Build a Go-first agent harness with explicit interfaces and ACP-aligned protocol types.
 - Keep core minimal and stable; push specialized capabilities into extensions/adapters.
 - Preserve portability through narrow capability ports for providers, compute, and storage.
+- Grow with model capability through agent-editable extensions and evidence-based
+  removal of obsolete scaffolding; see the
+  [agent-editable harness direction](../plans/2026-09-05-agent-editable-harness.md).
 
 ## Non-Goals
 
@@ -63,6 +66,16 @@ Deliver:
 Done when:
 
 - New capabilities can be added without modifying the core loop.
+
+Follow-on target, after loop, safety, persistence, and extension contracts exist:
+
+- Pilot agent-authored tool extensions in isolated copies, with a frozen
+  baseline, independent evaluation, human-approved activation, and rollback.
+- Demonstrate rejection of evaluator/authority changes, interruption-safe
+  activation, and removal of an obsolete intervention.
+- Keep core-loop self-rewrites and autonomous persistent promotion outside this
+  first slice. The [design](../plans/2026-09-05-agent-editable-harness.md) defines
+  the scope and evidence requirements; no improvement runtime is implemented.
 
 ### Phase 4: Surface Layer
 

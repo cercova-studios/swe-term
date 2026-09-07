@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "experiment_id": "structured-verifier-feedback",
+  "status": "draft",
+  "kind": "mechanism-hypothesis",
+  "papers": [{"title": "Structured Feedback Improves Repair in an LLM Agent Loop", "url": "https://huggingface.co/papers/2607.14167", "claim": "Information-equivalent repair feedback that exposes failure location, observed value, and admissible alternatives can improve repair relative to raw diagnostics."}],
+  "design_references": [],
+  "hypothesis": "Information-equivalent structured verifier feedback produces fewer invalid follow-up edits and more completions within three attempts than raw output.",
+  "null_hypothesis": "After equalizing information and token budget, feedback shape does not improve completion, attempts, or invalid-edit rate.",
+  "independent_variable": "Raw stdout/stderr versus a deterministic information-equivalent feedback adapter.",
+  "source": {"kind": "directory", "locator": "fixtures", "revision": "pending-reviewed-repair-corpus", "content_digest": ""},
+  "environment": {"adapter": "external", "network": "inherit", "network_justification": "A named model provider will be selected before preregistration.", "allowed_env": [], "resources": {"timeout_seconds": 1800, "max_parallelism": 1, "max_output_bytes": 1048576, "memory_bytes": null, "cpu_seconds": null}},
+  "model": {"required": true, "provider": "", "id": "", "parameters": {}, "prompt_digest": "", "tool_schema_digest": ""},
+  "variants": [{"name": "control", "description": "Raw verifier output.", "command": [], "config": {"feedback_adapter": "raw"}}, {"name": "treatment", "description": "Deterministic typed, information-equivalent feedback.", "command": [], "config": {"feedback_adapter": "structured"}}],
+  "repetitions": 3,
+  "randomness": {"mode": "seeded", "seeds": [], "justification": "Model sampling will be frozen with the provider choice."},
+  "metrics": {"primary": "completion within three attempts", "secondary": ["invalid edit count", "verifier calls", "tokens", "elapsed time", "wrong-location repair"], "acceptance_rule": "No promotion unless repeated wins survive information-equivalence review and discordant pairs are inspected."},
+  "evaluator": {"kind": "manual", "command": [], "rubric": "Each task completes only when its frozen mechanical verifier passes; manually classify invalid and wrong-location edits.", "rubric_digest": ""},
+  "evidence": {"raw_runs": "experiments/runs/structured-verifier-feedback", "curated": "experiments/evidence/structured-verifier-feedback"}
+}

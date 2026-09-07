@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "experiment_id": "evaluator-validity-audit",
+  "status": "draft",
+  "kind": "mechanism-hypothesis",
+  "papers": [{"title": "Benchmarking the Benchmarks: A Validity Audit of Tool-Calling Evaluation", "url": "https://huggingface.co/papers/2607.02577", "claim": "Tool-calling evaluation can contain evaluator-human disagreement and repeated-run variance that alter capability conclusions."}],
+  "design_references": [],
+  "hypothesis": "A single aggregate or model-judge score conceals release-relevant disagreements among task completion, side effects, evidence validity, and process quality.",
+  "null_hypothesis": "A single score agrees sufficiently with component labels and repeated judging to support the same release decisions.",
+  "independent_variable": "Collapsed evaluation score versus independently labeled component dimensions with deterministic, human, and repeated model-judge signals.",
+  "source": {"kind": "directory", "locator": "fixtures", "revision": "pending-earlier-experiment-trajectories", "content_digest": ""},
+  "environment": {"adapter": "external", "network": "inherit", "network_justification": "A named model judge and any human-labeling workflow will be selected before preregistration.", "allowed_env": [], "resources": {"timeout_seconds": 3600, "max_parallelism": 1, "max_output_bytes": 4194304, "memory_bytes": null, "cpu_seconds": null}},
+  "model": {"required": true, "provider": "", "id": "", "parameters": {}, "prompt_digest": "", "tool_schema_digest": ""},
+  "variants": [{"name": "control", "description": "Collapsed score or single judge result.", "command": [], "config": {"decomposed_labels": false}}, {"name": "treatment", "description": "Decomposed deterministic, human, and repeated judge labels.", "command": [], "config": {"decomposed_labels": true}}],
+  "repetitions": 3,
+  "randomness": {"mode": "seeded", "seeds": [], "justification": "The same named model judge must be repeated under frozen settings."},
+  "metrics": {"primary": "pairwise disagreement by evaluation dimension", "secondary": ["judge run-to-run variance", "false done rate", "unsafe-success rate", "deterministic-versus-human misses"], "acceptance_rule": "Retain every dimension whose disagreement changes a release decision and preserve a human-audited sample for later comparisons."},
+  "evaluator": {"kind": "manual", "command": [], "rubric": "Two blinded human passes, deterministic checks, and repeated model judging label the same trace dimensions independently.", "rubric_digest": ""},
+  "evidence": {"raw_runs": "experiments/runs/evaluator-validity-audit", "curated": "experiments/evidence/evaluator-validity-audit"}
+}
