@@ -1,6 +1,20 @@
 # Harness hypothesis experiments
 
-Status: proposed
+Status: active portfolio; no experiment has produced a raw runner record yet.
+
+## Current experiment state
+
+| ID | State | Meaning |
+|---|---|---|
+| 1 Structured verifier feedback | draft | Hypothesis and model-dependent contract are specified; fixture corpus and model identity remain open. |
+| 2 Evidence-gated lifecycle | preregistered prototype | Pure reducer and frozen traces pass local tests and the ready gate; raw-run evidence is still absent. |
+| 3 Temporal journal monitor | preregistered prototype | Pure reducer and frozen traces pass local tests and the ready gate; raw-run evidence is still absent. |
+| 4 Verified external task state | draft | Hypothesis and model-dependent contract are specified; task corpus and model identity remain open. |
+| 5 Protected-spine compaction | draft | The primary mechanical design is specified; the synthetic corpus remains open. |
+| 6 Evaluator validity audit | draft | Must wait for raw trajectories from earlier experiments and a named judge/annotation plan. |
+
+`preregistered prototype` is intentionally not “complete”: the Phase 0 scaffold
+does not yet write append-only trial records under `experiments/runs/`.
 
 ## Goal
 
