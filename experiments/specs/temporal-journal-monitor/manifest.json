@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "experiment_id": "temporal-journal-monitor",
+  "status": "preregistered",
+  "kind": "mechanism-hypothesis",
+  "papers": [
+    {
+      "title": "Enforcing Temporal Constraints for LLM Agents",
+      "url": "https://huggingface.co/papers/2512.23738",
+      "claim": "Runtime enforcement of temporal safety properties can block non-compliant agent action sequences."
+    }
+  ],
+  "design_references": [],
+  "hypothesis": "A small monitor over closed, versioned events can reject each frozen unsafe ordering trace with a stable rule ID while accepting legal traces and reaching the same state after prefix replay.",
+  "null_hypothesis": "The fixed vocabulary misses a required transition, accepts an illegal trace, rejects a legal trace, has replay-sensitive state, or requires unbounded resident state.",
+  "independent_variable": "Outcome-only control acceptance versus deterministic event ordering and receipt-target checks in the treatment reducer.",
+  "source": {
+    "kind": "directory",
+    "locator": "fixtures",
+    "revision": "temporal-monitor-trace-corpus-v1",
+    "content_digest": "sha256:81a4e4e9b441977d8cdd2424695a75659981e1ae7fc0526102c089d76ece44c5"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "disabled",
+    "network_justification": "",
+    "allowed_env": ["PATH"],
+    "resources": {
+      "timeout_seconds": 300,
+      "max_parallelism": 1,
+      "max_output_bytes": 1048576,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "control",
+      "description": "A test-local outcome-only baseline permits a lifecycle claim from a passing receipt without comparing it to a changed target identity.",
+      "command": ["go", "test", "./internal/core", "-run", "^TestControlMonitorControlTrace$", "-count=1"],
+      "config": {"event_monitor": false}
+    },
+    {
+      "name": "treatment",
+      "description": "A pure closed-event reducer enforces approval, lease, effect, receipt, cancellation, and replay rules.",
+      "command": ["go", "test", "./internal/core", "-run", "^TestControlMonitorTreatmentTrace$", "-count=1"],
+      "config": {"event_monitor": true}
+    }
+  ],
+  "repetitions": 1,
+  "randomness": {"mode": "deterministic", "seeds": [], "justification": ""},
+  "metrics": {
+    "primary": "illegal treatment traces accepted across the frozen deterministic corpus",
+    "secondary": ["legal trace acceptance", "stable rejection rule IDs", "immediate replay idempotence", "prefix replay equality", "bounded declared-effect state"],
+    "acceptance_rule": "Treatment must accept every legal trace, reject every frozen illegal trace with a stable rule ID, produce identical terminal state after prefix replay, and accept zero unsafe lifecycle promotions."
+  },
+  "evaluator": {
+    "kind": "manual",
+    "command": [],
+    "rubric": "Inspect every trace against the closed vocabulary: approval must precede a governed lease, only one lease is active, observed effects must be declared, and lifecycle claims require a valid passing receipt matching the current target; cancellation cannot become success.",
+    "rubric_digest": "sha256:6a1fb1c2f2e8c731534628b2dd88a4b4030b9b32dbe21d1f050228d0d8ef8ce5"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/temporal-journal-monitor",
+    "curated": "experiments/evidence/temporal-journal-monitor"
+  }
+}
