@@ -61,10 +61,14 @@ Done when:
 
 Follow-on target, once obligations and receipts exist in core:
 
-- Define the **V&V rung ladder** that `Obligation` already references but
-  nothing specifies (ARCHITECTURE.md §5, invariant 7). Rungs are keyed to what
-  class of defect the evidence can catch, not to a filename — so a mock-heavy
-  interaction test cannot discharge a high-risk obligation.
+- The **V&V rung ladder** that `Obligation` references but nothing specified
+  (ARCHITECTURE.md §5, invariant 7) now exists as a pure reducer:
+  [`internal/core/vv_rung.go`](../../internal/core/vv_rung.go). Rungs are keyed
+  to what class of defect the evidence can catch, not to a filename, and the
+  closed (kind, risk) → minimum-rung table makes invariant 7 structural —
+  there is no event that lowers a minimum, so downgrade is unreachable rather
+  than merely forbidden. Remaining work is wiring it to a real obligation
+  ledger, and deciding how a rung gets *assigned* to actual evidence.
 - The deterministic enforcement this depends on is already validated:
   `ApplyControlEvent` and `ApplyReceiptGateEvent`, evidence under
   [`experiments/evidence/`](../../experiments/evidence/).

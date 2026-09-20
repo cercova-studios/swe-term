@@ -92,16 +92,20 @@ locally-correct patches that compound architectural debt.
 | ID | Experiment | Mechanism | Model required? | Promotion decision |
 |---|---|---|---|---|
 | 7 | Debt-signal foresight | Blast radius + change coupling injected *pre-decision* | Yes | Whether `ContextPacket` carries structural-cost signals |
-| 8 | V&V rung ladder | Rung assigned from evidence, not filename; monitor rejects under-rung discharge | No | Define the rung vocabulary `Obligation` already references |
+| 8 | V&V rung **assignment** | Can a rung be assigned to real evidence mechanically, without a judge? | No | Whether rung assignment can be automated or needs a human |
 | 9 | Mutation-gated test quality | Receipt binds to diff-scoped mutation-kill, ratcheted, not coverage | Yes | Which evidence kind discharges a testing obligation |
 | 10 | Reachability-assertion efficacy | "Sometimes"-style evidence that the changed path was actually exercised | Yes | Whether reachability is a required rung component |
 | 11 | Hegel vs. native fuzzing | Does `hegel-go` beat Go's `testing.F` enough to justify a cgo-backed beta dependency | No | Adopt or decline an external PBT engine |
 
-Sequencing note: **8 is the only model-free one and comes first** — it extends
-the `control_monitor` trace corpus that Experiment 3 just validated.
-(An earlier revision of this note claimed 7 was also model-free; that was
-wrong. Experiment 7 compares agent-produced plans with and without the debt
-signal, so it requires a model and belongs with the model-dependent set.)
+Sequencing note: **8 is the only model-free one and comes first.** Its cost is
+building a hand-labelled corpus of real tests tagged by rung, then checking
+whether mechanical signals (references to unexported symbols, assertions on
+call counts, presence of a mocking library) separate those classes. The corpus
+is the expensive part and may be what kills it.
+(Two earlier revisions of this note were wrong and are corrected here: 7 is
+*not* model-free — it compares agent-produced plans, so it belongs with the
+model-dependent set; and 8 is no longer about extending the `control_monitor`
+corpus, since the deterministic gate it originally covered is already built.)
 9 and 10 depend on 6 (evaluator validity), because both gate on proxies whose
 correlation with real-bug detection is contested
 ([arXiv:2607.22880](https://arxiv.org/abs/2607.22880)). 11 is independent and
@@ -115,6 +119,16 @@ contract holds, not a falsifiable hypothesis about agent behaviour, so it is
 not an experiment. It is swe-term's first **computational sensor** in
 Böckeler's sense; see the diagnostic in
 [the design research §4](2026-09-20-test-quality-and-architectural-fitness-steering.md).
+
+**Experiment 8 was narrowed on 2026-09-20 after building the deterministic
+half.** `internal/core/vv_rung.go` now implements the rung ladder, the closed
+(kind, risk) → minimum-rung policy table, and a gate that rejects under-rung
+discharge and downgrade-by-reclassification — 16 trace cases, all passing.
+That part needed no experiment: it is a deterministic reducer, like
+Experiments 2 and 3's treatments. What remains genuinely uncertain, and what
+Experiment 8 now tests, is whether a rung can be **assigned to real evidence**
+mechanically — telling an observable-behaviour assertion from a restatement
+of the implementation. The reducer is fed a rung; nothing yet decides it.
 
 ## Experiment 1: Structured verifier feedback
 
