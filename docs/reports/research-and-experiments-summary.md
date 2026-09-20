@@ -278,6 +278,20 @@ vendor import into core → the rule fires as expected → revert). The vacuity
 guard caught a real bug in the sensor's own first run. This is swe-term's
 first computational sensor; the repo remains guide-heavy overall.
 
+**Also acted on 2026-09-20:** `internal/core/vv_rung.go` implements the V&V
+rung ladder — six rungs ordered by what class of defect the evidence can
+catch, a closed hand-authored (kind, risk) → minimum-rung policy table where
+absence is a failure rather than a default, and a gate rejecting under-rung
+discharge plus downgrade-by-reclassification (16 trace cases). Invariant 7 is
+made *structural*: there is no event that sets a minimum rung, so "a model may
+never downgrade it" is unreachable rather than merely checked; the remaining
+downgrade vector (relabel the work as lower-risk) is rejected explicitly, and
+escalating the bar invalidates evidence that only cleared the old one. Status
+matches `receipt_gate.go` — a pure reducer, no persistence or runtime loop, so
+`ARCHITECTURE.md` §5 `Obligation` stays `Target`. **What it does not do:**
+assign a rung to real evidence. The reducer is fed one. That remaining
+question is what Experiment 8 was narrowed to.
+
 **Build vs. adopt (§5 of the doc):** `hegel-go` (property-based testing, MIT,
 by Hypothesis' author) and Bombadil (PBT for web **and terminal** UIs — swe-term
 is a TUI) should be **adopted, not rebuilt**; they are commodity-but-deep test
