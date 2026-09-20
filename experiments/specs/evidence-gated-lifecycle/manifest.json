@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "experiment_id": "evidence-gated-lifecycle",
-  "status": "preregistered",
+  "status": "complete",
   "kind": "mechanism-hypothesis",
   "papers": [
     {

@@ -9,7 +9,7 @@ compiled counterpart to `docs/research/papers/<topic>/synthesis.md` and
 the detailed, per-topic and per-experiment record; this is the one place that
 answers "what do we actually know so far, across everything."
 
-Last compiled: 2026-09-07.
+Last compiled: 2026-09-20.
 
 ## 1. Fleet CPG Engine — completed benchmark experiments
 
@@ -89,16 +89,17 @@ carried forward, not resolved by any phase passing: overlay granularity
 depth, heuristic-resolution false-positive rate, L1 schema under a third
 language.
 
-## 2. Harness mechanism-hypothesis research — discovery complete, execution pending
+## 2. Harness mechanism-hypothesis research
 
 Three research packets under `docs/research/papers/` reached `synthesis:
-complete`. **No experiment results exist yet for any of the six specs
-below** — five are `draft`, two (`evidence-gated-lifecycle`,
-`temporal-journal-monitor`) are `preregistered` but not yet run. This section
-reports dispositions and rationale, not results; do not read "complete
-synthesis" as "complete experiment."
+complete`. Of their six associated specs: two (`evidence-gated-lifecycle`,
+`temporal-journal-monitor`) are now **complete with results** (§2.1, §2.3
+below); four (`structured-verifier-feedback`, `verified-external-task-state`,
+`protected-spine-compaction`, `evaluator-validity-audit`) remain `draft`,
+with no results yet. Don't read "complete synthesis" as "complete
+experiment" for those four.
 
-### 2.1 Evidence-gated lifecycle claims
+### 2.1 Evidence-gated lifecycle claims — complete
 
 Decision informed: whether swe-term can fail closed when a lifecycle claim
 (`verified`, `done`, `ready_to_merge`) relies on a receipt whose verification
@@ -110,7 +111,17 @@ invariant 6).
   reducible to deterministic source-bound receipt traces. Limitation carried
   forward: v1 preprint, model/corpus-limited evaluation, no independent
   confirmation found in this packet.
-- Spec: `evidence-gated-lifecycle` (`preregistered`, not yet run).
+- Spec: `evidence-gated-lifecycle` (`complete`). **Result: hypothesis
+  accepted.** `internal/core/receipt_gate.go`'s `ApplyReceiptGateEvent` is
+  the preregistered treatment (`TestReceiptGateTraces`, 11/11 subtests
+  pass) — its exact command match to the manifest was verified directly,
+  not assumed from resemblance. Zero false lifecycle promotions across
+  fresh/missing/failed/7-independently-tested-stale-dimensions/tampered/
+  unchanged-scope traces; byte-equivalent replay confirmed. Evidence:
+  [`experiments/evidence/evidence-gated-lifecycle/`](../../experiments/evidence/evidence-gated-lifecycle/).
+  Decision: accept for a bounded persistence follow-up (binding the gate to
+  an actual `Obligation`/`VerificationReceipt` store, still `Target`) — not
+  an architecture promotion, which stays a separate human decision.
 
 ### 2.2 Model-dependent harness mechanisms
 
@@ -133,7 +144,7 @@ usage budget.
   decomposed evaluator signals, judge disagreement audit. `experiment-candidate`.
   Spec: `evaluator-validity-audit` (`draft`).
 
-### 2.3 Temporal control-journal monitor
+### 2.3 Temporal control-journal monitor — complete
 
 Decision informed: whether a small deterministic reducer can mechanically
 protect swe-term's target ordering invariants, ahead of any production tool
@@ -149,16 +160,28 @@ journal is implemented).
   runtime enforcement generally but weren't adopted as the local mechanism
   (a policy language would confound the four fixed repository invariants
   with policy-authoring quality).
-- Spec: `temporal-journal-monitor` (`preregistered`, not yet run).
+- Spec: `temporal-journal-monitor` (`complete`). **Result: hypothesis
+  accepted.** `internal/core/control_monitor.go`'s `ApplyControlEvent` is
+  the preregistered treatment (`TestControlMonitorTreatmentTrace` +
+  8-subtest safety suite, all pass) — verified by exact command match to
+  the manifest, not inferred from resemblance. Rejects a receipt recorded
+  against a stale target (`ControlReceiptStale`); every illegal trace
+  rejected with a stable rule ID (approval-before-lease, single-lease,
+  declared-effects, receipt-gated lifecycle, cancellation-cannot-succeed,
+  unsupported-event, replay/sequence rules); prefix replay reaches
+  identical state. Evidence:
+  [`experiments/evidence/temporal-journal-monitor/`](../../experiments/evidence/temporal-journal-monitor/).
+  Decision: accept for a bounded durable-journal follow-up (wiring the
+  reducer behind an actual `ControlJournal`, still `Target`) — not an
+  architecture promotion.
 
-Note: `internal/core/control_monitor.go` and `internal/core/receipt_gate.go`
-were committed alongside these specs (2026-09-05) with passing tests —
-production-shaped implementations of the reducer and receipt-gate mechanisms
-these packets researched. Whether that code constitutes running the
-preregistered experiments, or is separate implementation work that should
-still be evaluated against its own preregistered manifest, is not resolved
-in this report and should be checked before treating either spec as
-answered.
+Resolution of an earlier open item in this report: `internal/core/control_monitor.go`
+and `internal/core/receipt_gate.go` (committed 2026-09-05, before this
+report first existed) *are* the preregistered treatments for these two
+specs — confirmed 2026-09-20 by matching each manifest's exact `variant.command`
+test-function names against the actual test files and running them, not by
+resemblance or session-history inference (which was tried first and came
+back inconclusive — see git log around 2026-09-20 for that dead end).
 
 ## Full citation list
 

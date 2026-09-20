@@ -1,7 +1,7 @@
 # Temporal control-journal monitor
 
-Status: preregistered — deterministic implementation is complete, but no raw
-run record has been produced by an execution runner.
+Status: complete — raw run record and manual evaluator verdict in
+[`experiments/evidence/temporal-journal-monitor/`](../../evidence/temporal-journal-monitor/).
 
 ## Scope
 
@@ -44,13 +44,17 @@ all package-level trace tests separately as a safety suite.
 
 ## Results
 
-Do not record results here until a runner writes append-only raw output under
-`experiments/runs/temporal-journal-monitor/`. Passing package tests verifies the
-prototype only; it is not a completed experiment or an architecture promotion.
+Control and treatment run under `experiments/runs/temporal-journal-monitor/run-001/`
+(`go test ./internal/core -run <name> -count=1 -v`, all exit 0). Treatment
+rejects a receipt recorded against a stale target (`ControlReceiptStale`);
+the safety suite (8 illegal-trace subtests, legal-trace, replay,
+prefix-replay, and bounds tests) passes every case with a stable rule ID
+and zero unsafe lifecycle promotions. Full manual rubric verdict:
+[`experiments/evidence/temporal-journal-monitor/README.md`](../../evidence/temporal-journal-monitor/README.md).
 
 ## Decision
 
-- [ ] accept a bounded durable-journal follow-up
+- [x] accept a bounded durable-journal follow-up
 - [ ] reject hypothesis
 - [ ] revise the event vocabulary and preregister a new corpus
 - [ ] propose architecture promotion with human approval
