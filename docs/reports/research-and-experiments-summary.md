@@ -247,6 +247,26 @@ Findings worth carrying regardless of whether the proposal proceeds:
   "minimum V&V rung" the definition it currently lacks, and points the Fleet
   CPG overlay at debt signals.
 
+**Thoughtworks harness-engineering frame (added 2026-09-20).** Böckeler's
+[*Harness engineering for coding agent users*](https://martinfowler.com/articles/harness-engineering.html)
+(2026-04-02) supplies the vocabulary: `Agent = Model + Harness`, with
+**guides** (feedforward, steer before acting) and **sensors** (feedback,
+observe after, enable self-correction), each either **computational**
+(deterministic) or **inferential** (LLM). Her diagnostic — *"you get either an
+agent that keeps repeating the same mistakes (feedback-only) or an agent that
+encodes rules but never finds out whether they worked (feed-forward-only)"* —
+applied to swe-term yields the most actionable finding so far: **this repo is
+guide-heavy and sensor-poor.** It has a 14-invariant architecture contract, a
+preregistration framework, and explicit testing doctrine, and almost nothing
+that checks whether any of it held. Also imported: Ashby's Law reframes the
+Fleet CPG engine as *the regulator's model of the system* (a regulator can
+only regulate what it has a model of), the brownfield paradox — *"the harness
+is most needed where it is hardest to build"* — and the separation of
+per-change sensors from continuous drift sensors. Counter-evidence kept: she
+calls the current behaviour-harness state of the art, including mutation
+testing, *"not good enough yet"*, which is a direct challenge to this doc's
+own M3.
+
 **Build vs. adopt (§5 of the doc):** `hegel-go` (property-based testing, MIT,
 by Hypothesis' author) and Bombadil (PBT for web **and terminal** UIs — swe-term
 is a TUI) should be **adopted, not rebuilt**; they are commodity-but-deep test
@@ -276,3 +296,6 @@ is a test-path dependency with CI-hermeticity implications, and Go's native
 | *Rethinking the Value of Agent-Generated Tests* | [2602.07900](https://arxiv.org/abs/2602.07900) | reference-only (falsifies prompt-only fix) | design research §3.1 |
 | Zhao et al., *Do Coverage and Mutation Scores Correlate with Effectiveness?* | [2607.22880](https://arxiv.org/abs/2607.22880) | evaluation challenge | design research §3.1 |
 | *Mutation-Guided LLM-based Test Generation at Meta* | [2501.12862](https://arxiv.org/pdf/2501.12862) | reference-only | design research §3.1 |
+| Böckeler, *Harness engineering for coding agent users* | [martinfowler.com](https://martinfowler.com/articles/harness-engineering.html) | frame-setting | design research §3.1 |
+| Thoughtworks, *Exploring AI coding sensors* | [blog](https://www.thoughtworks.com/en-de/insights/blog/generative-ai/harness-engineering-agent-feedback-exploring-ai-coding-sensors) | reference-only | design research §3.1 |
+| *Approved Fixtures* (Augmented Coding Patterns) | [pattern](https://lexler.github.io/augmented-coding-patterns/patterns/approved-fixtures/) | reference-only | design research §3.1 |
