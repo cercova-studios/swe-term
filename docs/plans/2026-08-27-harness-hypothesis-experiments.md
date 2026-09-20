@@ -1,20 +1,23 @@
 # Harness hypothesis experiments
 
-Status: active portfolio; no experiment has produced a raw runner record yet.
+Status: active portfolio; experiments 2 and 3 have recorded raw runs and
+curated evidence, the remaining four have not.
 
 ## Current experiment state
 
 | ID | State | Meaning |
 |---|---|---|
 | 1 Structured verifier feedback | draft | Hypothesis and model-dependent contract are specified; fixture corpus and model identity remain open. |
-| 2 Evidence-gated lifecycle | preregistered prototype | Pure reducer and frozen traces pass local tests and the ready gate; raw-run evidence is still absent. |
-| 3 Temporal journal monitor | preregistered prototype | Pure reducer and frozen traces pass local tests and the ready gate; raw-run evidence is still absent. |
+| 2 Evidence-gated lifecycle | complete | `run-001` recorded and manually evaluated; hypothesis accepted for a bounded persistence follow-up. Evidence: [`experiments/evidence/evidence-gated-lifecycle/`](../../experiments/evidence/evidence-gated-lifecycle/). |
+| 3 Temporal journal monitor | complete (v1 corpus); v2 rows await `run-002` | `run-001` recorded and manually evaluated against corpus v1; hypothesis accepted for a bounded durable-journal follow-up. Review then added obligation-scoped target and failed-receipt rows (corpus v2) that are not yet admissible as results. Evidence: [`experiments/evidence/temporal-journal-monitor/`](../../experiments/evidence/temporal-journal-monitor/). |
 | 4 Verified external task state | draft | Hypothesis and model-dependent contract are specified; task corpus and model identity remain open. |
 | 5 Protected-spine compaction | draft | The primary mechanical design is specified; the synthetic corpus remains open. |
 | 6 Evaluator validity audit | draft | Must wait for raw trajectories from earlier experiments and a named judge/annotation plan. |
 
-`preregistered prototype` is intentionally not “complete”: the Phase 0 scaffold
-does not yet write append-only trial records under `experiments/runs/`.
+Raw runs for experiments 2 and 3 were executed by hand (the exact manifest
+`variant.command` invocations, logged under ignored `experiments/runs/`); the
+general execution runner is still planned and does not write those records
+itself.
 
 ## Goal
 

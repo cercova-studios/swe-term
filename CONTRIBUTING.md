@@ -48,6 +48,7 @@ jj new dev@origin
 jj diff
 just test
 just vet
+just research-check   # only bites if you touched research/experiment records
 jj commit -m "why this change exists"
 jj bookmark create feat/short-name -r @-
 ```
@@ -58,15 +59,24 @@ History surgery stays native jj: `describe`, `new`, `squash`, `edit`, `undo`. Do
 
 ## Research and experiment hygiene
 
-`just setup` installs a `pre-commit` hook (`.githooks/`, wired via
-`core.hooksPath`) that blocks a commit touching `docs/research/papers/` or
-`experiments/{specs,evidence}/` unless
+A change touching `docs/research/papers/` or `experiments/{specs,evidence}/`
+must update
 [`docs/reports/research-and-experiments-summary.md`](docs/reports/research-and-experiments-summary.md)
-is updated in the same commit. It's a mechanical check — did the summary
-file change at all — not a content check; update the summary with what was
-actually found, citations included, don't just touch it to pass the hook.
-Bypass with `git commit --no-verify` for changes that carry no new finding
-(a typo fix, a formatting pass).
+in the same commit. `scripts/check-research-summary.sh` enforces it at three
+points, since jj has no commit hooks:
+
+- `just research-check [rev]` runs it on a jj revision (default `@`, the
+  working copy). Run it before `jj commit`.
+- `just stack` runs it on every bookmark before pushing, so a layer that
+  skipped the check cannot reach a PR.
+- `just setup` installs a Git `pre-commit` hook (`.githooks/`, wired via
+  `core.hooksPath`) for anyone committing through Git.
+
+It's a mechanical check — did the summary file change at all — not a content
+check; update the summary with what was actually found, citations included,
+don't just touch it to pass the check. Bypass with `SKIP_RESEARCH_CHECK=1`
+(or `git commit --no-verify`) for changes that carry no new finding (a typo
+fix, a formatting pass).
 
 ## Stacked pull requests
 

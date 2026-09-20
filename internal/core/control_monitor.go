@@ -7,19 +7,21 @@ import "reflect"
 type ControlRuleID string
 
 const (
-	ControlAccepted                 ControlRuleID = ""
-	ControlEventInvalid             ControlRuleID = "control.event.invalid"
-	ControlEventSequence            ControlRuleID = "control.event.sequence"
-	ControlEventSchemaUnsupported   ControlRuleID = "control.event.schema_unsupported"
-	ControlApprovalRequired         ControlRuleID = "control.approval.required"
-	ControlLeaseConflict            ControlRuleID = "control.lease.conflict"
-	ControlLeaseRequired            ControlRuleID = "control.lease.required"
-	ControlEffectDeclarationInvalid ControlRuleID = "control.effect.declaration_invalid"
-	ControlEffectUndeclared         ControlRuleID = "control.effect.undeclared"
-	ControlReceiptInvalid           ControlRuleID = "control.receipt.invalid"
-	ControlReceiptStale             ControlRuleID = "control.receipt.stale"
-	ControlLifecycleReceiptRequired ControlRuleID = "control.lifecycle.receipt_required"
-	ControlLifecycleCancelled       ControlRuleID = "control.lifecycle.cancelled"
+	ControlAccepted                  ControlRuleID = ""
+	ControlEventInvalid              ControlRuleID = "control.event.invalid"
+	ControlEventSequence             ControlRuleID = "control.event.sequence"
+	ControlEventSchemaUnsupported    ControlRuleID = "control.event.schema_unsupported"
+	ControlApprovalRequired          ControlRuleID = "control.approval.required"
+	ControlLeaseConflict             ControlRuleID = "control.lease.conflict"
+	ControlLeaseRequired             ControlRuleID = "control.lease.required"
+	ControlEffectDeclarationInvalid  ControlRuleID = "control.effect.declaration_invalid"
+	ControlEffectUndeclared          ControlRuleID = "control.effect.undeclared"
+	ControlReceiptInvalid            ControlRuleID = "control.receipt.invalid"
+	ControlReceiptObligationMismatch ControlRuleID = "control.receipt.obligation_mismatch"
+	ControlReceiptStale              ControlRuleID = "control.receipt.stale"
+	ControlLifecycleReceiptRequired  ControlRuleID = "control.lifecycle.receipt_required"
+	ControlLifecycleReceiptFailed    ControlRuleID = "control.lifecycle.receipt_failed"
+	ControlLifecycleCancelled        ControlRuleID = "control.lifecycle.cancelled"
 )
 
 // ControlEventKind is intentionally closed. Extending the journal protocol
@@ -55,6 +57,7 @@ type ControlEvent struct {
 	Lease         string
 	Effect        string
 	Effects       []string
+	Obligation    string
 	Identity      ReceiptIdentity
 	Receipt       VerificationReceipt
 	Claim         LifecycleClaim
@@ -64,6 +67,11 @@ type ControlEvent struct {
 // journal owns history and duplicate detection beyond the immediately replayed
 // event; this state stores only the active authorization, lease, declarations,
 // receipt target, and last accepted event.
+//
+// The monitor is scoped to one receipt obligation at a time: ReceiptObligation
+// names the check a lifecycle claim must be backed by, and ReceiptTarget is
+// the identity that check must have run against. A receipt for a different
+// obligation never satisfies the target, even when its digests match.
 type ControlMonitorState struct {
 	LastSequence uint64
 	LastEvent    ControlEvent
@@ -72,9 +80,10 @@ type ControlMonitorState struct {
 	ActiveLease     string
 	DeclaredEffects []string
 
-	ReceiptTarget  ReceiptIdentity
-	CurrentReceipt VerificationReceipt
-	Cancelled      bool
+	ReceiptObligation string
+	ReceiptTarget     ReceiptIdentity
+	CurrentReceipt    VerificationReceipt
+	Cancelled         bool
 }
 
 // ControlDecision describes the result without putting failure into mutable
@@ -117,10 +126,11 @@ func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMo
 
 	switch event.Kind {
 	case ControlSetReceiptTarget:
-		if !event.Identity.Valid() {
+		if event.Obligation == "" || !event.Identity.Valid() {
 			decision = RejectedControlDecision(ControlReceiptInvalid)
 			break
 		}
+		next.ReceiptObligation = event.Obligation
 		next.ReceiptTarget = event.Identity
 		next.CurrentReceipt = VerificationReceipt{}
 	case ControlApprovalGranted:
@@ -160,11 +170,17 @@ func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMo
 			break
 		}
 	case ControlReceiptRecorded:
-		if !event.Receipt.Valid() || event.Receipt.Outcome != ReceiptPassed {
+		// A valid failed receipt is evidence too: it is retained so the
+		// failure stays auditable, and the lifecycle rule below refuses it.
+		if !event.Receipt.Valid() {
 			decision = RejectedControlDecision(ControlReceiptInvalid)
 			break
 		}
-		if !next.ReceiptTarget.Valid() || !event.Receipt.Identity.Equal(next.ReceiptTarget) {
+		if next.ReceiptObligation == "" || event.Receipt.Obligation != next.ReceiptObligation {
+			decision = RejectedControlDecision(ControlReceiptObligationMismatch)
+			break
+		}
+		if !event.Receipt.Identity.Equal(next.ReceiptTarget) {
 			decision = RejectedControlDecision(ControlReceiptStale)
 			break
 		}
@@ -178,8 +194,12 @@ func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMo
 			decision = RejectedControlDecision(ControlLifecycleCancelled)
 			break
 		}
-		if !next.CurrentReceipt.Valid() || next.CurrentReceipt.Outcome != ReceiptPassed || !next.CurrentReceipt.Identity.Equal(next.ReceiptTarget) {
+		if !next.CurrentReceipt.Valid() || next.CurrentReceipt.Obligation != next.ReceiptObligation || !next.CurrentReceipt.Identity.Equal(next.ReceiptTarget) {
 			decision = RejectedControlDecision(ControlLifecycleReceiptRequired)
+			break
+		}
+		if next.CurrentReceipt.Outcome != ReceiptPassed {
+			decision = RejectedControlDecision(ControlLifecycleReceiptFailed)
 			break
 		}
 	case ControlLeaseReleased:
@@ -238,6 +258,7 @@ func controlEventsEqual(left, right ControlEvent) bool {
 		left.Action == right.Action &&
 		left.Lease == right.Lease &&
 		left.Effect == right.Effect &&
+		left.Obligation == right.Obligation &&
 		left.Identity.Equal(right.Identity) &&
 		left.Receipt == right.Receipt &&
 		left.Claim == right.Claim &&

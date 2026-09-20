@@ -52,6 +52,11 @@ prefix-replay, and bounds tests) passes every case with a stable rule ID
 and zero unsafe lifecycle promotions. Full manual rubric verdict:
 [`experiments/evidence/temporal-journal-monitor/README.md`](../../evidence/temporal-journal-monitor/README.md).
 
+`run-001` ran against corpus `v1`. Review then revised the reducer to scope
+the receipt target by obligation and to retain valid failed receipts; corpus
+`v2` adds those rows. The v2 rows need a recorded `run-002` before they count
+as results (see the evidence README, "Corpus revision after run-001").
+
 ## Decision
 
 - [x] accept a bounded durable-journal follow-up

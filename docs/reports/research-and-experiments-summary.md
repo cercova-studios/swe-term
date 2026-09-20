@@ -174,6 +174,24 @@ journal is implemented).
   Decision: accept for a bounded durable-journal follow-up (wiring the
   reducer behind an actual `ControlJournal`, still `Target`) — not an
   architecture promotion.
+- Post-run revision (review of the PR that landed the reducer): the v1
+  target matched receipts by identity only, so a passing receipt for a
+  different obligation with the same digests could unlock a claim, and a
+  valid failed receipt was rejected as invalid instead of retained. The
+  reducer now scopes the target by obligation
+  (`control.receipt.obligation_mismatch`) and keeps failed receipts,
+  refusing the claim with `control.lifecycle.receipt_failed`. Corpus
+  `temporal-monitor-trace-corpus-v2` adds those rows; they have no recorded
+  run yet and are **not** part of the accepted result until `run-002`
+  is recorded and evaluated.
+
+Both specs' fixtures now carry `executable-corpus.sha256`, pinning the Go
+test file that is the corpus's executable form inside the digested
+directory (`TestFrozenExperimentCorpusMatchesLock` enforces it), so a corpus
+edit can no longer leave the manifest `content_digest` unchanged. The
+evidence-gated-lifecycle limitation on `BodyDigest` was also corrected: it is
+an unkeyed integrity check that assumes a trusted verifier constructs
+receipts, not a defense against a party who can reseal a forged receipt.
 
 Resolution of an earlier open item in this report: `internal/core/control_monitor.go`
 and `internal/core/receipt_gate.go` (committed 2026-09-05, before this
