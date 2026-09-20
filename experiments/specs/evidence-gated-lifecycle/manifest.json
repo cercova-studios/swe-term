@@ -18,7 +18,7 @@
     "kind": "directory",
     "locator": "fixtures",
     "revision": "receipt-trace-corpus-v1",
-    "content_digest": "sha256:074122b12828b693c56140ae29c58f6b59a444e16185505c97afd3ea6440d38d"
+    "content_digest": "sha256:8b0a1108dea772f1934122a662d9fdb7206186429bbf0f33b949814a540d197b"
   },
   "environment": {
     "adapter": "process",

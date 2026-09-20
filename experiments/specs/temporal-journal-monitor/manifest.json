@@ -17,8 +17,8 @@
   "source": {
     "kind": "directory",
     "locator": "fixtures",
-    "revision": "temporal-monitor-trace-corpus-v1",
-    "content_digest": "sha256:81a4e4e9b441977d8cdd2424695a75659981e1ae7fc0526102c089d76ece44c5"
+    "revision": "temporal-monitor-trace-corpus-v2",
+    "content_digest": "sha256:2dab59799ea50fd8aa57dab2b98d981d7ea6af33c97acffe8c2a34b9ef54dd91"
   },
   "environment": {
     "adapter": "process",

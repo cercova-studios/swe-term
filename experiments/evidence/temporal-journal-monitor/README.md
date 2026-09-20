@@ -6,8 +6,13 @@ Kind: mechanism-hypothesis · Status: complete · Evaluator: manual (rubric belo
 
 - Spec: [`experiments/specs/temporal-journal-monitor/manifest.json`](../../specs/temporal-journal-monitor/manifest.json)
 - Paper: [Enforcing Temporal Constraints for LLM Agents (Agent-C)](https://huggingface.co/papers/2512.23738)
-- Source: `directory` fixture `temporal-monitor-trace-corpus-v1`,
-  content digest `sha256:81a4e4e9b441977d8cdd2424695a75659981e1ae7fc0526102c089d76ece44c5`
+- Source: `directory` fixture `temporal-monitor-trace-corpus-v2`,
+  content digest `sha256:2dab59799ea50fd8aa57dab2b98d981d7ea6af33c97acffe8c2a34b9ef54dd91`
+  (includes `fixtures/executable-corpus.sha256`, which pins
+  `internal/core/control_monitor_test.go`). `run-001` below was executed
+  against `temporal-monitor-trace-corpus-v1`
+  (`sha256:81a4e4e9b441977d8cdd2424695a75659981e1ae7fc0526102c089d76ece44c5`);
+  see "Corpus revision after run-001".
 - Rubric digest: `sha256:6a1fb1c2f2e8c731534628b2dd88a4b4030b9b32dbe21d1f050228d0d8ef8ce5`
 - Variants: `control` (`TestControlMonitorControlTrace`), `treatment` (`TestControlMonitorTreatmentTrace`) · 1 repetition each, per manifest
 
@@ -60,6 +65,28 @@ exercised.
 None found. Every rejection carries the rule ID the rubric or a table-driven
 subtest name predicts; no illegal trace was accepted and no legal trace was
 rejected.
+
+## Corpus revision after run-001
+
+Review of the v1 reducer found two gaps that the v1 corpus did not exercise
+and that the rubric's "matching the current target" clause did not pin down:
+
+- the receipt target carried only an identity, so a valid passing receipt for
+  a *different* obligation with the same digests could unlock a lifecycle
+  claim;
+- a valid `ReceiptFailed` receipt was rejected as `ControlReceiptInvalid`
+  instead of being retained, so a legitimate failed verification was
+  flattened into "no receipt".
+
+The reducer now scopes the target by obligation (`ControlSetReceiptTarget`
+requires `Obligation`; a receipt for another obligation is rejected with
+`control.receipt.obligation_mismatch`) and retains valid failed receipts,
+refusing the lifecycle claim with `control.lifecycle.receipt_failed`. Corpus
+`v2` adds those rows and the corresponding subtests (11 illegal-trace subtests
+plus `TestControlMonitorRetainsFailedReceipt`). The `run-001` verdict above
+stands for the v1 rows it inspected; the v2 rows have not been through a
+recorded run or manual rubric verdict yet, so they are not admissible as
+results until a `run-002` against v2 is recorded here.
 
 ## Limitations
 

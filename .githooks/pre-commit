@@ -1,25 +1,10 @@
 #!/usr/bin/env sh
-# Blocks a commit that touches research or experiment records without also
-# touching the compiled summary report. See
-# docs/reports/research-and-experiments-summary.md and
-# docs/research/papers/README.md for what belongs in each.
+# Git adapter for scripts/check-research-summary.sh: feeds the staged paths
+# to the shared check. Jujutsu has no hooks, so the documented `jj commit`
+# path is covered by `just research-check` and by `just stack` (which runs
+# the same check on every bookmark before pushing).
 #
-# Escape hatch: `git commit --no-verify` when the summary genuinely doesn't
-# need an update (e.g. a typo fix in a spec that changes no finding).
+# Escape hatch: `git commit --no-verify` or SKIP_RESEARCH_CHECK=1.
 set -eu
 
-SUMMARY="docs/reports/research-and-experiments-summary.md"
-
-staged=$(git diff --cached --name-only)
-
-touches_tracked_area=$(printf '%s\n' "$staged" | grep -E '^(docs/research/papers/|experiments/(specs|evidence)/)' || true)
-touches_summary=$(printf '%s\n' "$staged" | grep -F "$SUMMARY" || true)
-
-if [ -n "$touches_tracked_area" ] && [ -z "$touches_summary" ]; then
-    printf '\npre-commit: research/experiment files changed but %s was not updated:\n\n' "$SUMMARY" >&2
-    printf '%s\n' "$touches_tracked_area" | sed 's/^/  /' >&2
-    printf '\nCompile the finding into %s before committing (see its own\nheader for what belongs there), or commit with --no-verify if this\nchange genuinely has nothing to add to the summary (e.g. a typo fix).\n\n' "$SUMMARY" >&2
-    exit 1
-fi
-
-exit 0
+git diff --cached --name-only | sh "$(git rev-parse --show-toplevel)/scripts/check-research-summary.sh"

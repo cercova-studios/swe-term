@@ -7,7 +7,12 @@ Kind: mechanism-hypothesis · Status: complete · Evaluator: manual (rubric belo
 - Spec: [`experiments/specs/evidence-gated-lifecycle/manifest.json`](../../specs/evidence-gated-lifecycle/manifest.json)
 - Paper: [Proof-or-Stop](https://huggingface.co/papers/2607.14890) (arXiv `2607.14890v1`)
 - Source: `directory` fixture `receipt-trace-corpus-v1`,
-  content digest `sha256:074122b12828b693c56140ae29c58f6b59a444e16185505c97afd3ea6440d38d`
+  content digest `sha256:8b0a1108dea772f1934122a662d9fdb7206186429bbf0f33b949814a540d197b`.
+  The digest was recomputed in review after adding
+  `fixtures/executable-corpus.sha256`, which pins
+  `internal/core/receipt_gate_test.go`; the trace cases themselves are
+  unchanged from the corpus `run-001` executed against
+  (`sha256:074122b12828b693c56140ae29c58f6b59a444e16185505c97afd3ea6440d38d`).
 - Rubric digest: `sha256:1dee9cc640fc93aab0b6e1a49909660f772730bf507ff1ffa865e47f0f727f63`
 - Variants: `control` (`TestReceiptGateControlTrace`), `treatment`
   (`TestReceiptGateTraces`) · 1 repetition each, per manifest
@@ -71,12 +76,15 @@ case tested. No case fell outside this expected pattern.
   not separately exercised, though the identity comparison is a full
   struct equality so this is unlikely to hide a gap — untested, not
   assumed safe by inspection alone.
-- `BodyDigest` reseal-and-compare (in `VerificationReceipt.Valid()`) is the
-  tamper-detection mechanism; the test corpus covers one tampered field
-  (`ConfigurationDigest`), not an exhaustive fuzz across every receipt
-  field or a receipt with a stale-but-self-consistent forged digest
-  (which would require breaking SHA-256 preimage resistance and is out of
-  scope for a mechanism-hypothesis experiment).
+- `BodyDigest` reseal-and-compare (in `VerificationReceipt.Valid()`) is a
+  corruption check, not authentication: it is an unkeyed SHA-256 that any
+  caller can recompute, so a receipt edited and resealed with
+  `SealVerificationReceipt` passes `Valid()`. The gate therefore assumes
+  receipts are constructed only by a trusted verifier; a forged
+  self-consistent receipt from an untrusted party is outside what this
+  mechanism detects and would need a keyed MAC or signature. The test
+  corpus covers one tampered-without-reseal field (`ConfigurationDigest`),
+  not a fuzz across every receipt field.
 - No persistence, database, or durable storage is tested — this experiment
   is explicitly scoped to the closed reducer only, per the spec's
   Limitations section, which the discovery packet's "competing mechanisms

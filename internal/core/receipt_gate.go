@@ -55,8 +55,16 @@ const (
 	ReceiptFailed ReceiptOutcome = "failed"
 )
 
-// VerificationReceipt is an immutable evidence envelope. BodyDigest seals the
-// obligation, identity, and outcome against accidental or adversarial mutation.
+// VerificationReceipt is an immutable evidence envelope. BodyDigest is an
+// unkeyed SHA-256 over the obligation, identity, and outcome: it detects
+// corruption or partial mutation of a receipt after it was sealed, and nothing
+// more. It is not a signature. Anyone can edit a receipt and reseal it, so a
+// valid BodyDigest is no evidence that a verifier produced the outcome.
+//
+// Authenticity is a trust-boundary property that belongs to whoever constructs
+// receipts: only a trusted verifier may call SealVerificationReceipt, and any
+// receipt that crosses an untrusted boundary needs an authenticated format
+// (keyed MAC or signature) that this reducer deliberately does not define.
 type VerificationReceipt struct {
 	ID         string
 	Obligation string
@@ -65,6 +73,9 @@ type VerificationReceipt struct {
 	BodyDigest string
 }
 
+// SealVerificationReceipt computes the integrity digest for a receipt body.
+// Callers must treat it as a construction step inside the trusted verifier,
+// not as an authenticity check; see VerificationReceipt.
 func SealVerificationReceipt(receipt VerificationReceipt) VerificationReceipt {
 	receipt.BodyDigest = receipt.bodyDigest()
 	return receipt
