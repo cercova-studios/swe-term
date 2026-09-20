@@ -6,22 +6,31 @@ Kind: mechanism-hypothesis · Status: complete · Evaluator: manual (rubric belo
 
 - Spec: [`experiments/specs/evidence-gated-lifecycle/manifest.json`](../../specs/evidence-gated-lifecycle/manifest.json)
 - Paper: [Proof-or-Stop](https://huggingface.co/papers/2607.14890) (arXiv `2607.14890v1`)
-- Source: `directory` fixture `receipt-trace-corpus-v1`,
-  content digest `sha256:8b0a1108dea772f1934122a662d9fdb7206186429bbf0f33b949814a540d197b`.
-  The digest was recomputed in review after adding
-  `fixtures/executable-corpus.sha256`, which pins
-  `internal/core/receipt_gate_test.go`; the trace cases themselves are
-  unchanged from the corpus `run-001` executed against
-  (`sha256:074122b12828b693c56140ae29c58f6b59a444e16185505c97afd3ea6440d38d`).
+- Source: `directory` fixture `receipt-trace-corpus-v2`,
+  content digest `sha256:85b3ff76efa3a901f738af47ed588f9b910e82557ed1a9c29dbf1412d43e5e32`
+  (includes `fixtures/executable-corpus.sha256`, which pins
+  `internal/core/receipt_gate_test.go`). `run-001` below was executed against
+  `receipt-trace-corpus-v1`
+  (`sha256:074122b12828b693c56140ae29c58f6b59a444e16185505c97afd3ea6440d38d`);
+  see "Corpus revision after run-001".
 - Rubric digest: `sha256:1dee9cc640fc93aab0b6e1a49909660f772730bf507ff1ffa865e47f0f727f63`
 - Variants: `control` (`TestReceiptGateControlTrace`), `treatment`
-  (`TestReceiptGateTraces`) · 1 repetition each, per manifest
+  (`TestReceiptGateTraces`) · 1 repetition each, per the manifest `run-001`
+  ran under. The treatment filter has since been widened to also run
+  `TestReceiptGateReplayIsByteEquivalent` and
+  `TestReceiptGateDoesNotMutateInputState`, so the declared command produces
+  the replay evidence the acceptance rule asks for; `run-001` ran those two
+  separately (below).
 
 ## Raw runs
 
 `experiments/runs/evidence-gated-lifecycle/run-001/{control,treatment,safety_suite}.log`
-— exact `go test ./internal/core -run <name> -count=1 -v` invocations from
-the manifest, executed 2026-09-20. All exit 0.
+— executions of the manifest's `control` and `treatment` commands as declared
+at the time (`^TestReceiptGateControlTrace$`, `^TestReceiptGateTraces$`), with
+`-v` added to capture subtest names, plus an extra `safety_suite` run of
+`TestReceiptGateReplayIsByteEquivalent` and
+`TestReceiptGateDoesNotMutateInputState` that was not a manifest variant when
+it ran. Executed 2026-09-20. All exit 0.
 
 ## Manual rubric verdict
 
@@ -40,10 +49,10 @@ obligation identity; stale, missing, and failed receipts are rejected."
   `ApplyReceiptGateEvent` across every case the manifest's secondary
   metrics name — fresh pass (accepted, claim recorded), missing receipt
   (`receipt.missing`), failed receipt (`receipt.failed`), and a stale
-  rejection for **each of the seven identity dimensions independently**
+  rejection for **six of the seven identity dimensions independently**
   (`source`, `verifier`, `arguments`, `configuration`, `runtime`,
-  `lockfiles` — all `receipt.stale`; plus `scope` implicitly covered since
-  `ReceiptIdentity.Equal` compares the whole struct), a tampered receipt
+  `lockfiles` — all `receipt.stale`; `scope` had no dedicated staleness
+  case in v1, see Limitations), a tampered receipt
   body (`receipt.invalid`, caught by the `BodyDigest` reseal check before
   identity is even compared), and — critically for the null hypothesis —
   an **unchanged-scope trace that still succeeds** (`unchanged scope
@@ -69,13 +78,38 @@ would wrongly promote (stale source, tampered config); the treatment
 correctly rejects both, and separately accepts the one unchanged-scope
 case tested. No case fell outside this expected pattern.
 
+## Corpus revision after run-001
+
+Review of the v1 reducer found gaps that the v1 corpus did not exercise:
+
+- a valid replacement receipt (for example a later failed run) replaced the
+  stored receipt but left the lifecycle claim accepted on the strength of the
+  old one;
+- the record event's own obligation field was ignored, so an event naming one
+  obligation could record a receipt sealed for another;
+- `scope` was the one identity dimension without an independent staleness
+  trace.
+
+The reducer now withdraws the claim on every non-idempotent receipt
+replacement and rejects a record event whose obligation differs from the
+receipt's with `receipt.obligation_mismatch`. Corpus `v2` adds those rows plus
+the scope-change row (14 treatment subtests) and asserts that every rejected
+trace leaves no claim standing. The `run-001` verdict above stands for the v1
+rows it inspected; the v2 rows have not been through a recorded run or manual
+rubric verdict yet, so they are not admissible as results until a `run-002`
+against v2 is recorded here.
+
 ## Limitations
 
-- All seven identity-dimension staleness cases are tested independently
-  (one field changed at a time); combinations of simultaneous changes are
-  not separately exercised, though the identity comparison is a full
-  struct equality so this is unlikely to hide a gap — untested, not
-  assumed safe by inspection alone.
+- In `run-001`, six of the seven identity dimensions were tested for
+  staleness independently (source, verifier, arguments, configuration,
+  runtime, lockfiles — one field changed at a time). `scope` had no
+  dedicated staleness case: the `unchanged scope` trace re-sends the
+  identical baseline and expects acceptance only. Corpus v2 adds a scope
+  row, pending `run-002`. Combinations of simultaneous changes are not
+  separately exercised, though the identity comparison is a full struct
+  equality so this is unlikely to hide a gap — untested, not assumed safe
+  by inspection alone.
 - `BodyDigest` reseal-and-compare (in `VerificationReceipt.Valid()`) is a
   corruption check, not authentication: it is an unkeyed SHA-256 that any
   caller can recompute, so a receipt edited and resealed with

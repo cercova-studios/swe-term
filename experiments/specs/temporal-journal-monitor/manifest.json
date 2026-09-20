@@ -18,13 +18,13 @@
     "kind": "directory",
     "locator": "fixtures",
     "revision": "temporal-monitor-trace-corpus-v2",
-    "content_digest": "sha256:2dab59799ea50fd8aa57dab2b98d981d7ea6af33c97acffe8c2a34b9ef54dd91"
+    "content_digest": "sha256:d4bb884a1da1739b818461d8188e041b20a0cd58998b3255f3803a7f76570056"
   },
   "environment": {
     "adapter": "process",
     "network": "disabled",
     "network_justification": "",
-    "allowed_env": ["PATH"],
+    "allowed_env": ["PATH", "HOME", "GOPATH", "GOCACHE", "GOMODCACHE", "GOFLAGS"],
     "resources": {
       "timeout_seconds": 300,
       "max_parallelism": 1,

@@ -17,16 +17,14 @@
   "source": {
     "kind": "directory",
     "locator": "fixtures",
-    "revision": "receipt-trace-corpus-v1",
-    "content_digest": "sha256:8b0a1108dea772f1934122a662d9fdb7206186429bbf0f33b949814a540d197b"
+    "revision": "receipt-trace-corpus-v2",
+    "content_digest": "sha256:85b3ff76efa3a901f738af47ed588f9b910e82557ed1a9c29dbf1412d43e5e32"
   },
   "environment": {
     "adapter": "process",
     "network": "disabled",
     "network_justification": "",
-    "allowed_env": [
-      "PATH"
-    ],
+    "allowed_env": ["PATH", "HOME", "GOPATH", "GOCACHE", "GOMODCACHE", "GOFLAGS"],
     "resources": {
       "timeout_seconds": 300,
       "max_parallelism": 1,
@@ -53,7 +51,7 @@
     {
       "name": "treatment",
       "description": "A pure receipt reducer permits a lifecycle claim only when a sealed passing receipt exactly matches current obligation identity.",
-      "command": ["go", "test", "./internal/core", "-run", "^TestReceiptGateTraces$", "-count=1"],
+      "command": ["go", "test", "./internal/core", "-run", "^(TestReceiptGateTraces|TestReceiptGateReplayIsByteEquivalent|TestReceiptGateDoesNotMutateInputState)$", "-count=1"],
       "config": {"identity_gate": true}
     }
   ],

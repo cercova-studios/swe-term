@@ -130,9 +130,13 @@ func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMo
 			decision = RejectedControlDecision(ControlReceiptInvalid)
 			break
 		}
+		// Re-declaring the same target is not a change of verification
+		// inputs, so still-current evidence survives it.
+		if next.ReceiptObligation != event.Obligation || !next.ReceiptTarget.Equal(event.Identity) {
+			next.CurrentReceipt = VerificationReceipt{}
+		}
 		next.ReceiptObligation = event.Obligation
 		next.ReceiptTarget = event.Identity
-		next.CurrentReceipt = VerificationReceipt{}
 	case ControlApprovalGranted:
 		if event.Action == "" || next.ActiveLease != "" || next.Cancelled {
 			decision = RejectedControlDecision(ControlEventInvalid)
@@ -169,6 +173,10 @@ func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMo
 			decision = RejectedControlDecision(ControlEffectUndeclared)
 			break
 		}
+		// The monitor cannot tell whether an effect touched the verified
+		// scope, so any observed mutation fails closed: the receipt is no
+		// longer current and a fresh one must be recorded before a claim.
+		next.CurrentReceipt = VerificationReceipt{}
 	case ControlReceiptRecorded:
 		// A valid failed receipt is evidence too: it is retained so the
 		// failure stays auditable, and the lifecycle rule below refuses it.

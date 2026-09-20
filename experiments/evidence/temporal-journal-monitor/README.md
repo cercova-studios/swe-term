@@ -7,7 +7,7 @@ Kind: mechanism-hypothesis · Status: complete · Evaluator: manual (rubric belo
 - Spec: [`experiments/specs/temporal-journal-monitor/manifest.json`](../../specs/temporal-journal-monitor/manifest.json)
 - Paper: [Enforcing Temporal Constraints for LLM Agents (Agent-C)](https://huggingface.co/papers/2512.23738)
 - Source: `directory` fixture `temporal-monitor-trace-corpus-v2`,
-  content digest `sha256:2dab59799ea50fd8aa57dab2b98d981d7ea6af33c97acffe8c2a34b9ef54dd91`
+  content digest `sha256:d4bb884a1da1739b818461d8188e041b20a0cd58998b3255f3803a7f76570056`
   (includes `fixtures/executable-corpus.sha256`, which pins
   `internal/core/control_monitor_test.go`). `run-001` below was executed
   against `temporal-monitor-trace-corpus-v1`
@@ -19,8 +19,10 @@ Kind: mechanism-hypothesis · Status: complete · Evaluator: manual (rubric belo
 ## Raw runs
 
 `experiments/runs/temporal-journal-monitor/run-001/{control,treatment,safety_suite}.log` —
-exact `go test ./internal/core -run <name> -count=1 -v` invocations from the
-manifest, executed 2026-09-20. All exit 0.
+executions of the manifest's `control` and `treatment` commands (with `-v`
+added to capture subtest names) plus an extra `safety_suite` run of the
+remaining `TestControlMonitor*` tests, which are not manifest variants.
+Executed 2026-09-20. All exit 0.
 
 ## Manual rubric verdict
 
@@ -68,7 +70,7 @@ rejected.
 
 ## Corpus revision after run-001
 
-Review of the v1 reducer found two gaps that the v1 corpus did not exercise
+Review of the v1 reducer found gaps that the v1 corpus did not exercise
 and that the rubric's "matching the current target" clause did not pin down:
 
 - the receipt target carried only an identity, so a valid passing receipt for
@@ -76,14 +78,21 @@ and that the rubric's "matching the current target" clause did not pin down:
   claim;
 - a valid `ReceiptFailed` receipt was rejected as `ControlReceiptInvalid`
   instead of being retained, so a legitimate failed verification was
-  flattened into "no receipt".
+  flattened into "no receipt";
+- an accepted `effect_observed` after a recorded receipt left that receipt
+  usable for a later lifecycle claim, although the governed mutation may have
+  changed the verified source;
+- re-declaring the identical target discarded a still-current receipt.
 
 The reducer now scopes the target by obligation (`ControlSetReceiptTarget`
 requires `Obligation`; a receipt for another obligation is rejected with
-`control.receipt.obligation_mismatch`) and retains valid failed receipts,
-refusing the lifecycle claim with `control.lifecycle.receipt_failed`. Corpus
-`v2` adds those rows and the corresponding subtests (11 illegal-trace subtests
-plus `TestControlMonitorRetainsFailedReceipt`). The `run-001` verdict above
+`control.receipt.obligation_mismatch`), retains valid failed receipts,
+refusing the lifecycle claim with `control.lifecycle.receipt_failed`, clears
+the current receipt on every accepted observed effect, and keeps it when the
+same obligation and identity are re-declared. Corpus `v2` adds those rows and
+the corresponding tests (12 illegal-trace subtests plus
+`TestControlMonitorRetainsFailedReceipt` and
+`TestControlMonitorRepeatedTargetKeepsReceipt`). The `run-001` verdict above
 stands for the v1 rows it inspected; the v2 rows have not been through a
 recorded run or manual rubric verdict yet, so they are not admissible as
 results until a `run-002` against v2 is recorded here.
