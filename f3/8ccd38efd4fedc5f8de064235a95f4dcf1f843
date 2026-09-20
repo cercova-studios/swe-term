@@ -1,0 +1,37 @@
+internal/architecture/fitness_test.go
+  s_841c2f8acbd867::t_8d5ee762b01c7e 1-127,132-200
+  s_841c2f8acbd867::t_816f18498dcdf6 128-131
+docs/core/PLAN.md
+  s_841c2f8acbd867::t_3b0e6f98a1bf9a 139-147
+docs/plans/2026-08-27-harness-hypothesis-experiments.md
+  s_841c2f8acbd867::t_436ef904387d1a 102-107,112-119
+  s_4e0a8257e9a7f0::t_669e1ef89b66ec 120
+docs/reports/research-and-experiments-summary.md
+  s_841c2f8acbd867::t_2f33dd0706265d 237-247
+docs/plans/2026-09-20-test-quality-and-architectural-fitness-steering.md
+  s_841c2f8acbd867::t_ee4dd54c693740 251-276
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f38ccd38efd4fedc5f8de064235a95f4dcf1f843",
+  "prompts": {},
+  "sessions": {
+    "s_4e0a8257e9a7f0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bad1-9ebf-7b21-bf6f-0c875ce69a3d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    },
+    "s_841c2f8acbd867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b733d4a-0117-4efb-9b62-94526c10dad9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
