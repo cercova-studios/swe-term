@@ -28,10 +28,13 @@ resident state.
 ## Procedure
 
 Run one deterministic repetition of each variant against the frozen trace
-corpus. The control permits lifecycle success based on a passing receipt outcome
-without comparing it to the changed target. The treatment uses
-`ApplyControlEvent` to enforce ordering and current receipt identity. Evaluate
-all package-level trace tests separately as a safety suite.
+corpus. The control is the agreement trace: a passed receipt recorded against
+its unchanged target authorizes the lifecycle claim, which an outcome-only gate
+and `ApplyControlEvent` both permit. The treatment runs `ApplyControlEvent`
+over the whole corpus, including the contrast trace where the same receipt is
+recorded after the target changed, to enforce ordering and current receipt
+identity; its command lists every corpus test so the primary metric is
+reproducible from the manifest alone.
 
 ## Metrics and stop conditions
 
@@ -45,17 +48,21 @@ all package-level trace tests separately as a safety suite.
 ## Results
 
 Control and treatment run under `experiments/runs/temporal-journal-monitor/run-001/`
-(`go test ./internal/core -run <name> -count=1 -v`, all exit 0). Treatment
-rejects a receipt recorded against a stale target (`ControlReceiptStale`);
-the safety suite (8 illegal-trace subtests, legal-trace, replay,
-prefix-replay, and bounds tests) passes every case with a stable rule ID
-and zero unsafe lifecycle promotions. Full manual rubric verdict:
+(the v1 manifest commands with `-v` added, all exit 0). Treatment rejects a
+receipt recorded against a stale target (`ControlReceiptStale`); the
+remaining trace tests, run as a separate safety suite because the v1
+treatment command covered only the contrast trace (8 illegal-trace subtests,
+legal-trace, replay, prefix-replay, and bounds tests), pass every case with a
+stable rule ID and zero unsafe lifecycle promotions. Full manual rubric verdict:
 [`experiments/evidence/temporal-journal-monitor/README.md`](../../evidence/temporal-journal-monitor/README.md).
 
 `run-001` ran against corpus `v1`. Review then revised the reducer to scope
-the receipt target by obligation and to retain valid failed receipts; corpus
-`v2` adds those rows. The v2 rows need a recorded `run-002` before they count
-as results (see the evidence README, "Corpus revision after run-001").
+the receipt target by obligation, retain valid failed receipts, invalidate
+receipts on observed effects, and report lease and sequence violations under
+their own rule IDs; corpus `v2` adds those rows, folds the whole corpus into
+the treatment command, and turns the control into a reducer run. The v2 rows
+need a recorded `run-002` before they count as results (see the evidence
+README, "Corpus revision after run-001").
 
 ## Decision
 
