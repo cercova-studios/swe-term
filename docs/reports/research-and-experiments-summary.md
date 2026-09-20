@@ -29,9 +29,10 @@ promoted as curated evidence under `experiments/evidence/fleet-cpg-*/`
 
 Cold-vs-warm page-cache hypothesis **rejected on all four** — in-graph query
 latency is sub-millisecond once the CPG is JVM-resident; the dominant,
-unhypothesized cost is per-invocation JVM/Ammonite startup (7.2s at 21k LOC →
-~224s at 3.03M LOC). Cost scaling with LOC is sublinear (144× more LOC over
-fastapi produced only 37× wall time, 44× RSS), correcting an earlier
+unhypothesized cost is per-invocation JVM/Ammonite startup (7.3s at 21k LOC →
+~213s at 3.03M LOC, cold medians above). Cost scaling with LOC is sublinear
+(144× more LOC over fastapi produced only ~29× process wall time, ~37× cold
+build, ~44× RSS), correcting an earlier
 three-point "roughly linear" read. Excalidraw's `typehier-all-typedecls`
 query returned an unstable count (5,915 vs. 5,916) across repetitions on a
 pinned revision — a measured CPG-nondeterminism counterexample, not repeated
@@ -116,12 +117,23 @@ invariant 6).
   the preregistered treatment (`TestReceiptGateTraces`, 11/11 subtests
   pass) — its exact command match to the manifest was verified directly,
   not assumed from resemblance. Zero false lifecycle promotions across
-  fresh/missing/failed/7-independently-tested-stale-dimensions/tampered/
-  unchanged-scope traces; byte-equivalent replay confirmed. Evidence:
+  fresh/missing/failed/6-independently-tested-stale-dimensions/tampered/
+  unchanged-scope traces (`scope` had no dedicated staleness case in v1);
+  byte-equivalent replay confirmed. Evidence:
   [`experiments/evidence/evidence-gated-lifecycle/`](../../experiments/evidence/evidence-gated-lifecycle/).
   Decision: accept for a bounded persistence follow-up (binding the gate to
   an actual `Obligation`/`VerificationReceipt` store, still `Target`) — not
   an architecture promotion, which stays a separate human decision.
+- Post-run revision (review of the PR that landed the reducer): a valid
+  replacement receipt left the lifecycle claim accepted on the strength of
+  the receipt it replaced, and the record event's obligation was ignored.
+  The reducer now withdraws the claim on every receipt replacement and
+  rejects a mismatched record event (`receipt.obligation_mismatch`). Corpus
+  `receipt-trace-corpus-v2` adds those rows and a scope-change row; they
+  have no recorded run yet and are **not** part of the accepted result
+  until `run-002` is recorded and evaluated. The manifest treatment filter
+  now also runs the replay and no-mutation tests, which `run-001` ran as a
+  separate safety suite.
 
 ### 2.2 Model-dependent harness mechanisms
 
@@ -177,10 +189,13 @@ journal is implemented).
 - Post-run revision (review of the PR that landed the reducer): the v1
   target matched receipts by identity only, so a passing receipt for a
   different obligation with the same digests could unlock a claim, and a
-  valid failed receipt was rejected as invalid instead of retained. The
-  reducer now scopes the target by obligation
-  (`control.receipt.obligation_mismatch`) and keeps failed receipts,
-  refusing the claim with `control.lifecycle.receipt_failed`. Corpus
+  valid failed receipt was rejected as invalid instead of retained; an
+  observed effect left a recorded receipt usable, and re-declaring the same
+  target discarded a current one. The reducer now scopes the target by
+  obligation (`control.receipt.obligation_mismatch`), keeps failed receipts,
+  refusing the claim with `control.lifecycle.receipt_failed`, clears the
+  receipt on every observed effect, and keeps it across an identical
+  re-declared target. Corpus
   `temporal-monitor-trace-corpus-v2` adds those rows; they have no recorded
   run yet and are **not** part of the accepted result until `run-002`
   is recorded and evaluated.

@@ -125,6 +125,16 @@ func TestReceiptGateTraces(t *testing.T) {
 			wantRule: "receipt.stale",
 		},
 		{
+			name: "scope change invalidates receipt",
+			events: []ReceiptGateEvent{
+				setTarget("build", baseline),
+				recordReceipt(passed),
+				setTarget("build", withScope(baseline, "scope-changed")),
+				claimLifecycle("build", ClaimDone),
+			},
+			wantRule: "receipt.stale",
+		},
+		{
 			name: "tampered receipt body fails closed",
 			events: []ReceiptGateEvent{
 				setTarget("build", baseline),
@@ -141,6 +151,25 @@ func TestReceiptGateTraces(t *testing.T) {
 				claimLifecycle("build", ClaimVerified),
 			},
 			wantClaim: ClaimVerified,
+		},
+		{
+			name: "replacement receipt withdraws the prior claim",
+			events: []ReceiptGateEvent{
+				setTarget("build", baseline),
+				recordReceipt(passed),
+				claimLifecycle("build", ClaimDone),
+				recordReceipt(testReceiptFor("build", "receipt-build-2", baseline, ReceiptFailed)),
+				claimLifecycle("build", ClaimDone),
+			},
+			wantRule: "receipt.failed",
+		},
+		{
+			name: "receipt for another obligation cannot be recorded under this one",
+			events: []ReceiptGateEvent{
+				setTarget("build", baseline),
+				recordReceiptFor("build", testReceiptFor("lint", "receipt-lint-1", baseline, ReceiptPassed)),
+			},
+			wantRule: "receipt.obligation_mismatch",
 		},
 	}
 
@@ -161,6 +190,9 @@ func TestReceiptGateTraces(t *testing.T) {
 			}
 			if test.wantClaim != "" && state.Claims["build"] != test.wantClaim {
 				t.Fatalf("claim = %q, want %q", state.Claims["build"], test.wantClaim)
+			}
+			if test.wantRule != "" && state.Claims["build"] != "" {
+				t.Fatalf("rejected trace left lifecycle claim %q standing", state.Claims["build"])
 			}
 		})
 	}
@@ -227,14 +259,22 @@ func recordReceipt(receipt VerificationReceipt) ReceiptGateEvent {
 	return ReceiptGateEvent{Kind: ReceiptGateRecord, Receipt: receipt}
 }
 
+func recordReceiptFor(obligation string, receipt VerificationReceipt) ReceiptGateEvent {
+	return ReceiptGateEvent{Kind: ReceiptGateRecord, ObligationID: obligation, Receipt: receipt}
+}
+
 func claimLifecycle(obligation string, claim LifecycleClaim) ReceiptGateEvent {
 	return ReceiptGateEvent{Kind: ReceiptGateClaim, ObligationID: obligation, Claim: claim}
 }
 
 func testReceipt(identity ReceiptIdentity, outcome ReceiptOutcome) VerificationReceipt {
+	return testReceiptFor("build", "receipt-build-1", identity, outcome)
+}
+
+func testReceiptFor(obligation, id string, identity ReceiptIdentity, outcome ReceiptOutcome) VerificationReceipt {
 	return SealVerificationReceipt(VerificationReceipt{
-		ID:         "receipt-build-1",
-		Obligation: "build",
+		ID:         id,
+		Obligation: obligation,
 		Identity:   identity,
 		Outcome:    outcome,
 	})
@@ -250,6 +290,11 @@ func testReceiptIdentity() ReceiptIdentity {
 		RuntimeDigest:       testDigest("runtime"),
 		LockfilesDigest:     testDigest("lockfiles"),
 	}
+}
+
+func withScope(identity ReceiptIdentity, value string) ReceiptIdentity {
+	identity.ScopeDigest = testDigest(value)
+	return identity
 }
 
 func withSource(identity ReceiptIdentity, value string) ReceiptIdentity {

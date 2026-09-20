@@ -19,7 +19,7 @@ fi
 changed=$(cat)
 
 touches_tracked_area=$(printf '%s\n' "$changed" | grep -E '^(docs/research/papers/|experiments/(specs|evidence)/)' || true)
-touches_summary=$(printf '%s\n' "$changed" | grep -F "$SUMMARY" || true)
+touches_summary=$(printf '%s\n' "$changed" | grep -Fx "$SUMMARY" || true)
 
 if [ -n "$touches_tracked_area" ] && [ -z "$touches_summary" ]; then
     printf '\nresearch-check: research/experiment files changed but %s was not updated:\n\n' "$SUMMARY" >&2

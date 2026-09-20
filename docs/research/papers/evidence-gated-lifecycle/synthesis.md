@@ -44,8 +44,15 @@ The proposed experiment is
 
 - exact claim: lifecycle transitions require fresh, tracked-source-state-bound,
   mechanically verifiable evidence;
+- boundary conditions: the paper's evaluation is one model family, 24 ablation
+  tasks, and a self-hosted corpus; the transfer is an inference that holds only
+  if every relevant verification input is represented in the identity and
+  refreshed, and it cannot establish semantic correctness or scoped test
+  selection;
 - local hypothesis: identity binding eliminates false promotion for the frozen
   trace corpus;
+- null: exact identity binding either fails to distinguish stale evidence from
+  current evidence or rejects an unchanged verification scope unpredictably;
 - independent variable: result-only control versus identity-bound receipt gate;
 - fixture shape: deterministic receipt and identity transitions;
 - evaluator: closed Go trace assertions with explicit rule IDs;
