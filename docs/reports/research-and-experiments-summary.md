@@ -84,7 +84,15 @@ Python output exact vs. ground truth on every rep; hand-verified
 ### Where this goes next
 
 Implementation plan: [`docs/plans/2026-09-05-fleet-cpg-engine-implementation.md`](../plans/2026-09-05-fleet-cpg-engine-implementation.md)
-(Rust engine, sibling Cargo workspace, five gated slices). Open questions
+(Rust engine, sibling Cargo workspace, five gated slices). **Slice 0 done
+2026-09-20**: `internal/core/context_packet.go` defines the `ContextPacket` /
+`Provenance` contract — freshness computed rather than assumed, invariant 11's
+three-valued absence (which requires *both* complete scope and compiler tier,
+so the heuristic tier can never prove non-existence), a `fresh` claim that
+must carry the revisions justifying it, and an `Unavailable` constructor so a
+missing adapter yields honest unknowns instead of an empty success. Stays
+`Target` in §5 — nothing produces a packet yet, same standing as the other
+reducers. Open questions
 carried forward, not resolved by any phase passing: overlay granularity
 (file vs. hunk), freshness enforcement in code, compaction cost at real layer
 depth, heuristic-resolution false-positive rate, L1 schema under a third

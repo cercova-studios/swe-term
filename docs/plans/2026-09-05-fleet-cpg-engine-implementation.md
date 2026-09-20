@@ -150,10 +150,35 @@ edge is `unknown`, never `not_found_in_complete_scope`.
 Each slice has an entry gate, a definition of done, and the check that proves
 it. No slice starts on faith that the previous one would have passed.
 
-**Slice 0 — Contracts.** `ContextPacket`, `Provenance`, `Freshness`, `Scope`
-in `internal/core`; table-driven tests for the freshness precondition and
-three-valued scope. `ARCHITECTURE.md` §5 gains the row as `Target` → flips to
-`Implemented` in the same change the types land. Done: `go test ./internal/core`.
+**Slice 0 — Contracts. Done 2026-09-20** — `internal/core/context_packet.go`,
+27 table-driven cases green.
+
+Correction to this slice as originally written: it said §5 "flips to
+`Implemented` in the same change the types land." That was wrong and has not
+been done. §1 defines `Implemented` as a contract that "can be cited as
+runtime behavior," and nothing *produces* a packet — there is no adapter yet.
+`VerificationReceipt` and the V&V gate are in exactly this position (reducers
+with no loop around them) and are correctly still `Target`. `ContextPacket`
+stays `Target` until an adapter emits one. `ARCHITECTURE.md` is untouched.
+
+What landed, and the reasoning behind the parts that are not obvious:
+
+- `DetermineFreshness(base, diffParent)` — equal is `fresh`, different is
+  `stale`, **either missing is `unknown`, never an optimistic default.**
+- `Provenance.ConcludeAbsence()` implements invariant 11's three values.
+  Absence proves non-existence only under **complete scope *and* compiler
+  tier**. A complete scan with heuristic resolution still cannot support the
+  claim, because a missed edge there is a resolution failure rather than a
+  coverage gap — the `map` false positive from phase 2 is the worked example.
+- `Validate()` refuses a `fresh` claim that lacks the two revisions justifying
+  it. Making a claim carry its own evidence is the same move as the V&V
+  ladder making downgrade unreachable: the assertion cannot be made
+  unsupported.
+- `Unavailable(source)` returns a **well-formed packet carrying honest
+  unknowns**, not an error and not an empty success — invariant 12.
+- `UsableAsAuthoritative()` returns a reason, not a bool, and the stale reason
+  names both revisions so a caller can act on it (M6 typed feedback). Callers
+  are expected to degrade and label, not drop.
 
 **Slice 1 — Engine core + TypeScript (Rust).** `cargo new --lib` the
 `cpg-schema`, `cpg-store` (Arrow IPC segments, manifests, newest-wins merge),
