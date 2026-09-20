@@ -216,6 +216,48 @@ test-function names against the actual test files and running them, not by
 resemblance or session-history inference (which was tried first and came
 back inconclusive — see git log around 2026-09-20 for that dead end).
 
+## 3. Design research — not yet experiments
+
+### 3.1 Test quality and architectural fitness steering (2026-09-20)
+
+Full doc: [`docs/plans/2026-09-20-test-quality-and-architectural-fitness-steering.md`](../plans/2026-09-20-test-quality-and-architectural-fitness-steering.md).
+**No results — this is a proposal.** Four experiments are proposed there and
+none is preregistered yet.
+
+Question: how can swe-term, as a harness, steer agents away from brittle
+mock-heavy tests and from shipping locally-correct patches that compound
+architectural debt?
+
+Findings worth carrying regardless of whether the proposal proceeds:
+
+- Agent over-mocking is empirically documented ([arXiv:2602.00409](https://arxiv.org/abs/2602.00409), MSR 2026).
+- **Prompt interventions on agent test-writing do not significantly change
+  outcomes** ([arXiv:2602.07900](https://arxiv.org/abs/2602.07900)) — so an
+  `AGENTS.md` instruction is the weakest available mechanism. That paper also
+  finds agents use tests mainly as *observational probes* (print statements
+  over assertions), not as specifications.
+- Mutation score beats coverage as a test-quality proxy but is itself
+  contested: correlation with real-bug detection can vanish once suite size is
+  controlled ([arXiv:2607.22880](https://arxiv.org/abs/2607.22880)). Anything
+  we gate on belongs under `evaluator-validity-audit`.
+- Antithesis' own docs rule out naive adoption of deterministic simulation
+  testing for brownfield: the FoundationDB pluggable approach is *"generally
+  impractical for systems already in production"*.
+- The proposal adds **no new invariant** — it gives §5's `Obligation`
+  "minimum V&V rung" the definition it currently lacks, and points the Fleet
+  CPG overlay at debt signals.
+
+**Build vs. adopt (§5 of the doc):** `hegel-go` (property-based testing, MIT,
+by Hypothesis' author) and Bombadil (PBT for web **and terminal** UIs — swe-term
+is a TUI) should be **adopted, not rebuilt**; they are commodity-but-deep test
+engines and they implement the rungs of the proposed ladder rather than
+competing with it. What swe-term should build is the **gate** — the
+obligation → rung → receipt layer — because nobody else builds that. Caveats:
+`hegel-go` is v0.9.5 beta and drives a native Rust `libhegel` via FFI, so it
+is a test-path dependency with CI-hermeticity implications, and Go's native
+`testing.F` fuzzing must be measured against it first (proposed experiment
+`hegel-vs-native-fuzzing`).
+
 ## Full citation list
 
 | Paper | HF Papers link | Disposition | Topic packet |
@@ -230,3 +272,7 @@ back inconclusive — see git log around 2026-09-20 for that dead end).
 | Progent | [2504.11703](https://huggingface.co/papers/2504.11703) | reference-only | temporal-journal-monitor |
 | SWE-agent | [2405.15793](https://huggingface.co/papers/2405.15793) | reference-only | (worked example, `docs/research/papers/README.md`) |
 | AutoSaddler | [2608.23041](https://huggingface.co/papers/2608.23041) | defer | (worked example, `docs/research/papers/README.md`) |
+| Hora \& Robbes, *Are Coding Agents Generating Over-Mocked Tests?* | [2602.00409](https://arxiv.org/abs/2602.00409) | experiment-candidate (unfiled) | design research §3.1 |
+| *Rethinking the Value of Agent-Generated Tests* | [2602.07900](https://arxiv.org/abs/2602.07900) | reference-only (falsifies prompt-only fix) | design research §3.1 |
+| Zhao et al., *Do Coverage and Mutation Scores Correlate with Effectiveness?* | [2607.22880](https://arxiv.org/abs/2607.22880) | evaluation challenge | design research §3.1 |
+| *Mutation-Guided LLM-based Test Generation at Meta* | [2501.12862](https://arxiv.org/pdf/2501.12862) | reference-only | design research §3.1 |
