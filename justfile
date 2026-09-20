@@ -23,7 +23,8 @@ setup:
     if [ ! -d .jj ]; then
         jj git init --colocate
     fi
-    git config core.hooksPath .githooks
+    # Only colocated checkouts have a Git dir; jj-only checkouts rely on `just research-check`.
+    if [ -d .git ]; then git config core.hooksPath .githooks; fi
     if ! gh stack --help >/dev/null 2>&1; then
         gh extension install github/gh-stack
     fi

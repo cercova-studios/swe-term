@@ -141,6 +141,19 @@ func TestControlMonitorRejectsIllegalTracesWithStableRules(t *testing.T) {
 			wantRule: ControlLifecycleReceiptRequired,
 		},
 		{
+			name: "observed effect invalidates recorded receipt",
+			prefix: []ControlEvent{
+				testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
+				testControlEvent(2, ControlReceiptRecorded, func(event *ControlEvent) { event.Receipt = receipt }),
+				testControlEvent(3, ControlApprovalGranted, func(event *ControlEvent) { event.Action = "edit" }),
+				testControlEvent(4, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-1" }),
+				testControlEvent(5, ControlEffectsDeclared, func(event *ControlEvent) { event.Lease, event.Effects = "lease-1", []string{"workspace/main.go"} }),
+				testControlEvent(6, ControlEffectObserved, func(event *ControlEvent) { event.Lease, event.Effect = "lease-1", "workspace/main.go" }),
+			},
+			event:    testControlEvent(7, ControlLifecycleClaimed, func(event *ControlEvent) { event.Claim = ClaimDone }),
+			wantRule: ControlLifecycleReceiptRequired,
+		},
+		{
 			name:     "unsupported event fails closed",
 			event:    testControlEvent(1, ControlEventKind("model_policy"), nil),
 			wantRule: ControlEventSchemaUnsupported,
@@ -181,6 +194,20 @@ func TestControlMonitorRetainsFailedReceipt(t *testing.T) {
 	})
 	if state.CurrentReceipt != failedReceipt {
 		t.Fatalf("failed receipt was not retained as evidence: %#v", state.CurrentReceipt)
+	}
+}
+
+func TestControlMonitorRepeatedTargetKeepsReceipt(t *testing.T) {
+	identity := testControlReceiptIdentity("a")
+	receipt := testPassingReceipt(identity)
+	state := applyAcceptedControlEvents(t, ControlMonitorState{}, []ControlEvent{
+		testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
+		testControlEvent(2, ControlReceiptRecorded, func(event *ControlEvent) { event.Receipt = receipt }),
+		testControlEvent(3, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
+		testControlEvent(4, ControlLifecycleClaimed, func(event *ControlEvent) { event.Claim = ClaimVerified }),
+	})
+	if state.CurrentReceipt != receipt {
+		t.Fatalf("unchanged target discarded current receipt: %#v", state.CurrentReceipt)
 	}
 }
 

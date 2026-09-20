@@ -10,7 +10,7 @@
   "independent_variable": "Ordinary free-form summary versus protected-spine extraction followed by summary of the remaining context.",
   "source": {"kind": "directory", "locator": "fixtures", "revision": "pending-reviewed-compaction-corpus", "content_digest": ""},
   "environment": {"adapter": "process", "network": "disabled", "network_justification": "", "allowed_env": ["PATH"], "resources": {"timeout_seconds": 1800, "max_parallelism": 1, "max_output_bytes": 1048576, "memory_bytes": null, "cpu_seconds": null}},
-  "model": {"required": false, "provider": "", "id": "", "parameters": {}, "prompt_digest": "", "tool_schema_digest": ""},
+  "model": {"required": true, "provider": "", "id": "", "parameters": {}, "prompt_digest": "", "tool_schema_digest": ""},
   "variants": [{"name": "control", "description": "Ordinary free-form compaction.", "command": [], "config": {"protected_spine": false}}, {"name": "treatment", "description": "Mechanical protected-spine extraction plus ordinary remainder summary.", "command": [], "config": {"protected_spine": true}}],
   "repetitions": 3,
   "randomness": {"mode": "seeded", "seeds": [], "justification": "Model sampling will be frozen with the provider choice."},

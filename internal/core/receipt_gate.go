@@ -173,9 +173,18 @@ func ApplyReceiptGateEvent(state ReceiptGateState, event ReceiptGateEvent) (Rece
 		if !event.Receipt.Valid() {
 			return state, receiptGateViolation("receipt.invalid", "receipt body digest or identity is invalid")
 		}
+		// Receipts are keyed by the obligation sealed into the receipt, which is
+		// the same namespace claims look up. An event that names a different
+		// obligation than its receipt is a mismatch, not a re-keying.
+		if event.ObligationID != "" && event.ObligationID != event.Receipt.Obligation {
+			return state, receiptGateViolation("receipt.obligation_mismatch", "event obligation differs from the obligation sealed into the receipt")
+		}
 		if existing, exists := next.Receipts[event.Receipt.Obligation]; exists && existing.BodyDigest == event.Receipt.BodyDigest {
 			return next, nil
 		}
+		// A replacement receipt is new evidence; any claim accepted on the
+		// strength of the previous receipt no longer has a basis.
+		delete(next.Claims, event.Receipt.Obligation)
 		next.Receipts[event.Receipt.Obligation] = event.Receipt
 		return next, nil
 

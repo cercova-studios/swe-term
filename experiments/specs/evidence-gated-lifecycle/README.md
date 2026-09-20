@@ -1,7 +1,8 @@
 # Experiment: evidence-gated-lifecycle
 
-Status: complete — raw run record and manual evaluator verdict in
-[`experiments/evidence/evidence-gated-lifecycle/`](../../evidence/evidence-gated-lifecycle/).
+Status: complete — raw run record and manual evaluator verdict are documented in
+[`experiments/evidence/evidence-gated-lifecycle/`](../../evidence/evidence-gated-lifecycle/)
+(the raw logs themselves live under ignored `experiments/runs/`).
 
 Kind: mechanism-hypothesis
 
@@ -96,6 +97,12 @@ tampered case with a stable rule ID, accepts every fresh-pass trace, and
 correctly accepts the unchanged-scope trace rather than over-rejecting.
 Full manual rubric verdict:
 [`experiments/evidence/evidence-gated-lifecycle/README.md`](../../evidence/evidence-gated-lifecycle/README.md).
+
+`run-001` ran against corpus `v1`. Review then revised the reducer to withdraw
+a claim when its receipt is replaced and to reject a record event whose
+obligation differs from the receipt's; corpus `v2` adds those rows and a
+scope-change row. The v2 rows need a recorded `run-002` before they count as
+results (see the evidence README, "Corpus revision after run-001").
 
 ## Discordant cases
 
