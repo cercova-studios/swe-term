@@ -1,0 +1,3 @@
+[workspace]
+members = ["cpg-schema", "cpg-store", "cpg-lowering-typescript", "cpg-engine"]
+resolver = "2"
