@@ -248,6 +248,32 @@ contract, a preregistration framework, explicit doctrine in §11 about
 asserting observable behaviour) and almost no mechanism that checks whether
 any of it held. That imbalance, not a missing technique, is the gap.
 
+**First sensor shipped 2026-09-20**: `internal/architecture/fitness_test.go`
+enforces five dependency rules that `ARCHITECTURE.md` previously only
+asserted in prose — core is vendor-free (invariant 13), core depends on
+nothing internal (§3), the TUI owns no provider semantics (§4), provider
+adapters don't import each other (§8), and experiment tooling is not a second
+state model (§11). Stdlib only; `go list -deps -json` plus a rule table.
+
+Two things about it are deliberate and worth carrying into every later sensor:
+
+- **Typed feedback** (M6): a failure prints the rule name, the offending edge,
+  the contract clause it violates, why it matters, and that the fix is either
+  removing the edge *or* amending `ARCHITECTURE.md` in the same change. Not
+  "assertion failed."
+- **A vacuity guard**: a rule matching zero packages fails loudly rather than
+  passing silently. This answers Böckeler's open question — *"if sensors never
+  fire, is that a sign of high quality or inadequate detection mechanisms?"* —
+  for the narrow case of a stale subject pattern. It earned its keep
+  immediately: it caught a real bug in the sensor's own first run, where
+  `./...` resolved relative to the test's working directory and every rule
+  would otherwise have passed vacuously.
+
+The sensor was then **mutation-tested against itself** per §5.5: injecting a
+vendor import into `internal/core` was confirmed to fire `core_is_vendor_free`
+with the expected message, and the injection reverted. A sensor never
+observed to fail is not yet known to be a sensor.
+
 Mapping the mechanisms below onto that frame:
 
 | Mechanism | Böckeler category |
