@@ -146,9 +146,12 @@ Done when:
   ([Böckeler](https://martinfowler.com/articles/harness-engineering.html)).
   Where a contract in `ARCHITECTURE.md` is mechanically checkable, it should
   have a check. The dependency rules in §4/§8/§10/§11 now do:
-  [`internal/architecture/fitness_test.go`](../../internal/architecture/fitness_test.go).
-  Adding a boundary to the architecture contract should come with adding its
-  sensor, or an explicit note on why it can't have one.
+  [`internal/architecture/fitness_test.go`](../../internal/architecture/fitness_test.go)
+  (per-change gate, blocks). Slow-accumulating health is measured separately
+  by [`cmd/drift`](../../cmd/drift) (`just drift`), which runs outside the
+  change lifecycle, ratchets against a checked-in baseline, and reports
+  rather than blocks. Adding a boundary to the architecture contract should
+  come with adding its sensor, or an explicit note on why it can't have one.
 
 ---
 

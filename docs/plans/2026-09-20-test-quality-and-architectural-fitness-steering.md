@@ -274,6 +274,39 @@ vendor import into `internal/core` was confirmed to fire `core_is_vendor_free`
 with the expected message, and the injection reverted. A sensor never
 observed to fail is not yet known to be a sensor.
 
+**Second sensor, 2026-09-20 — continuous drift.** `cmd/drift` is the other
+half of Böckeler's timing split: it runs *outside* the change lifecycle,
+answers "what has been slowly getting worse" rather than "is this change
+legal," and **reports rather than blocks** (`-strict` opts into failing, so
+CI can adopt the ratchet later without changing the tool).
+
+Drift is a delta, not a state, so every signal is judged against a checked-in
+baseline (`docs/reports/drift-baseline.json`) rather than an absolute
+threshold — the ratchet pattern, for the reason §4 M3 already gave: absolute
+thresholds fail on day one in an existing codebase and get disabled.
+
+Five signals, stdlib only, each declaring its own direction so the comparison
+never special-cases by name:
+
+| Signal | Direction | What drifting means |
+|---|---|---|
+| `internal_exported_decls` | lower better | API surface in `internal/` growing = future compatibility obligation (§3) |
+| `direct_dependencies` | lower better | supply-chain and portability commitments (§8) |
+| `max_package_fan_in` | lower better | coupling concentrating into a hub |
+| `debt_markers` | lower better | TODO/FIXME/XXX/HACK; ratchets from the current 0 |
+| `test_to_source_line_ratio` | **higher** better | code outgrowing its tests |
+
+Also oracle-tested: injecting two exported names and two debt markers fired
+three signals (including the second-order effect on the ratio, since source
+grew without tests), `-strict` exited 1, and reverting returned it to clean.
+
+Two things this deliberately does not do. It does not detect *dead* code —
+only surface growth — because identifying genuinely unreferenced exports
+needs cross-package resolution that the Fleet CPG engine will do properly and
+a `go/ast` script would do badly. And it has no scheduler: running it
+continuously is a deployment decision (`just drift`), not something to build
+here.
+
 Mapping the mechanisms below onto that frame:
 
 | Mechanism | Böckeler category |

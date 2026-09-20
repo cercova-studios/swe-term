@@ -75,6 +75,7 @@ func rules() []rule {
 	tui := modulePrefix + "/internal/tui"
 	providers := modulePrefix + "/internal/provider"
 	experimentctl := modulePrefix + "/cmd/experimentctl"
+	drift := modulePrefix + "/cmd/drift"
 
 	return []rule{
 		{
@@ -118,6 +119,16 @@ func rules() []rule {
 			},
 			Because: "experimentctl validates manifests; depending on core state would " +
 				"make the research substrate part of the runtime contract it is meant to study",
+		},
+		{
+			Name:     "drift_sensor_is_decoupled_from_what_it_measures",
+			Contract: "docs/plans/2026-09-20-test-quality-and-architectural-fitness-steering.md §4; same reasoning as experiment tooling",
+			Subject:  exactly(drift),
+			Forbidden: func(dep string) bool {
+				return isInternal(dep) && dep != drift
+			},
+			Because: "a sensor that imports the packages it measures starts reporting on " +
+				"itself; keeping it decoupled means its numbers describe the system, not the instrument",
 		},
 	}
 }
