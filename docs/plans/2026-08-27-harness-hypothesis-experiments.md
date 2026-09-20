@@ -97,13 +97,24 @@ locally-correct patches that compound architectural debt.
 | 10 | Reachability-assertion efficacy | "Sometimes"-style evidence that the changed path was actually exercised | Yes | Whether reachability is a required rung component |
 | 11 | Hegel vs. native fuzzing | Does `hegel-go` beat Go's `testing.F` enough to justify a cgo-backed beta dependency | No | Adopt or decline an external PBT engine |
 
-Sequencing note: **7 and 8 come first and need no model.** 7 is the cheapest
-and reuses the Fleet CPG engine as built; 8 extends the existing
-`control_monitor` trace corpus, which Experiment 3 just validated. 9 and 10
-depend on 6 (evaluator validity), because both gate on proxies whose
+Sequencing note: **8 is the only model-free one and comes first** — it extends
+the `control_monitor` trace corpus that Experiment 3 just validated.
+(An earlier revision of this note claimed 7 was also model-free; that was
+wrong. Experiment 7 compares agent-produced plans with and without the debt
+signal, so it requires a model and belongs with the model-dependent set.)
+9 and 10 depend on 6 (evaluator validity), because both gate on proxies whose
 correlation with real-bug detection is contested
 ([arXiv:2607.22880](https://arxiv.org/abs/2607.22880)). 11 is independent and
 decides an adoption question, not an architecture one.
+
+**Already shipped without an experiment, because it needed none:** the
+dependency rules asserted in `ARCHITECTURE.md` §4/§8/§10/§11 are now
+mechanically enforced by `internal/architecture/fitness_test.go` — five rules,
+stdlib only, no new dependency. This is a deterministic check that the
+contract holds, not a falsifiable hypothesis about agent behaviour, so it is
+not an experiment. It is swe-term's first **computational sensor** in
+Böckeler's sense; see the diagnostic in
+[the design research §4](2026-09-20-test-quality-and-architectural-fitness-steering.md).
 
 ## Experiment 1: Structured verifier feedback
 
