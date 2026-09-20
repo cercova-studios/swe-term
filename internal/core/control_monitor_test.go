@@ -11,7 +11,7 @@ func TestControlMonitorLegalTrace(t *testing.T) {
 	identity := testControlReceiptIdentity("a")
 	receipt := testPassingReceipt(identity)
 	events := []ControlEvent{
-		testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Identity = identity }),
+		testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
 		testControlEvent(2, ControlApprovalGranted, func(event *ControlEvent) { event.Action = "edit" }),
 		testControlEvent(3, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-1" }),
 		testControlEvent(4, ControlEffectsDeclared, func(event *ControlEvent) { event.Lease, event.Effects = "lease-1", []string{"workspace/main.go"} }),
@@ -51,7 +51,7 @@ func TestControlMonitorTreatmentTrace(t *testing.T) {
 	changedTarget := testControlReceiptIdentity("b")
 	receipt := testPassingReceipt(identity)
 	state := applyAcceptedControlEvents(t, ControlMonitorState{}, []ControlEvent{
-		testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Identity = changedTarget }),
+		testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", changedTarget }),
 	})
 	_, decision := ApplyControlEvent(state, testControlEvent(2, ControlReceiptRecorded, func(event *ControlEvent) {
 		event.Receipt = receipt
@@ -65,6 +65,8 @@ func TestControlMonitorRejectsIllegalTracesWithStableRules(t *testing.T) {
 	identity := testControlReceiptIdentity("a")
 	otherIdentity := testControlReceiptIdentity("b")
 	receipt := testPassingReceipt(identity)
+	failedReceipt := testControlReceipt("tests", identity, ReceiptFailed)
+	otherObligationReceipt := testControlReceipt("lint", identity, ReceiptPassed)
 
 	tests := []struct {
 		name     string
@@ -98,22 +100,42 @@ func TestControlMonitorRejectsIllegalTracesWithStableRules(t *testing.T) {
 		},
 		{
 			name:     "lifecycle requires receipt",
-			prefix:   []ControlEvent{testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Identity = identity })},
+			prefix:   []ControlEvent{testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity })},
 			event:    testControlEvent(2, ControlLifecycleClaimed, func(event *ControlEvent) { event.Claim = ClaimDone }),
 			wantRule: ControlLifecycleReceiptRequired,
 		},
 		{
 			name:     "stale receipt is rejected",
-			prefix:   []ControlEvent{testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Identity = otherIdentity })},
+			prefix:   []ControlEvent{testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", otherIdentity })},
 			event:    testControlEvent(2, ControlReceiptRecorded, func(event *ControlEvent) { event.Receipt = receipt }),
 			wantRule: ControlReceiptStale,
 		},
 		{
+			name:     "receipt target requires an obligation",
+			event:    testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Identity = identity }),
+			wantRule: ControlReceiptInvalid,
+		},
+		{
+			name:     "receipt for another obligation cannot satisfy the target",
+			prefix:   []ControlEvent{testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity })},
+			event:    testControlEvent(2, ControlReceiptRecorded, func(event *ControlEvent) { event.Receipt = otherObligationReceipt }),
+			wantRule: ControlReceiptObligationMismatch,
+		},
+		{
+			name: "recorded failed receipt cannot unlock lifecycle",
+			prefix: []ControlEvent{
+				testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
+				testControlEvent(2, ControlReceiptRecorded, func(event *ControlEvent) { event.Receipt = failedReceipt }),
+			},
+			event:    testControlEvent(3, ControlLifecycleClaimed, func(event *ControlEvent) { event.Claim = ClaimVerified }),
+			wantRule: ControlLifecycleReceiptFailed,
+		},
+		{
 			name: "target change invalidates recorded receipt",
 			prefix: []ControlEvent{
-				testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Identity = identity }),
+				testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
 				testControlEvent(2, ControlReceiptRecorded, func(event *ControlEvent) { event.Receipt = receipt }),
-				testControlEvent(3, ControlSetReceiptTarget, func(event *ControlEvent) { event.Identity = otherIdentity }),
+				testControlEvent(3, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", otherIdentity }),
 			},
 			event:    testControlEvent(4, ControlLifecycleClaimed, func(event *ControlEvent) { event.Claim = ClaimReadyToMerge }),
 			wantRule: ControlLifecycleReceiptRequired,
@@ -126,7 +148,7 @@ func TestControlMonitorRejectsIllegalTracesWithStableRules(t *testing.T) {
 		{
 			name: "cancellation cannot become lifecycle success",
 			prefix: []ControlEvent{
-				testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Identity = identity }),
+				testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
 				testControlEvent(2, ControlReceiptRecorded, func(event *ControlEvent) { event.Receipt = receipt }),
 				testControlEvent(3, ControlCancelled, nil),
 			},
@@ -147,6 +169,18 @@ func TestControlMonitorRejectsIllegalTracesWithStableRules(t *testing.T) {
 				t.Fatalf("rejected event mutated state:\n got: %#v\nwant: %#v", next, before)
 			}
 		})
+	}
+}
+
+func TestControlMonitorRetainsFailedReceipt(t *testing.T) {
+	identity := testControlReceiptIdentity("a")
+	failedReceipt := testControlReceipt("tests", identity, ReceiptFailed)
+	state := applyAcceptedControlEvents(t, ControlMonitorState{}, []ControlEvent{
+		testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
+		testControlEvent(2, ControlReceiptRecorded, func(event *ControlEvent) { event.Receipt = failedReceipt }),
+	})
+	if state.CurrentReceipt != failedReceipt {
+		t.Fatalf("failed receipt was not retained as evidence: %#v", state.CurrentReceipt)
 	}
 }
 
@@ -177,7 +211,7 @@ func TestControlMonitorReplayDuplicateAndSequenceRules(t *testing.T) {
 func TestControlMonitorPrefixReplayMatchesUninterruptedTrace(t *testing.T) {
 	identity := testControlReceiptIdentity("a")
 	events := []ControlEvent{
-		testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Identity = identity }),
+		testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
 		testControlEvent(2, ControlApprovalGranted, func(event *ControlEvent) { event.Action = "edit" }),
 		testControlEvent(3, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-1" }),
 		testControlEvent(4, ControlEffectsDeclared, func(event *ControlEvent) { event.Lease, event.Effects = "lease-1", []string{"workspace/main.go"} }),
@@ -241,8 +275,12 @@ func testControlReceiptIdentity(fill string) ReceiptIdentity {
 }
 
 func testPassingReceipt(identity ReceiptIdentity) VerificationReceipt {
+	return testControlReceipt("tests", identity, ReceiptPassed)
+}
+
+func testControlReceipt(obligation string, identity ReceiptIdentity, outcome ReceiptOutcome) VerificationReceipt {
 	return SealVerificationReceipt(VerificationReceipt{
-		ID: "receipt-1", Obligation: "tests", Identity: identity, Outcome: ReceiptPassed,
+		ID: "receipt-1", Obligation: obligation, Identity: identity, Outcome: outcome,
 	})
 }
 
