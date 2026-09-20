@@ -107,8 +107,11 @@ func RejectedControlDecision(ruleID ControlRuleID) ControlDecision {
 // receipt before a lifecycle claim. It is a pure reducer; it does not execute
 // tools, persist a journal, or interpret policy text.
 func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMonitorState, ControlDecision) {
-	if event.SchemaVersion != controlMonitorSchemaVersion || event.Sequence == 0 {
+	if event.SchemaVersion != controlMonitorSchemaVersion {
 		return state, RejectedControlDecision(ControlEventSchemaUnsupported)
+	}
+	if event.Sequence == 0 {
+		return state, RejectedControlDecision(ControlEventSequence)
 	}
 
 	if event.Sequence == state.LastSequence {
@@ -159,7 +162,11 @@ func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMo
 		next.ActiveLease = event.Lease
 		next.ApprovedAction = ""
 	case ControlEffectsDeclared:
-		if event.Lease == "" || event.Lease != next.ActiveLease || !validDeclaredEffects(event.Effects) {
+		if event.Lease == "" || event.Lease != next.ActiveLease {
+			decision = RejectedControlDecision(ControlLeaseRequired)
+			break
+		}
+		if !validDeclaredEffects(event.Effects) {
 			decision = RejectedControlDecision(ControlEffectDeclarationInvalid)
 			break
 		}

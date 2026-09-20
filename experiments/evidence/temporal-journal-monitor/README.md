@@ -7,14 +7,23 @@ Kind: mechanism-hypothesis · Status: complete · Evaluator: manual (rubric belo
 - Spec: [`experiments/specs/temporal-journal-monitor/manifest.json`](../../specs/temporal-journal-monitor/manifest.json)
 - Paper: [Enforcing Temporal Constraints for LLM Agents (Agent-C)](https://huggingface.co/papers/2512.23738)
 - Source: `directory` fixture `temporal-monitor-trace-corpus-v2`,
-  content digest `sha256:d4bb884a1da1739b818461d8188e041b20a0cd58998b3255f3803a7f76570056`
+  content digest `sha256:9cb353fea951c0320dcc5e91263e0ab59a5945838bb7cf394966c4942e67e0fc`
   (includes `fixtures/executable-corpus.sha256`, which pins
   `internal/core/control_monitor_test.go`). `run-001` below was executed
   against `temporal-monitor-trace-corpus-v1`
   (`sha256:81a4e4e9b441977d8cdd2424695a75659981e1ae7fc0526102c089d76ece44c5`);
   see "Corpus revision after run-001".
-- Rubric digest: `sha256:6a1fb1c2f2e8c731534628b2dd88a4b4030b9b32dbe21d1f050228d0d8ef8ce5`
-- Variants: `control` (`TestControlMonitorControlTrace`), `treatment` (`TestControlMonitorTreatmentTrace`) · 1 repetition each, per manifest
+- Rubric digest: `sha256:f2fc70bd5c465deb4b190ba09693d8cb21a01eddfbf1f55c0e1bee2540e18e82`,
+  SHA-256 over the exact `evaluator.rubric` string (UTF-8, no trailing
+  newline), the same rendering the other manifests use. The manifest shipped
+  with `run-001` carried `sha256:6a1fb1c2…8ef8ce5`, which does not hash any
+  rendering of the rubric text; the rubric applied below is the quoted text,
+  and the digest was corrected to match it.
+- Variants, per the current manifest: `control` (`TestControlMonitorControlTrace`),
+  `treatment` (the eight corpus tests listed in the manifest command) · 1
+  repetition each. The v1 manifest `run-001` executed limited `treatment` to
+  `TestControlMonitorTreatmentTrace` alone, so the rest of the corpus ran as
+  the separate `safety_suite` below.
 
 ## Raw runs
 
@@ -31,12 +40,14 @@ precede a governed lease, only one lease is active, observed effects must be
 declared, and lifecycle claims require a valid passing receipt matching the
 current target; cancellation cannot become success."
 
-- **Control** (`TestControlMonitorControlTrace`, `internal/core/control_monitor_test.go:33`):
-  exercises `controlPermitsLifecycle` — a result-only baseline that accepts
-  any passed receipt without comparing it to a changed target identity.
-  Confirms the fixture models a real changed-target case (`staleReceipt`
-  vs. `changedTarget`) the control would wrongly permit. Matches the
-  manifest's control description exactly.
+- **Control** (`TestControlMonitorControlTrace`, `internal/core/control_monitor_test.go:33`,
+  v1 form): exercised a test-local `controlPermitsLifecycle`, a result-only
+  baseline that accepts any passed receipt without comparing it to a changed
+  target identity, and confirmed the fixture models a real changed-target
+  case (`staleReceipt` vs. `changedTarget`). Both assertions were
+  tautological given how the fixtures are built, so this variant contributed
+  no reducer evidence in `run-001`; see "Corpus revision after run-001" for
+  its v2 form.
 - **Treatment** (`TestControlMonitorTreatmentTrace`, `:49`): sets a receipt
   target, then records a receipt bound to the *original* identity after the
   target changed — `ApplyControlEvent` returns `ControlReceiptStale`, not
@@ -82,17 +93,29 @@ and that the rubric's "matching the current target" clause did not pin down:
 - an accepted `effect_observed` after a recorded receipt left that receipt
   usable for a later lifecycle claim, although the governed mutation may have
   changed the verified source;
-- re-declaring the identical target discarded a still-current receipt.
+- re-declaring the identical target discarded a still-current receipt;
+- an `effects_declared` event under a lease that was not active was reported
+  as `control.effect.declaration_invalid`, and a zero-sequence event as
+  `control.event.schema_unsupported`, so the same violated invariant carried
+  different rule IDs depending on event kind;
+- the `control` variant asserted only fixture properties and never called
+  `ApplyControlEvent`, and the `treatment` command ran a single test although
+  the primary metric counts every frozen illegal trace.
 
 The reducer now scopes the target by obligation (`ControlSetReceiptTarget`
 requires `Obligation`; a receipt for another obligation is rejected with
 `control.receipt.obligation_mismatch`), retains valid failed receipts,
 refusing the lifecycle claim with `control.lifecycle.receipt_failed`, clears
 the current receipt on every accepted observed effect, and keeps it when the
-same obligation and identity are re-declared. Corpus `v2` adds those rows and
-the corresponding tests (12 illegal-trace subtests plus
-`TestControlMonitorRetainsFailedReceipt` and
-`TestControlMonitorRepeatedTargetKeepsReceipt`). The `run-001` verdict above
+same obligation and identity are re-declared, and reports a missing or
+non-matching lease on `effects_declared` as `control.lease.required` and a
+zero sequence as `control.event.sequence`. Corpus `v2` adds those rows and
+the corresponding tests (13 illegal-trace subtests, a zero-sequence check in
+the replay test, `TestControlMonitorRetainsFailedReceipt`, and
+`TestControlMonitorRepeatedTargetKeepsReceipt`). The `control` variant now
+runs the reducer on the agreement trace (passed receipt against its unchanged
+target, claim accepted), and the `treatment` command lists every corpus test,
+so the variant-to-metric mapping is reproducible from the manifest alone. The `run-001` verdict above
 stands for the v1 rows it inspected; the v2 rows have not been through a
 recorded run or manual rubric verdict yet, so they are not admissible as
 results until a `run-002` against v2 is recorded here.

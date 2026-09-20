@@ -176,7 +176,7 @@ journal is implemented).
   accepted.** `internal/core/control_monitor.go`'s `ApplyControlEvent` is
   the preregistered treatment (`TestControlMonitorTreatmentTrace` +
   8-subtest safety suite, all pass) — verified by exact command match to
-  the manifest, not inferred from resemblance. Rejects a receipt recorded
+  the v1 manifest (modulo `-v`), not inferred from resemblance. Rejects a receipt recorded
   against a stale target (`ControlReceiptStale`); every illegal trace
   rejected with a stable rule ID (approval-before-lease, single-lease,
   declared-effects, receipt-gated lifecycle, cancellation-cannot-succeed,
@@ -195,10 +195,20 @@ journal is implemented).
   obligation (`control.receipt.obligation_mismatch`), keeps failed receipts,
   refusing the claim with `control.lifecycle.receipt_failed`, clears the
   receipt on every observed effect, and keeps it across an identical
-  re-declared target. Corpus
-  `temporal-monitor-trace-corpus-v2` adds those rows; they have no recorded
-  run yet and are **not** part of the accepted result until `run-002`
-  is recorded and evaluated.
+  re-declared target. A second review pass found the v1 `control` variant
+  asserted only fixture properties (never calling the reducer), the v1
+  `treatment` command ran a single test although the primary metric counts
+  the whole corpus, the manifest `rubric_digest` did not hash the rubric
+  text, and two invariants leaked into neighbouring rule IDs
+  (declaration without an active lease reported as
+  `control.effect.declaration_invalid`, zero sequence as
+  `control.event.schema_unsupported`). The control now runs the reducer on
+  the unchanged-target agreement trace, the treatment command lists every
+  corpus test, the rubric digest matches the text, and the two cases report
+  `control.lease.required` and `control.event.sequence`. Corpus
+  `temporal-monitor-trace-corpus-v2` adds all of those rows; they have no
+  recorded run yet and are **not** part of the accepted result until
+  `run-002` is recorded and evaluated.
 
 Both specs' fixtures now carry `executable-corpus.sha256`, pinning the Go
 test file that is the corpus's executable form inside the digested
