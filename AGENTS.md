@@ -474,6 +474,36 @@ Evaluate:
 Feedback must be specific, direct, and constructive.
 </code-review>
 
+<self-review-before-presenting>
+Review your own diff for over-engineering before you present it as done. Not
+after the user objects — before.
+
+All agents must run the `ponytail-review` skill against the code just added.
+It is scoped to complexity only — correctness, security, and performance
+belong to a separate review.
+
+Look for, in order:
+- `delete:` dead code, unused flexibility, a constant nothing produces
+- `stdlib:` a hand-rolled thing the standard library already ships
+- `native:` a dependency doing what the platform does
+- `yagni:` an abstraction with one implementation, a flag nobody sets, a
+  parameter every call site passes identically
+- `shrink:` same behaviour, fewer lines
+
+<rule>
+Apply the findings in the same change that introduced the code. A review that
+only produces a list is theatre. If a finding is deliberately not applied, say
+why in the commit message rather than dropping it silently.
+</rule>
+
+<rule>
+Refactoring under this pass must not weaken a check. If the code is a sensor,
+gate, or reducer, re-confirm it still fires after the refactor — a simplified
+check that no longer detects anything is worse than the verbose one it
+replaced.
+</rule>
+</self-review-before-presenting>
+
 ────────────────────────────────────────────────────────
 RESEARCH DISCIPLINE
 ────────────────────────────────────────────────────────
