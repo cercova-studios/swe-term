@@ -292,6 +292,19 @@ matches `receipt_gate.go` — a pure reducer, no persistence or runtime loop, so
 assign a rung to real evidence. The reducer is fed one. That remaining
 question is what Experiment 8 was narrowed to.
 
+**Second sensor, same day — continuous drift.** `cmd/drift` covers the other
+half of Böckeler's timing split: it runs outside the change lifecycle and
+reports rather than blocks (`-strict` opts into failing, so CI can adopt the
+ratchet later without changing the tool). Five stdlib-only signals judged
+against a checked-in baseline (`docs/reports/drift-baseline.json`) rather
+than absolute thresholds, because a threshold fails on day one in an existing
+codebase and then gets disabled: exported surface in `internal/`, direct
+dependencies, max package fan-in, debt markers, and test-to-source line ratio
+(the one signal where higher is better). Oracle-tested by injecting drift —
+three signals fired, `-strict` exited 1, revert returned clean. It does *not*
+detect dead code, only surface growth; genuine dead-export detection needs
+cross-package resolution and is the Fleet CPG engine's job.
+
 **Build vs. adopt (§5 of the doc):** `hegel-go` (property-based testing, MIT,
 by Hypothesis' author) and Bombadil (PBT for web **and terminal** UIs — swe-term
 is a TUI) should be **adopted, not rebuilt**; they are commodity-but-deep test
