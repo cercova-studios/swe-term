@@ -82,17 +82,8 @@ research-check rev='@':
 # Push bookmarks (bottom to top) and open/update a GitHub stack against trunk `dev`.
 # Runs `research-check` on every bookmark first.
 # usage: just stack layer1 layer2
-stack *bookmarks:
-    #!/usr/bin/env sh
-    set -eu
-    if [ "$#" -eq 0 ]; then
-        printf 'usage: just stack bookmark...\n' >&2
-        exit 2
-    fi
-    for b in "$@"; do
-        just research-check "$b"
-    done
-    for b in "$@"; do
-        jj git push --allow-new --bookmark "$b"
-    done
-    gh stack link --base dev --open "$@"
+stack +bookmarks:
+    for b in {{bookmarks}}; do just research-check "$b"; done
+    for b in {{bookmarks}}; do jj --no-pager git push --bookmark "$b"; done
+    gh stack link --base dev --open {{bookmarks}}
+
