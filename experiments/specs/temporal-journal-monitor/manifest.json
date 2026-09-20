@@ -13,12 +13,12 @@
   "design_references": [],
   "hypothesis": "A small monitor over closed, versioned events can reject each frozen unsafe ordering trace with a stable rule ID while accepting legal traces and reaching the same state after prefix replay.",
   "null_hypothesis": "The fixed vocabulary misses a required transition, accepts an illegal trace, rejects a legal trace, has replay-sensitive state, or requires unbounded resident state.",
-  "independent_variable": "Outcome-only control acceptance versus deterministic event ordering and receipt-target checks in the treatment reducer.",
+  "independent_variable": "Whether a lifecycle claim is gated on receipt outcome alone (control: a passed receipt against its unchanged target is accepted, where an outcome-only gate and the reducer agree) or on outcome plus deterministic ordering and receipt-target identity (treatment: the same passed receipt after a target change, and every other frozen illegal trace, is rejected).",
   "source": {
     "kind": "directory",
     "locator": "fixtures",
     "revision": "temporal-monitor-trace-corpus-v2",
-    "content_digest": "sha256:d4bb884a1da1739b818461d8188e041b20a0cd58998b3255f3803a7f76570056"
+    "content_digest": "sha256:9cb353fea951c0320dcc5e91263e0ab59a5945838bb7cf394966c4942e67e0fc"
   },
   "environment": {
     "adapter": "process",
@@ -44,14 +44,14 @@
   "variants": [
     {
       "name": "control",
-      "description": "A test-local outcome-only baseline permits a lifecycle claim from a passing receipt without comparing it to a changed target identity.",
+      "description": "The agreement trace: the same passed receipt, recorded against the target it was produced for, authorizes the lifecycle claim through ApplyControlEvent. An outcome-only gate would also authorize it after the target changed; the treatment shows the reducer does not.",
       "command": ["go", "test", "./internal/core", "-run", "^TestControlMonitorControlTrace$", "-count=1"],
       "config": {"event_monitor": false}
     },
     {
       "name": "treatment",
-      "description": "A pure closed-event reducer enforces approval, lease, effect, receipt, cancellation, and replay rules.",
-      "command": ["go", "test", "./internal/core", "-run", "^TestControlMonitorTreatmentTrace$", "-count=1"],
+      "description": "A pure closed-event reducer enforces approval, lease, effect, receipt, cancellation, and replay rules across the whole frozen trace corpus: the stale-receipt contrast trace plus every legal, illegal, retention, replay, and bounds trace the primary metric counts.",
+      "command": ["go", "test", "./internal/core", "-run", "^(TestControlMonitorTreatmentTrace|TestControlMonitorLegalTrace|TestControlMonitorRejectsIllegalTracesWithStableRules|TestControlMonitorRetainsFailedReceipt|TestControlMonitorRepeatedTargetKeepsReceipt|TestControlMonitorReplayDuplicateAndSequenceRules|TestControlMonitorPrefixReplayMatchesUninterruptedTrace|TestControlMonitorBoundsEffectDeclaration)$", "-count=1"],
       "config": {"event_monitor": true}
     }
   ],
@@ -66,7 +66,7 @@
     "kind": "manual",
     "command": [],
     "rubric": "Inspect every trace against the closed vocabulary: approval must precede a governed lease, only one lease is active, observed effects must be declared, and lifecycle claims require a valid passing receipt matching the current target; cancellation cannot become success.",
-    "rubric_digest": "sha256:6a1fb1c2f2e8c731534628b2dd88a4b4030b9b32dbe21d1f050228d0d8ef8ce5"
+    "rubric_digest": "sha256:f2fc70bd5c465deb4b190ba09693d8cb21a01eddfbf1f55c0e1bee2540e18e82"
   },
   "evidence": {
     "raw_runs": "experiments/runs/temporal-journal-monitor",

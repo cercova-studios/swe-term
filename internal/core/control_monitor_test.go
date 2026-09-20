@@ -32,17 +32,26 @@ func TestControlMonitorLegalTrace(t *testing.T) {
 
 func TestControlMonitorControlTrace(t *testing.T) {
 	identity := testControlReceiptIdentity("a")
-	staleReceipt := testPassingReceipt(identity)
-	changedTarget := testControlReceiptIdentity("b")
+	receipt := testPassingReceipt(identity)
 
-	// The control models an outcome-only gate: a passed receipt is enough to
-	// authorize the claim, even if the target changed afterwards. It is not a
-	// production implementation; it makes the causal contrast explicit.
-	if !controlPermitsLifecycle(staleReceipt) {
-		t.Fatal("control should accept a passed receipt")
+	// The control is the trace on which an outcome-only gate and the
+	// receipt-target reducer agree: the same passed receipt, recorded against
+	// the target it was produced for, authorizes the claim. The treatment
+	// trace applies that receipt after the target changed, where only the
+	// reducer rejects it. Together they isolate the target check as the
+	// independent variable.
+	state := applyAcceptedControlEvents(t, ControlMonitorState{}, []ControlEvent{
+		testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
+		testControlEvent(2, ControlReceiptRecorded, func(event *ControlEvent) { event.Receipt = receipt }),
+	})
+	next, decision := ApplyControlEvent(state, testControlEvent(3, ControlLifecycleClaimed, func(event *ControlEvent) {
+		event.Claim = ClaimVerified
+	}))
+	if !decision.Accepted {
+		t.Fatalf("control rejected a current passed receipt: %#v", decision)
 	}
-	if staleReceipt.Identity.Equal(changedTarget) {
-		t.Fatal("fixture must model a changed receipt target")
+	if next.CurrentReceipt != receipt {
+		t.Fatalf("control did not retain the authorizing receipt: %#v", next.CurrentReceipt)
 	}
 }
 
@@ -87,6 +96,15 @@ func TestControlMonitorRejectsIllegalTracesWithStableRules(t *testing.T) {
 			},
 			event:    testControlEvent(3, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-2" }),
 			wantRule: ControlLeaseConflict,
+		},
+		{
+			name: "effect declaration requires the active lease",
+			prefix: []ControlEvent{
+				testControlEvent(1, ControlApprovalGranted, func(event *ControlEvent) { event.Action = "edit" }),
+				testControlEvent(2, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-1" }),
+			},
+			event:    testControlEvent(3, ControlEffectsDeclared, func(event *ControlEvent) { event.Lease, event.Effects = "lease-2", []string{"workspace/main.go"} }),
+			wantRule: ControlLeaseRequired,
 		},
 		{
 			name: "effect must be declared",
@@ -233,6 +251,11 @@ func TestControlMonitorReplayDuplicateAndSequenceRules(t *testing.T) {
 	if _, decision := ApplyControlEvent(state, gap); decision.RuleID != ControlEventSequence {
 		t.Fatalf("gap rule = %q, want %q", decision.RuleID, ControlEventSequence)
 	}
+
+	unsequenced := testControlEvent(0, ControlCancelled, nil)
+	if _, decision := ApplyControlEvent(state, unsequenced); decision.RuleID != ControlEventSequence {
+		t.Fatalf("zero sequence rule = %q, want %q", decision.RuleID, ControlEventSequence)
+	}
 }
 
 func TestControlMonitorPrefixReplayMatchesUninterruptedTrace(t *testing.T) {
@@ -309,8 +332,4 @@ func testControlReceipt(obligation string, identity ReceiptIdentity, outcome Rec
 	return SealVerificationReceipt(VerificationReceipt{
 		ID: "receipt-1", Obligation: obligation, Identity: identity, Outcome: outcome,
 	})
-}
-
-func controlPermitsLifecycle(receipt VerificationReceipt) bool {
-	return receipt.Valid() && receipt.Outcome == ReceiptPassed
 }
