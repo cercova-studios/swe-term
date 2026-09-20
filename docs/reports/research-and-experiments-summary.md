@@ -267,6 +267,17 @@ calls the current behaviour-harness state of the art, including mutation
 testing, *"not good enough yet"*, which is a direct challenge to this doc's
 own M3.
 
+**Acted on 2026-09-20:** the diagnostic above was closed by one degree —
+`internal/architecture/fitness_test.go` now mechanically enforces five
+dependency rules `ARCHITECTURE.md` previously only asserted in prose (core
+vendor-free per invariant 13, core depends on nothing internal, TUI owns no
+provider semantics, provider adapters don't cross-import, experiment tooling
+is not a second state model). Stdlib only, no new dependency. It carries typed
+feedback and a vacuity guard, and was mutation-tested against itself (inject a
+vendor import into core → the rule fires as expected → revert). The vacuity
+guard caught a real bug in the sensor's own first run. This is swe-term's
+first computational sensor; the repo remains guide-heavy overall.
+
 **Build vs. adopt (§5 of the doc):** `hegel-go` (property-based testing, MIT,
 by Hypothesis' author) and Bombadil (PBT for web **and terminal** UIs — swe-term
 is a TUI) should be **adopted, not rebuilt**; they are commodity-but-deep test

@@ -136,6 +136,15 @@ Done when:
 - **Minimal core:** if a feature can be an extension, it should not be in core.
 - **Deterministic safety:** risky actions require explicit policy pathways.
 - **Portability:** backends stay swappable without core rewrites.
+- **Constraints need sensors, not just statements.** A boundary that is only
+  written down is feedforward-only — the agent (or human) "encodes rules but
+  never finds out whether they worked"
+  ([Böckeler](https://martinfowler.com/articles/harness-engineering.html)).
+  Where a contract in `ARCHITECTURE.md` is mechanically checkable, it should
+  have a check. The dependency rules in §4/§8/§10/§11 now do:
+  [`internal/architecture/fitness_test.go`](../../internal/architecture/fitness_test.go).
+  Adding a boundary to the architecture contract should come with adding its
+  sensor, or an explicit note on why it can't have one.
 
 ---
 
