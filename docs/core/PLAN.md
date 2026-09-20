@@ -2,7 +2,8 @@
 
 This file is the delivery plan only.
 
-Architecture and design rationale live in `ARCHITECTURE.md`.
+Architecture truth lives in [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md).
+Extended design rationale lives in `GOLANG_TUI_PLAN.md`.
 Framework synthesis lives in `FRAMEWORKS.md`.
 
 ---
@@ -91,7 +92,8 @@ Done when:
 
 ## Cross-Cutting Requirements
 
-- **Single source of truth:** architecture decisions live in `ARCHITECTURE.md`.
+- **Single source of truth:** architecture decisions live in the root
+  [`ARCHITECTURE.md`](../../ARCHITECTURE.md).
 - **Minimal core:** if a feature can be an extension, it should not be in core.
 - **Deterministic safety:** risky actions require explicit policy pathways.
 - **Portability:** backends stay swappable without core rewrites.
@@ -106,6 +108,6 @@ See `BACKLOG.md` for tooling and integration candidates.
 
 ## References
 
-- `ARCHITECTURE.md`
+- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md)
 - `FRAMEWORKS.md`
 - `../services/AST_SERVICE_ARCHITECTURE.md`

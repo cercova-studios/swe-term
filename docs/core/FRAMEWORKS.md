@@ -87,6 +87,6 @@ explicit counter-argument, not a default override.
 
 When analysis docs disagree, default to:
 
-1. `ARCHITECTURE.md` for architecture truth
+1. Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md) for architecture truth
 2. `PLAN.md` for delivery sequencing
 3. Deep-dive/critique docs for supporting evidence

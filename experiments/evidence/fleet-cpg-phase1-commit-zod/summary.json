@@ -1,0 +1,93 @@
+{
+  "buckets": {
+    "small": {
+      "files_changed": 2,
+      "n_reps": 3,
+      "median_commit_write_ms": 390.37312499999996,
+      "median_merge_query_ms": 13.825458000000012,
+      "median_overlay_to_base_bytes_ratio": 0.05040660189112495,
+      "defs_match_truth_all_reps": true,
+      "calls_match_truth_all_reps": true,
+      "defs_missing_from_merge": [
+        0,
+        0,
+        0
+      ],
+      "defs_extra_in_merge": [
+        0,
+        0,
+        0
+      ],
+      "calls_missing_from_merge": [
+        0,
+        0,
+        0
+      ],
+      "calls_extra_in_merge": [
+        0,
+        0,
+        0
+      ]
+    },
+    "medium": {
+      "files_changed": 3,
+      "n_reps": 3,
+      "median_commit_write_ms": 287.324,
+      "median_merge_query_ms": 14.246624999999957,
+      "median_overlay_to_base_bytes_ratio": 0.12497435492779926,
+      "defs_match_truth_all_reps": true,
+      "calls_match_truth_all_reps": true,
+      "defs_missing_from_merge": [
+        0,
+        0,
+        0
+      ],
+      "defs_extra_in_merge": [
+        0,
+        0,
+        0
+      ],
+      "calls_missing_from_merge": [
+        0,
+        0,
+        0
+      ],
+      "calls_extra_in_merge": [
+        0,
+        0,
+        0
+      ]
+    },
+    "large": {
+      "files_changed": 6,
+      "n_reps": 3,
+      "median_commit_write_ms": 146.464875,
+      "median_merge_query_ms": 12.398958000000015,
+      "median_overlay_to_base_bytes_ratio": 0.056064488458281554,
+      "defs_match_truth_all_reps": true,
+      "calls_match_truth_all_reps": true,
+      "defs_missing_from_merge": [
+        0,
+        0,
+        0
+      ],
+      "defs_extra_in_merge": [
+        0,
+        0,
+        0
+      ],
+      "calls_missing_from_merge": [
+        0,
+        0,
+        0
+      ],
+      "calls_extra_in_merge": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "all_buckets_correct": true,
+  "all_storage_ratios_small": false
+}
