@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "experiment_id": "verified-external-task-state",
+  "status": "draft",
+  "kind": "mechanism-hypothesis",
+  "papers": [{"title": "LongHorizon-Harness: Advancing Long-Horizon Agents for Real-World Tasks", "url": "https://huggingface.co/papers/2608.01964", "claim": "Explicit task state maintained outside context and updated only from independently verified environment facts can support long-horizon execution."}],
+  "design_references": [],
+  "hypothesis": "A read-only typed task snapshot reduces stale action and repeated discovery after a controlled environmental change and context reset.",
+  "null_hypothesis": "External state provides no benefit with equal budgets and accessible evidence, or it anchors the agent to stale facts more often.",
+  "independent_variable": "Transcript plus ordinary summary versus the same transcript plus a typed snapshot updated only by attributable observations.",
+  "source": {"kind": "directory", "locator": "fixtures", "revision": "pending-reviewed-task-state-corpus", "content_digest": ""},
+  "environment": {"adapter": "external", "network": "inherit", "network_justification": "A named model provider will be selected before preregistration.", "allowed_env": [], "resources": {"timeout_seconds": 3600, "max_parallelism": 1, "max_output_bytes": 2097152, "memory_bytes": null, "cpu_seconds": null}},
+  "model": {"required": true, "provider": "", "id": "", "parameters": {}, "prompt_digest": "", "tool_schema_digest": ""},
+  "variants": [{"name": "control", "description": "Ordinary transcript summary.", "command": [], "config": {"task_snapshot": false}}, {"name": "treatment", "description": "Read-only attributable typed snapshot.", "command": [], "config": {"task_snapshot": true}}],
+  "repetitions": 3,
+  "randomness": {"mode": "seeded", "seeds": [], "justification": "Model sampling will be frozen with the provider choice."},
+  "metrics": {"primary": "stale-action rate after the environmental change", "secondary": ["redundant reads", "time to rediscover", "completion", "tokens", "incorrect snapshot promotions"], "acceptance_rule": "Do not promote fields or transition authority without inspecting every incorrect snapshot promotion."},
+  "evaluator": {"kind": "manual", "command": [], "rubric": "Label stale actions and snapshot promotions against the frozen attributable observations and task completion check.", "rubric_digest": ""},
+  "evidence": {"raw_runs": "experiments/runs/verified-external-task-state", "curated": "experiments/evidence/verified-external-task-state"}
+}

@@ -23,6 +23,8 @@ setup:
     if [ ! -d .jj ]; then
         jj git init --colocate
     fi
+    # Only colocated checkouts have a Git dir; jj-only checkouts rely on `just research-check`.
+    if [ -d .git ]; then git config core.hooksPath .githooks; fi
     if ! gh stack --help >/dev/null 2>&1; then
         gh extension install github/gh-stack
     fi
@@ -58,7 +60,14 @@ experiment-list:
 fetch:
     jj git fetch
 
+# Fail if a revision touches research/experiment records without updating the
+# compiled summary. jj has no commit hooks, so run this before `jj commit`
+# (defaults to the working copy) or on any revision. Bypass: SKIP_RESEARCH_CHECK=1.
+research-check rev='@':
+    jj diff -r {{rev}} --name-only | sh scripts/check-research-summary.sh
+
 # Push bookmarks (bottom to top) and open/update a GitHub stack against trunk `dev`.
+# Runs `research-check` on every bookmark first.
 # usage: just stack layer1 layer2
 stack *bookmarks:
     #!/usr/bin/env sh
@@ -67,6 +76,9 @@ stack *bookmarks:
         printf 'usage: just stack bookmark...\n' >&2
         exit 2
     fi
+    for b in "$@"; do
+        just research-check "$b"
+    done
     for b in "$@"; do
         jj git push --allow-new --bookmark "$b"
     done
