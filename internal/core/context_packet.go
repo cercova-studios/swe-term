@@ -1,6 +1,9 @@
 package core
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // ContextPacket is what an analyzer/enrichment adapter hands the core:
 // materialized pre-model context plus the provenance needed to judge it.
@@ -72,22 +75,13 @@ const (
 type Reachability string
 
 const (
-	ReachabilityFound                   Reachability = "found"
 	ReachabilityNotFoundInCompleteScope Reachability = "not_found_in_complete_scope"
 	ReachabilityUnknown                 Reachability = "unknown"
 )
 
-var (
-	validFreshness = map[Freshness]bool{
-		FreshnessFresh: true, FreshnessStale: true, FreshnessUnknown: true,
-	}
-	validScope = map[ScopeCompleteness]bool{
-		ScopeComplete: true, ScopePartial: true, ScopeUnknown: true,
-	}
-	validTier = map[ResolutionTier]bool{
-		TierSyntacticHeuristic: true, TierCompiler: true,
-	}
-)
+// A third value, "found", belongs to this vocabulary but is not declared
+// until something produces it — no lookup path exists yet, and ConcludeAbsence
+// structurally cannot return it.
 
 // DetermineFreshness compares the revision an analysis was computed against
 // with the parent of the diff under review. It never guesses: a missing
@@ -140,13 +134,13 @@ func (p Provenance) Validate() error {
 	if p.Source == "" {
 		return fmt.Errorf("provenance.source is required: an unattributed context item cannot be judged")
 	}
-	if !validFreshness[p.Freshness] {
+	if !slices.Contains([]Freshness{FreshnessFresh, FreshnessStale, FreshnessUnknown}, p.Freshness) {
 		return fmt.Errorf("provenance.freshness %q is outside the closed vocabulary", p.Freshness)
 	}
-	if !validScope[p.Scope] {
+	if !slices.Contains([]ScopeCompleteness{ScopeComplete, ScopePartial, ScopeUnknown}, p.Scope) {
 		return fmt.Errorf("provenance.scope %q is outside the closed vocabulary", p.Scope)
 	}
-	if !validTier[p.ResolutionTier] {
+	if !slices.Contains([]ResolutionTier{TierSyntacticHeuristic, TierCompiler}, p.ResolutionTier) {
 		return fmt.Errorf("provenance.resolution_tier %q is outside the closed vocabulary", p.ResolutionTier)
 	}
 	if p.Freshness == FreshnessFresh {

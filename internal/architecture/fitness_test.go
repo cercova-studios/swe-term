@@ -32,13 +32,17 @@ type goPackage struct {
 // rule is one architectural boundary, expressed as: packages matching Subject
 // must not transitively depend on anything Forbidden reports true for.
 //
+// Forbidden receives the subject package as well as the dependency so that
+// relative rules — "no sibling may import another sibling" — can express
+// themselves directly instead of being special-cased by name at match time.
+//
 // Transitive rather than direct is deliberate — a boundary violation laundered
 // through an intermediate package is still a violation.
 type rule struct {
 	Name      string
 	Contract  string // the ARCHITECTURE.md clause this enforces
 	Subject   func(pkg string) bool
-	Forbidden func(dep string) bool
+	Forbidden func(subject, dep string) bool
 	Because   string // what breaks if this is violated
 }
 
@@ -59,14 +63,9 @@ func exactly(pkg string) func(string) bool {
 	return func(candidate string) bool { return candidate == pkg }
 }
 
-func underAny(prefixes ...string) func(string) bool {
+func under(prefix string) func(string) bool {
 	return func(candidate string) bool {
-		for _, p := range prefixes {
-			if candidate == p || strings.HasPrefix(candidate, p+"/") {
-				return true
-			}
-		}
-		return false
+		return candidate == prefix || strings.HasPrefix(candidate, prefix+"/")
 	}
 }
 
@@ -82,7 +81,7 @@ func rules() []rule {
 			Name:      "core_is_vendor_free",
 			Contract:  "ARCHITECTURE.md §10 invariant 13; §5 provider-neutral vocabulary",
 			Subject:   exactly(core),
-			Forbidden: isThirdParty,
+			Forbidden: func(_, dep string) bool { return isThirdParty(dep) },
 			Because: "core state must not carry vendor-specific types; a third-party " +
 				"type reachable from core leaks an extension's internals into the core model",
 		},
@@ -90,7 +89,7 @@ func rules() []rule {
 			Name:      "core_depends_on_nothing_internal",
 			Contract:  "ARCHITECTURE.md §3 'keep the core small'; §4 boundaries",
 			Subject:   exactly(core),
-			Forbidden: func(dep string) bool { return isInternal(dep) && dep != core },
+			Forbidden: func(_, dep string) bool { return isInternal(dep) && dep != core },
 			Because: "core defines the contracts others depend on; if it depends back on " +
 				"config, tui, or a provider, the dependency direction has inverted",
 		},
@@ -98,15 +97,17 @@ func rules() []rule {
 			Name:      "frontend_does_not_own_provider_semantics",
 			Contract:  "ARCHITECTURE.md §4 'frontends render state; they do not own provider pricing, policy, verification, or persistence semantics'",
 			Subject:   exactly(tui),
-			Forbidden: underAny(providers),
+			Forbidden: func(_, dep string) bool { return under(providers)(dep) },
 			Because: "the TUI must consume the provider-neutral event contract, not a " +
 				"concrete provider; importing one puts vendor semantics in the frontend",
 		},
 		{
-			Name:      "providers_do_not_import_each_other",
-			Contract:  "ARCHITECTURE.md §8 capability ports with swappable backends",
-			Subject:   underAny(providers),
-			Forbidden: func(dep string) bool { return false }, // replaced per-package below
+			Name:     "providers_do_not_import_each_other",
+			Contract: "ARCHITECTURE.md §8 capability ports with swappable backends",
+			Subject:  under(providers),
+			Forbidden: func(subject, dep string) bool {
+				return under(providers)(dep) && dep != subject
+			},
 			Because: "each provider adapter is an independent backend; a cross-import " +
 				"couples two supposedly swappable implementations",
 		},
@@ -114,7 +115,7 @@ func rules() []rule {
 			Name:     "experiment_tooling_is_not_a_second_state_model",
 			Contract: "ARCHITECTURE.md §11 'experiment infrastructure is tooling around the core, not a second agent loop or state model'",
 			Subject:  exactly(experimentctl),
-			Forbidden: func(dep string) bool {
+			Forbidden: func(_, dep string) bool {
 				return isInternal(dep) && dep != experimentctl
 			},
 			Because: "experimentctl validates manifests; depending on core state would " +
@@ -124,7 +125,7 @@ func rules() []rule {
 			Name:     "drift_sensor_is_decoupled_from_what_it_measures",
 			Contract: "docs/plans/2026-09-20-test-quality-and-architectural-fitness-steering.md §4; same reasoning as experiment tooling",
 			Subject:  exactly(drift),
-			Forbidden: func(dep string) bool {
+			Forbidden: func(_, dep string) bool {
 				return isInternal(dep) && dep != drift
 			},
 			Because: "a sensor that imports the packages it measures starts reporting on " +
@@ -176,18 +177,8 @@ func TestArchitectureDependencyRules(t *testing.T) {
 				}
 				matched++
 
-				forbidden := r.Forbidden
-				// Sibling-isolation is relative to the package under test, so
-				// it is derived here rather than stated as a constant.
-				if r.Name == "providers_do_not_import_each_other" {
-					self := pkg.ImportPath
-					forbidden = func(dep string) bool {
-						return underAny(modulePrefix+"/internal/provider")(dep) && dep != self
-					}
-				}
-
 				for _, dep := range pkg.Deps {
-					if forbidden(dep) {
+					if r.Forbidden(pkg.ImportPath, dep) {
 						// Typed feedback: name the rule, the offending edge, the
 						// contract, and the consequence — not just "assertion failed".
 						t.Errorf(

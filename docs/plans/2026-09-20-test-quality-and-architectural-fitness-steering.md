@@ -296,6 +296,16 @@ never special-cases by name:
 | `debt_markers` | lower better | TODO/FIXME/XXX/HACK; ratchets from the current 0 |
 | `test_to_source_line_ratio` | **higher** better | code outgrowing its tests |
 
+`test_to_source_line_ratio` has a known weakness, found by using it: it counts
+*lines*, not coverage or assertions, so **deleting complexity from a test file
+registers as a regression.** That happened on 2026-09-20 when a ponytail
+review removed a placeholder field and a name-based special case from
+`fitness_test.go` — strictly better code, a slightly worse number. Kept
+anyway, because the honest alternative (parsing `go test -cover`) is more
+machinery than the signal is worth today, and because a crude signal whose
+failure mode is written down beats a silent one. Revisit if it produces a
+second false alarm.
+
 Also oracle-tested: injecting two exported names and two debt markers fired
 three signals (including the second-order effect on the ratio, since source
 grew without tests), `-strict` exited 1, and reverting returned it to clean.
