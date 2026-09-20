@@ -120,6 +120,77 @@ product does not.
   properties over examples, reachability over coverage, seeded and replayable
   randomness, and faults as first-class inputs.
 
+### The harness-engineering frame (Thoughtworks)
+
+Birgitta Böckeler's [*Harness engineering for coding agent users*](https://martinfowler.com/articles/harness-engineering.html)
+(02 Apr 2026, on martinfowler.com) supplies better vocabulary than this
+document originally used, and it is converging into industry-standard
+terminology. `Agent = Model + Harness`; the outer harness is what *we* build.
+
+Two axes:
+
+|  | **Computational** (deterministic, CPU, ms–s, reliable) | **Inferential** (LLM/judge, slower, non-deterministic) |
+|---|---|---|
+| **Guides** (feedforward — steer *before* the agent acts) | code mods, LSP/code intelligence, structural context | `AGENTS.md`, skills, conventions |
+| **Sensors** (feedback — observe *after*, enable self-correction) | tests, linters, type checkers, ArchUnit, mutation testing | AI code review, LLM-as-judge |
+
+Her diagnostic is the sharpest thing in the article, and it indicts a very
+common setup: *"you get either an agent that keeps repeating the same
+mistakes (feedback-only) or an agent that encodes rules but never finds out
+whether they worked (feed-forward-only)."*
+
+She also names three **regulation categories**, which map almost exactly onto
+this document's two failure modes:
+
+- **Maintainability harness** — easiest; lots of existing tooling.
+- **Architecture fitness harness** — *"Basically: Fitness Functions."* This is
+  failure mode B.
+- **Behaviour harness** — *"the elephant in the room."* This is failure mode A,
+  and she is explicitly pessimistic: the common approach (trust the
+  AI-generated suite, check coverage, *maybe* mutation testing) *"puts a lot
+  of faith into the AI-generated tests, that's not good enough yet."*
+
+**That is a direct challenge to §4's M3** and should be read as one: mutation
+gating is the current state of the art for this and a practitioner with more
+field exposure than this document has still calls it insufficient on its own.
+
+Three further ideas worth importing:
+
+- **Harnessability / ambient affordances** (Ned Letcher's term): *"structural
+  properties of the environment itself that make it legible, navigable, and
+  tractable to agents."* Strong typing, clear module boundaries, and
+  frameworks all make a codebase more governable. And the line that states
+  our brownfield problem exactly: **"the harness is most needed where it is
+  hardest to build."**
+- **Ashby's Law of Requisite Variety** — *"a regulator must have at least as
+  much variety as the system it governs, and it can only regulate what it has
+  a model of."* This reframes the Fleet CPG engine: it is not a
+  context-retrieval optimisation, it is **the regulator's model of the
+  system's structure.** Without it, no architecture-fitness harness is
+  possible, because there is nothing to regulate *against*.
+- **Keep quality left, and separate the two sensor timings.** Fast sensors
+  pre-commit (linters, fast tests); expensive ones post-integration (mutation
+  testing, broad review). And distinctly: **continuous drift sensors that run
+  outside the change lifecycle entirely** (dead code, test-quality analysis,
+  dependency scanning). This document originally treated everything as a
+  per-change gate; that was wrong.
+
+Her [follow-up on sensors](https://www.thoughtworks.com/en-de/insights/blog/generative-ai/harness-engineering-agent-feedback-exploring-ai-coding-sensors)
+reports a TypeScript dashboard experiment running an agent with and without a
+sensor suite (ESLint, Semgrep, Dependency Cruiser for module boundaries,
+coverage + mutation testing): with sensors, *"it was able to improve quality
+over time."* Her framing of the human's role is worth keeping: harness
+engineering *"isn't about total automation; it's really about situational
+awareness for the developer... humans should sit on top of a higher-abstraction
+steering loop."*
+
+Industrial corroboration she cites: an OpenAI team enforcing layered
+architecture with custom linters and structural tests plus recurring "garbage
+collection" scans for drift — their stated conclusion, *"our most difficult
+challenges now center on designing environments, feedback loops, and control
+systems"* — and Stripe's "minions" using pre-push hooks that select linters
+heuristically, emphasising shift-feedback-left.
+
 ### Evolutionary architecture
 
 Ford, Parsons, and Kua's *Building Evolutionary Architectures* supplies the
@@ -161,6 +232,33 @@ pointed at failure mode B.
 
 Ordered so that the cheap ones are useful alone and the expensive ones are
 optional. Stop wherever the returns stop.
+
+**Diagnostic first — and this is the most actionable finding in the whole
+document.** Applying Böckeler's feedforward/feedback test to swe-term today:
+
+| | Computational | Inferential |
+|---|---|---|
+| **Guides** | thin — no structural context is fed to the model yet (this is what the Fleet CPG `ContextPacket` would become) | heavy — `AGENTS.md`, `CLAUDE.md`, skills, `ARCHITECTURE.md` |
+| **Sensors** | **almost nothing** — `go test`/`vet`, and the `.githooks/pre-commit` summary check added 2026-09-07 | none |
+
+swe-term is **guide-heavy and sensor-poor** — squarely the
+*"encodes rules but never finds out whether they worked"* failure. The repo
+has an unusually rich set of written constraints (a 14-invariant architecture
+contract, a preregistration framework, explicit doctrine in §11 about
+asserting observable behaviour) and almost no mechanism that checks whether
+any of it held. That imbalance, not a missing technique, is the gap.
+
+Mapping the mechanisms below onto that frame:
+
+| Mechanism | Böckeler category |
+|---|---|
+| M1 probes vs. specifications | guide (computational affordance) |
+| M2 V&V rung ladder | neither — this is the *policy over* sensors, and is the piece her taxonomy doesn't name |
+| M3 mutation-gated receipts | computational sensor, post-integration |
+| M4 debt signals pre-decision | **computational guide** — the category swe-term is emptiest in |
+| M5 protected spine | guide persistence under compaction |
+| M6 typed feedback | sensor *output format* — she calls this "a positive kind of prompt injection" |
+| M7 approved fixtures (new, below) | computational sensor + review affordance |
 
 ### M1. Separate *probes* from *specifications* (cheapest, highest ratio)
 
@@ -255,6 +353,27 @@ A failed gate that returns a wall of text gets worked around; one that returns
 is exactly the mechanism the repo's existing `structured-verifier-feedback`
 spec (draft) was written to test — fitness-function output should be its
 first consumer.
+
+### M7. Approved fixtures — restructure the review, don't just grade the tests
+
+A different attack on failure mode A, from Böckeler's colleagues and
+documented as [Approved Fixtures](https://lexler.github.io/augmented-coding-patterns/patterns/approved-fixtures/):
+design tests around approval files combining input and expected output in a
+domain-specific, easy-to-validate format. Validate the *test execution logic*
+once; after that, adding a case means reviewing a fixture, and the runner
+regenerates approval files so verification is a **diff review**.
+
+Why it matters here: M3 grades test quality after the fact. This instead
+attacks the underlying economics — *reviewing many AI-generated tests with
+complex assertions is impractical*, which is a large part of why brittle
+tests survive review. Making the review cheap is a different lever than making
+the tests better, and the two compose.
+
+Böckeler's own caveat, kept: her colleagues *"use it selectively where it
+fits, it's not a wholesale answer to the test quality problem"* — it works
+best where there's an intuitive representation that's straightforward to
+check. For swe-term specifically, the control-journal and receipt trace
+corpora are close to an ideal fit (they already look like fixture tables).
 
 ## 5. Build vs. adopt: Hegel, Bombadil, and semi-formal methods
 
@@ -462,3 +581,7 @@ reuses the CPG engine as-is, and it tests the load-bearing claim of §4's M4
 | Bombadil | [antithesishq/bombadil](https://github.com/antithesishq/bombadil), [manual](https://antithesishq.github.io/bombadil/) | §5: PBT for web **and terminal** UIs |
 | Antithesis Skills (Claude Code plugin) | [antithesishq/antithesis-skills](https://github.com/antithesishq/antithesis-skills) | §5.5: "validate the oracle, not the SUT"; agent-skill affordance precedent |
 | Hypothesis | [hypothesisworks/hypothesis](https://github.com/hypothesisworks/hypothesis) | §5: Hegel's lineage |
+| Böckeler, *Harness engineering for coding agent users* (2026-04-02) | [martinfowler.com](https://martinfowler.com/articles/harness-engineering.html) | §2: guides/sensors × computational/inferential; regulation categories; harnessability; Ashby's Law |
+| Thoughtworks, *Harness engineering and agent feedback: Exploring AI coding sensors* | [blog](https://www.thoughtworks.com/en-de/insights/blog/generative-ai/harness-engineering-agent-feedback-exploring-ai-coding-sensors) | §2: sensor-suite experiment; situational awareness over automation |
+| *Approved Fixtures* (Augmented Coding Patterns) | [pattern](https://lexler.github.io/augmented-coding-patterns/patterns/approved-fixtures/) | §4 M7: make test review a diff review |
+| Böckeler, *TDD inside the agent loop — theater or actual value?* | [martinfowler.com](https://martinfowler.com/articles/exploring-gen-ai/tdd-in-the-agent-loop.html) | §2: adjacent, unread at time of writing |
