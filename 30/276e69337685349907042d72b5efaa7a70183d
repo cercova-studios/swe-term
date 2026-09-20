@@ -1,0 +1,36 @@
+experiments/specs/temporal-journal-monitor/manifest.json
+  s_841c2f8acbd867::t_130106a69fd83f 4
+docs/reports/research-and-experiments-summary.md
+  s_841c2f8acbd867::t_bd770ff04b99d5 92,95-100,102,114-124
+  s_841c2f8acbd867::t_49841e1ac08702 147,163-184
+  s_841c2f8acbd867::t_6451b8fbee92ff 12
+experiments/evidence/temporal-journal-monitor/README.md
+  s_841c2f8acbd867::t_2ccce4bddc9971 1-95
+experiments/specs/evidence-gated-lifecycle/manifest.json
+  s_841c2f8acbd867::t_130106a69fd83f 4
+experiments/evidence/evidence-gated-lifecycle/README.md
+  s_841c2f8acbd867::t_62fd81e010ccd9 1-102
+experiments/specs/temporal-journal-monitor/README.md
+  s_841c2f8acbd867::t_86e10b7c04bf6b 47-53,57
+  s_841c2f8acbd867::t_b60755a1ffcd10 3-4
+experiments/specs/evidence-gated-lifecycle/README.md
+  s_841c2f8acbd867::t_36dbf11f140026 113
+  s_841c2f8acbd867::t_4ffdc426179c6f 3-4
+  s_841c2f8acbd867::t_063c2d2b74e99c 92-98,102-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "30276e69337685349907042d72b5efaa7a70183d",
+  "prompts": {},
+  "sessions": {
+    "s_841c2f8acbd867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b733d4a-0117-4efb-9b62-94526c10dad9",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
