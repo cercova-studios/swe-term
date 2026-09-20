@@ -46,7 +46,8 @@ setup_agents.sh
 codesearch/
 .codesearch.db/
 pi/
-/target/
+target/
+engine/target/
 .DS_Store
 joern
 codepropertygraph
@@ -54,3 +55,4 @@ glean
 # VCS / Nix local state
 .jj/
 .direnv/
+.worktrees/

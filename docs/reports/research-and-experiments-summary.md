@@ -321,8 +321,11 @@ competing with it. What swe-term should build is the **gate** — the
 obligation → rung → receipt layer — because nobody else builds that. Caveats:
 `hegel-go` is v0.9.5 beta and drives a native Rust `libhegel` via FFI, so it
 is a test-path dependency with CI-hermeticity implications, and Go's native
-`testing.F` fuzzing must be measured against it first (proposed experiment
-`hegel-vs-native-fuzzing`).
+`testing.F` fuzzing must be measured against it first.
+
+**Preregistered benchmark experiments (preregistered 2026-09-20):**
+- `debt-signal-foresight` (`experiments/specs/debt-signal-foresight/`): benchmark evaluating whether injecting pre-decision CPG blast radius and change-coupling context alters an agent's plan vs. control on brownfield PR tasks, reducing structural debt deltas. Validated and ready.
+- `hegel-vs-native-fuzzing` (`experiments/specs/hegel-vs-native-fuzzing/`): benchmark evaluating whether `hegel-go` detects defect classes in `internal/core` that Go's native `testing.F` does not, justifying a cgo/Rust dependency. Validated and ready.
 
 ## Full citation list
 
