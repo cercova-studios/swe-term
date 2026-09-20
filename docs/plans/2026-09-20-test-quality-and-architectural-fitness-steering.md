@@ -319,6 +319,35 @@ Risk → minimum rung is then policy (hand-authored, closed, per invariant 7 and
 §6's "closed, hand-authored rule IDs"), and the agent physically cannot
 discharge a high-risk obligation with a cheap brittle test.
 
+**Implemented 2026-09-20** as a pure reducer in `internal/core/vv_rung.go`,
+same scope and status as `receipt_gate.go` — no persistence, no runtime loop,
+so §5's `Obligation` stays `Target`. What it establishes:
+
+- The six-rung ladder as a closed, ordered vocabulary.
+- A **hand-authored policy table** mapping (kind, risk) → minimum rung.
+  Absence is a failure (`vv.policy_unknown`), not a default, so adding an
+  obligation kind forces an explicit decision rather than silently inheriting
+  the weakest rung. Two rows encode real judgments worth arguing with: a
+  *refactor* requires `property` even at low risk, because example-based
+  tests pass precisely by encoding the old shape; a *schema migration*
+  requires `replayable` at high risk, because §8 says state formats outlive
+  implementations.
+- **Invariant 7 made structural rather than checked.** There is deliberately
+  no event that sets a minimum rung, so "a model may never downgrade it" is
+  not a rule that could be forgotten — it is unreachable. The only genuine
+  downgrade vector left is *reclassification* (relabel the work as lower-risk
+  or a laxer kind), so that is rejected explicitly: `vv.risk_downgrade` and
+  `vv.rung_downgrade`. Escalation is allowed, and escalating the bar
+  correctly **invalidates evidence that only cleared the old one**.
+
+What this does **not** establish, and it is the part that actually matters:
+**nothing here assigns a rung to a real piece of evidence.** The reducer is
+fed a rung. Deciding that some actual test is `example` rather than
+`property` — or that a mock-heavy test is below `example` at all — is the
+hard, possibly-judgment-requiring step flagged in §9. Experiment 8 is
+narrowed to exactly that question; the gate itself needed no experiment
+because it is deterministic.
+
 ### M3. Make the receipt bind to mutation-kill on the diff, not coverage
 
 The metric you gate on is the metric the agent optimizes. Gate on coverage and
@@ -562,7 +591,7 @@ proposals, not results.
 | `mutation-gated-test-quality` | mechanism-hypothesis | Gating an obligation's receipt on diff-scoped mutation-kill (treatment) produces tests that survive refactoring better than a coverage-gated control, on a frozen brownfield corpus | Refactor-survival: apply behavior-preserving refactors to the corpus; count tests that break. Brittle tests break; behavioral ones don't. |
 | `reachability-assertion-efficacy` | mechanism-hypothesis | Requiring reachability evidence (sometimes-style) for changed code eliminates the "test never exercised the change" class | Seed changes whose tests don't touch the new path; measure detection rate vs. a coverage-only control |
 | `debt-signal-foresight` | benchmark | Injecting CPG blast radius + change-coupling into the packet *pre-decision* changes the plan an agent produces vs. the same task without it | Paired tasks on real brownfield PRs; compare structural-fitness deltas of resulting patches |
-| `vv-rung-ladder` | mechanism-hypothesis | A closed rung ladder can be mechanically assigned from evidence (not filenames), and the monitor rejects under-rung discharge | Extend the existing `control_monitor` trace corpus with rung-downgrade traces; they must fail closed with a stable rule ID |
+| `vv-rung-assignment` | mechanism-hypothesis | **Narrowed 2026-09-20.** A rung can be *assigned to real evidence* mechanically — distinguishing an observable-behaviour assertion from a restatement of the implementation — without a human or a judge | Hand-label a frozen corpus of real tests by rung; compare against mechanical classification (does it reference unexported symbols? assert call counts? use a mocking library?). Fails if the mechanical signal can't separate the hand-labelled classes. |
 | `hegel-vs-native-fuzzing` | benchmark | `hegel-go` finds defect classes in swe-term's own code that Go's native `testing.F` fuzzing does not, by enough margin to justify a cgo-backed beta dependency | Seed a frozen defect corpus in `internal/core`; run both engines under equal time budgets; compare detection rate and counterexample minimality. Kills the adoption if native fuzzing is within noise. |
 
 `debt-signal-foresight` is the one I'd run first: it is the cheapest, it
