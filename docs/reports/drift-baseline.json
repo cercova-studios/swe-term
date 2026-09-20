@@ -1,10 +1,10 @@
 {
-  "recorded_at": "2026-09-20T21:07:34Z",
+  "recorded_at": "2026-09-20T21:55:43Z",
   "signals": {
     "debt_markers": 0,
     "direct_dependencies": 6,
-    "internal_exported_decls": 144,
+    "internal_exported_decls": 143,
     "max_package_fan_in": 4,
-    "test_to_source_line_ratio": 0.537
+    "test_to_source_line_ratio": 0.536
   }
 }

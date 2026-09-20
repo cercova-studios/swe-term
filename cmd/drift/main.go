@@ -26,6 +26,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,7 +35,11 @@ import (
 	"time"
 )
 
-const modulePrefix = "swe-term"
+const (
+	modulePrefix = "swe-term"
+	// One baseline, one path. Add a flag when a second one exists.
+	baselinePath = "docs/reports/drift-baseline.json"
+)
 
 // signal is one measured health value. HigherIsBetter records which direction
 // counts as a regression, so the comparison logic never has to special-case a
@@ -52,7 +57,6 @@ type baseline struct {
 }
 
 func main() {
-	baselinePath := flag.String("baseline", "docs/reports/drift-baseline.json", "path to the recorded baseline")
 	update := flag.Bool("update", false, "accept current values as the new baseline")
 	strict := flag.Bool("strict", false, "exit non-zero if any signal regressed")
 	flag.Parse()
@@ -68,19 +72,19 @@ func main() {
 	}
 
 	if *update {
-		if err := writeBaseline(filepath.Join(root, *baselinePath), signals); err != nil {
+		if err := writeBaseline(filepath.Join(root, baselinePath), signals); err != nil {
 			fail(err)
 		}
-		fmt.Printf("baseline updated: %s\n", *baselinePath)
+		fmt.Printf("baseline updated: %s\n", baselinePath)
 		for _, s := range signals {
 			fmt.Printf("  %-32s %10s\n", s.Name, format(s.Value))
 		}
 		return
 	}
 
-	previous, err := readBaseline(filepath.Join(root, *baselinePath))
+	previous, err := readBaseline(filepath.Join(root, baselinePath))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "no usable baseline at %s (%v)\n", *baselinePath, err)
+		fmt.Fprintf(os.Stderr, "no usable baseline at %s (%v)\n", baselinePath, err)
 		fmt.Fprintf(os.Stderr, "record one with: go run ./cmd/drift -update\n")
 		os.Exit(2)
 	}
@@ -187,7 +191,7 @@ func collect(root string) ([]signal, error) {
 			Note: "TODO/FIXME/XXX/HACK comments in Go source",
 		},
 		{
-			Name: "test_to_source_line_ratio", Value: round(ratio), HigherIsBetter: true,
+			Name: "test_to_source_line_ratio", Value: math.Round(ratio*1000) / 1000, HigherIsBetter: true,
 			Note: "test lines per source line; falling means code is outgrowing its tests",
 		},
 	}, nil
@@ -425,10 +429,6 @@ func writeBaseline(path string, signals []signal) error {
 		return err
 	}
 	return os.WriteFile(path, append(content, '\n'), 0o644)
-}
-
-func round(value float64) float64 {
-	return float64(int(value*1000+0.5)) / 1000
 }
 
 func format(value float64) string {
