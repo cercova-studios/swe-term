@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "experiment_id": "hegel-vs-native-fuzzing",
+  "status": "preregistered",
+  "kind": "benchmark",
+  "papers": [],
+  "design_references": [
+    {
+      "title": "Test quality and architectural fitness steering",
+      "url": "https://github.com/cercova-studios/swe-term/blob/dev/docs/plans/2026-09-20-test-quality-and-architectural-fitness-steering.md",
+      "claim": "The V&V rung ladder should compare native Go property testing with hegel-go before a cgo-backed beta dependency is adopted for swe-term's core."
+    }
+  ],
+  "hypothesis": "hegel-go finds defect classes in swe-term's core that Go's native testing.F fuzzing does not, by enough margin to justify a cgo-backed beta dependency.",
+  "null_hypothesis": "Native Go testing.F detects equivalent defect classes with equal or lower runtime/flakiness compared to hegel-go on a frozen defect corpus.",
+  "independent_variable": "Property testing engine (native testing.F vs hegel-go).",
+  "source": {
+    "kind": "directory",
+    "locator": "fixtures",
+    "revision": "hegel-vs-native-fuzzing-fixtures-v1",
+    "content_digest": "sha256:6c054706deb00acc48a8507292aabb588afb86515e099ab4f91cd2e6e5305af4"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "disabled",
+    "network_justification": "",
+    "allowed_env": [
+      "PATH"
+    ],
+    "resources": {
+      "timeout_seconds": 300,
+      "max_parallelism": 1,
+      "max_output_bytes": 1048576,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "control",
+      "description": "Run the frozen core defect corpus with Go's standard testing.F fuzzing engine under the declared time budget.",
+      "command": ["run_hegel_vs_native_fuzzing.sh", "native"],
+      "config": {"engine": "testing.F"}
+    },
+    {
+      "name": "treatment",
+      "description": "Run the identical frozen core defect corpus with hegel-go under the same time and resource budget.",
+      "command": ["run_hegel_vs_native_fuzzing.sh", "hegel"],
+      "config": {"engine": "hegel-go"}
+    }
+  ],
+  "repetitions": 1,
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": ""
+  },
+  "metrics": {
+    "primary": "distinct defect classes detected per equal-budget repetition",
+    "secondary": ["runtime_seconds", "flaky failure rate", "counterexample minimality", "reproducibility rate", "setup and dependency cost"],
+    "acceptance_rule": "Compare engines on the same frozen defect corpus, seeds, task order, and time budget. Adoption is justified only if hegel-go detects materially more distinct defect classes with reproducible failures and acceptable runtime/flakiness; if native testing.F is equivalent or better, reject the adoption hypothesis."
+  },
+  "evaluator": {
+    "kind": "manual",
+    "command": [],
+    "rubric": "For each repetition, verify identical corpus, seed, timeout, CPU and memory limits, and environment allowlist; classify findings by defect class rather than raw failure count; replay every reported counterexample; distinguish a new class from a duplicate failure; record setup, runtime, flakiness, and minimization results separately; and treat build, native-library, or replay failures as invalid runs rather than missed defects.",
+    "rubric_digest": "sha256:802ff4c21d5af5daf01ffb0076ae85124903a617e7e2cfd45255463c1ac39d45"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/hegel-vs-native-fuzzing",
+    "curated": "experiments/evidence/hegel-vs-native-fuzzing"
+  }
+}

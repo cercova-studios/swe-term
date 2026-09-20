@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "experiment_id": "debt-signal-foresight",
+  "status": "preregistered",
+  "kind": "benchmark",
+  "papers": [],
+  "design_references": [
+    {
+      "title": "Test quality and architectural fitness steering",
+      "url": "https://github.com/cercova-studios/swe-term/blob/dev/docs/plans/2026-09-20-test-quality-and-architectural-fitness-steering.md",
+      "claim": "The Fleet CPG overlay can make structural fitness signals such as blast radius and change coupling available before an agent chooses a plan, enabling paired measurement of resulting structural debt."
+    }
+  ],
+  "hypothesis": "Injecting CPG blast radius + change coupling into the ContextPacket pre-decision changes an agent's plan vs. control without it, yielding measurable reduction in structural debt (coupling, public surface growth).",
+  "null_hypothesis": "Pre-decision CPG signals do not alter agent plan choice or resulting structural debt beyond random variance.",
+  "independent_variable": "Availability of pre-decision CPG blast-radius and change-coupling context.",
+  "source": {
+    "kind": "directory",
+    "locator": "fixtures",
+    "revision": "debt-signal-foresight-fixtures-v1",
+    "content_digest": "sha256:6c054706deb00acc48a8507292aabb588afb86515e099ab4f91cd2e6e5305af4"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "disabled",
+    "network_justification": "",
+    "allowed_env": [
+      "PATH"
+    ],
+    "resources": {
+      "timeout_seconds": 300,
+      "max_parallelism": 1,
+      "max_output_bytes": 1048576,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "control",
+      "description": "The agent receives the same frozen brownfield task and ContextPacket shape without CPG blast-radius or change-coupling context.",
+      "command": ["run_debt_signal_foresight.sh", "control"],
+      "config": {"cpg_context": false}
+    },
+    {
+      "name": "treatment",
+      "description": "The agent receives the same task plus the pre-decision CPG blast-radius and change-coupling packet.",
+      "command": ["run_debt_signal_foresight.sh", "treatment"],
+      "config": {"cpg_context": true}
+    }
+  ],
+  "repetitions": 1,
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": ""
+  },
+  "metrics": {
+    "primary": "change in structural debt across paired patches, measured by coupling and public-surface growth",
+    "secondary": ["plan-choice divergence", "blast-radius size", "change-coupling score", "files changed", "lines changed", "task completion"],
+    "acceptance_rule": "Report paired task-level deltas and dispersion. The benchmark supports the hypothesis only if treatment produces a measurable reduction in structural debt without a material loss of task completion; if plan choice and debt remain within the preregistered variance band, retain the null."
+  },
+  "evaluator": {
+    "kind": "manual",
+    "command": [],
+    "rubric": "For every paired task, verify that control and treatment use identical source, task, budget, and model settings; record whether the plan changes before implementation; compute coupling and public-surface growth from the resulting patches using the same CPG revision; inspect incomplete or stale graph scope as unknown rather than zero; and report task completion separately from structural-debt metrics. Reject a pair with missing terminal output, mismatched inputs, stale context, or an unbound evaluator.",
+    "rubric_digest": "sha256:7ba9d84bef0859d28288efe98c27934d9d82c44cabcdfe03155a1e1ec3fa1d3d"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/debt-signal-foresight",
+    "curated": "experiments/evidence/debt-signal-foresight"
+  }
+}
