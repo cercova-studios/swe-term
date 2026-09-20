@@ -1,6 +1,7 @@
 # Experiment: evidence-gated-lifecycle
 
-Status: preregistered
+Status: complete — raw run record and manual evaluator verdict in
+[`experiments/evidence/evidence-gated-lifecycle/`](../../evidence/evidence-gated-lifecycle/).
 
 Kind: mechanism-hypothesis
 
@@ -88,13 +89,18 @@ limits in Phase 0.
 
 ## Results
 
-Do not fill this section until `just experiment-ready evidence-gated-lifecycle`
-passes. Raw trial output belongs under `experiments/runs/evidence-gated-lifecycle/`.
+Control and treatment run under `experiments/runs/evidence-gated-lifecycle/run-001/`
+(`go test ./internal/core -run <name> -count=1 -v`, all exit 0). Treatment
+rejects every stale (per identity dimension), missing, failed, and
+tampered case with a stable rule ID, accepts every fresh-pass trace, and
+correctly accepts the unchanged-scope trace rather than over-rejecting.
+Full manual rubric verdict:
+[`experiments/evidence/evidence-gated-lifecycle/README.md`](../../evidence/evidence-gated-lifecycle/README.md).
 
 ## Discordant cases
 
-Inspect every control promotion that the treatment rejects. A treatment rejection
-of unchanged scope is also discordant and requires identity-scope review.
+None. No control promotion was left unrejected by the treatment, and the
+one unchanged-scope trace tested was correctly accepted, not rejected.
 
 ## Limitations
 
@@ -104,7 +110,7 @@ closed receipt-identity invalidation semantics.
 
 ## Decision
 
-- [ ] accept receipt gate for a bounded persistence follow-up
+- [x] accept receipt gate for a bounded persistence follow-up
 - [ ] reject hypothesis
 - [ ] revise identity fields and preregister a new trace corpus
 - [ ] propose architecture promotion with human approval
