@@ -47,7 +47,7 @@ fn walk(
             | "interface_declaration"
             | "type_alias_declaration"
             | "enum_declaration"
-            | "lexical_declaration"
+            | "variable_declarator"
     ) {
         if let Some(name) = n.child_by_field_name("name") {
             let text = &src[name.byte_range()];
@@ -63,10 +63,18 @@ fn walk(
     }
     if kind == "call_expression" {
         if let Some(f) = n.child_by_field_name("function") {
-            let callee = &src[f.byte_range()];
+            let callee_name = if f.kind() == "member_expression" {
+                if let Some(prop) = f.child_by_field_name("property") {
+                    &src[prop.byte_range()]
+                } else {
+                    &src[f.byte_range()]
+                }
+            } else {
+                &src[f.byte_range()]
+            };
             calls.push(Call {
                 caller: current.clone().unwrap_or_else(|| "<module>".into()),
-                callee: callee.into(),
+                callee: callee_name.into(),
                 file: file.into(),
                 line: line(n),
                 resolution_tier: ResolutionTier::SyntacticHeuristic,
@@ -91,9 +99,23 @@ mod tests {
         .unwrap();
         assert!(d.iter().any(|x| x.name == "greet"));
         assert!(c.iter().any(|x| x.callee == "foo"));
+        assert!(c.iter().any(|x| x.callee == "log"));
     }
     #[test]
     fn parses_tsx() {
-        assert!(lower("const App = () => <div/>", "a.tsx", true).is_ok());
+        let (d, c) = lower(
+            "const App = () => { render(); return <div/>; };",
+            "a.tsx",
+            true,
+        )
+        .unwrap();
+        assert!(d.iter().any(|x| x.name == "App"));
+        assert!(c.iter().any(|x| x.caller == "App" && x.callee == "render"));
+    }
+    #[test]
+    fn member_expression_callee() {
+        let (_, c) = lower("obj.doThing()", "a.ts", false).unwrap();
+        assert_eq!(c[0].callee, "doThing");
     }
 }
+

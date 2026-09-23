@@ -57,12 +57,13 @@
       "config": {"engine": "hegel-go"}
     }
   ],
-  "repetitions": 1,
+  "repetitions": 3,
   "randomness": {
-    "mode": "deterministic",
-    "seeds": [],
-    "justification": ""
+    "mode": "seeded",
+    "seeds": [101, 202, 303],
+    "justification": "Seeded pseudo-randomness across 3 equal-budget repetitions ensures coverage-guided fuzzing exploration is reproducible while enabling estimation of flaky-failure rate and runtime variability."
   },
+
   "metrics": {
     "primary": "distinct defect classes detected per equal-budget repetition",
     "secondary": ["runtime_seconds", "flaky failure rate", "counterexample minimality", "reproducibility rate", "setup and dependency cost"],

@@ -57,12 +57,13 @@
       "config": {"cpg_context": true}
     }
   ],
-  "repetitions": 1,
+  "repetitions": 3,
   "randomness": {
-    "mode": "deterministic",
-    "seeds": [],
-    "justification": ""
+    "mode": "seeded",
+    "seeds": [1, 2, 3],
+    "justification": "Evaluating agent plan choice across 3 paired repetitions enables measuring plan-choice divergence and variance in structural-debt deltas."
   },
+
   "metrics": {
     "primary": "change in structural debt across paired patches, measured by coupling and public-surface growth",
     "secondary": ["plan-choice divergence", "blast-radius size", "change-coupling score", "files changed", "lines changed", "task completion"],
