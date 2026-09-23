@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 pub const SCHEMA_VERSION: u32 = 1;
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "kebab-case")]
 pub enum ResolutionTier {
     SyntacticHeuristic,
     Compiler,
 }
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Def {
     pub name: String,
     pub file: String,
@@ -14,7 +15,7 @@ pub struct Def {
     pub line_end: u32,
     pub resolution_tier: ResolutionTier,
 }
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Call {
     pub caller: String,
     pub callee: String,
@@ -74,4 +75,16 @@ mod tests {
             s
         );
     }
+    #[test]
+    fn tier_kebab_case() {
+        assert_eq!(
+            serde_json::to_string(&ResolutionTier::SyntacticHeuristic).unwrap(),
+            "\"syntactic-heuristic\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ResolutionTier::Compiler).unwrap(),
+            "\"compiler\""
+        );
+    }
 }
+

@@ -229,8 +229,8 @@ back inconclusive — see git log around 2026-09-20 for that dead end).
 ### 3.1 Test quality and architectural fitness steering (2026-09-20)
 
 Full doc: [`docs/plans/2026-09-20-test-quality-and-architectural-fitness-steering.md`](../plans/2026-09-20-test-quality-and-architectural-fitness-steering.md).
-**No results — this is a proposal.** Four experiments are proposed there and
-none is preregistered yet.
+**Proposal status:** Four experiments were proposed there; two are now preregistered below (`debt-signal-foresight` and `hegel-vs-native-fuzzing`).
+
 
 Question: how can swe-term, as a harness, steer agents away from brittle
 mock-heavy tests and from shipping locally-correct patches that compound
