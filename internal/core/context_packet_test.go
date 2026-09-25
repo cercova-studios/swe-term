@@ -77,6 +77,8 @@ func TestProvenanceValidationFailsClosed(t *testing.T) {
 		// The claim that matters most: fresh without the evidence for it.
 		{"fresh without base revision", func(p *Provenance) { p.BaseRevision = "" }},
 		{"fresh without head revision", func(p *Provenance) { p.HeadRevision = "" }},
+		{"stale without base revision", func(p *Provenance) { p.Freshness = FreshnessStale; p.BaseRevision = "" }},
+		{"stale without head revision", func(p *Provenance) { p.Freshness = FreshnessStale; p.HeadRevision = "" }},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

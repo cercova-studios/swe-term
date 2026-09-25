@@ -30,6 +30,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -201,7 +202,7 @@ func collect(root string) ([]signal, error) {
 // need the AST or the raw text.
 func walkGo(root string) (sourceLines, testLines, exported, markers int, err error) {
 	fset := token.NewFileSet()
-	markerWords := []string{"TODO", "FIXME", "XXX", "HACK"}
+	markerRegex := regexp.MustCompile(`\b(TODO|FIXME|XXX|HACK)\b`)
 
 	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
@@ -239,9 +240,7 @@ func walkGo(root string) (sourceLines, testLines, exported, markers int, err err
 
 		for _, group := range file.Comments {
 			for _, comment := range group.List {
-				for _, word := range markerWords {
-					markers += strings.Count(comment.Text, word)
-				}
+				markers += len(markerRegex.FindAllStringIndex(comment.Text, -1))
 			}
 		}
 
@@ -303,9 +302,12 @@ func receiverIsExported(recv *ast.FieldList) bool {
 	if star, ok := expr.(*ast.StarExpr); ok {
 		expr = star.X
 	}
-	// A generic receiver arrives as Type[T]; the name is on the base.
-	if index, ok := expr.(*ast.IndexExpr); ok {
-		expr = index.X
+	// A generic receiver arrives as Type[T] (IndexExpr) or Type[T, U] (IndexListExpr); the name is on the base.
+	switch e := expr.(type) {
+	case *ast.IndexExpr:
+		expr = e.X
+	case *ast.IndexListExpr:
+		expr = e.X
 	}
 	ident, ok := expr.(*ast.Ident)
 	return ok && ident.IsExported()
@@ -363,7 +365,7 @@ func maxPackageFanIn(root string) (int, string, error) {
 			continue
 		}
 		for _, imported := range pkg.Imports {
-			if strings.HasPrefix(imported, modulePrefix) && !strings.Contains(imported, "/Glean/") {
+			if (imported == modulePrefix || strings.HasPrefix(imported, modulePrefix+"/")) && !strings.Contains(imported, "/Glean/") {
 				fanIn[imported]++
 			}
 		}
@@ -425,10 +427,26 @@ func writeBaseline(path string, signals []signal) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(content, '\n'), 0o644)
+	tmp, err := os.CreateTemp(dir, "drift-baseline-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer func() {
+		_ = os.Remove(tmpName)
+	}()
+	if _, err := tmp.Write(append(content, '\n')); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, path)
 }
 
 func format(value float64) string {
