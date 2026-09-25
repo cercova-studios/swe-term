@@ -150,6 +150,31 @@ func TestVVGateTraces(t *testing.T) {
 			wantRule: "vv.rung_invalid",
 		},
 		{
+			name: "escalation after discharge invalidates discharge",
+			events: []VVGateEvent{
+				declareObligation("o1", ObligationBehaviourChange, RiskLow),
+				submitEvidence("o1", RungExample), // satisfies low
+				claimDischarged("o1"),
+				reclassify("o1", ObligationBehaviourChange, RiskHigh), // requires higher rung
+			},
+			wantDischarged: false,
+		},
+		{
+			name: "missing obligation ID fails closed",
+			events: []VVGateEvent{
+				{Kind: VVDeclareObligation, Obligation: ObligationBehaviourChange, Risk: RiskLow},
+			},
+			wantRule: "vv.obligation_missing",
+		},
+		{
+			name: "declaring an already declared obligation fails closed",
+			events: []VVGateEvent{
+				declareObligation("o1", ObligationBehaviourChange, RiskLow),
+				declareObligation("o1", ObligationBehaviourChange, RiskLow),
+			},
+			wantRule: "vv.obligation_exists",
+		},
+		{
 			name: "unsupported event kind fails closed",
 			events: []VVGateEvent{
 				{Kind: VVGateEventKind("model_policy"), ObligationID: "o1"},

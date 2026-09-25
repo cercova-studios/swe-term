@@ -143,9 +143,9 @@ func (p Provenance) Validate() error {
 	if !slices.Contains([]ResolutionTier{TierSyntacticHeuristic, TierCompiler}, p.ResolutionTier) {
 		return fmt.Errorf("provenance.resolution_tier %q is outside the closed vocabulary", p.ResolutionTier)
 	}
-	if p.Freshness == FreshnessFresh {
+	if p.Freshness == FreshnessFresh || p.Freshness == FreshnessStale {
 		if p.BaseRevision == "" || p.HeadRevision == "" {
-			return fmt.Errorf("freshness %q requires both base and head revisions as evidence", FreshnessFresh)
+			return fmt.Errorf("freshness %q requires both base and head revisions as evidence", p.Freshness)
 		}
 	}
 	return nil

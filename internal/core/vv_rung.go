@@ -239,6 +239,7 @@ func ApplyVVGateEvent(state VVGateState, event VVGateEvent) (VVGateState, *VVGat
 		// A raised bar invalidates evidence that only cleared the old one.
 		if record.Satisfied && record.SatisfiedAt < minimum {
 			record.Satisfied = false
+			record.Discharged = false // a raised bar invalidates the discharge too
 		}
 		next.Obligations[event.ObligationID] = record
 		return next, nil
