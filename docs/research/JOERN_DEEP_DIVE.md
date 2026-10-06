@@ -346,7 +346,7 @@ implementation swe-term should own in Rust?” That is the critique.
 ## Rust Rewrite Feasibility as an swe-term Extension
 
 Grounded in the local clone, with swe-term’s extension model as the target
-(per `docs/core/ARCHITECTURE.md`: Go core; extensions are interface-driven
+(per root `ARCHITECTURE.md`: Go core; extensions are interface-driven
 adapters — `swe_distiller` is the precedent: a standalone Rust CLI binary the
 core shells out to, JSON/markdown over stdio, no linkage into the core).
 

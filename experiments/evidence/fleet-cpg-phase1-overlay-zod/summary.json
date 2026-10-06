@@ -1,0 +1,49 @@
+{
+  "buckets": {
+    "small": {
+      "files_changed": 2,
+      "lines_changed": 8,
+      "n_reps": 3,
+      "median_ms": 10.897,
+      "all_ms": [
+        10.38,
+        14.007,
+        10.897
+      ],
+      "defs_stable": true,
+      "calls_stable": true,
+      "order_of_magnitude_below_baseline": true
+    },
+    "medium": {
+      "files_changed": 3,
+      "lines_changed": 38,
+      "n_reps": 3,
+      "median_ms": 22.78,
+      "all_ms": [
+        21.52,
+        22.78,
+        23.933
+      ],
+      "defs_stable": true,
+      "calls_stable": true,
+      "order_of_magnitude_below_baseline": true
+    },
+    "large": {
+      "files_changed": 6,
+      "lines_changed": 241,
+      "n_reps": 3,
+      "median_ms": 9.626,
+      "all_ms": [
+        9.626,
+        11.461,
+        9.585
+      ],
+      "defs_stable": true,
+      "calls_stable": true,
+      "order_of_magnitude_below_baseline": true
+    }
+  },
+  "full_repo_baseline_median_ms": 422.659,
+  "all_buckets_pass_10x_rule": true,
+  "all_defs_calls_stable": true
+}

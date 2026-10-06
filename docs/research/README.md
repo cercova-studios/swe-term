@@ -2,6 +2,13 @@
 
 Deep-dive and critique evidence packs used to inform architectural decisions.
 
+## Paper discovery
+
+- [`papers/README.md`](papers/README.md) — Hugging Face Papers discovery,
+  signal/noise triage, extraction, synthesis, and experiment handoff contract
+- [`papers/templates/`](papers/templates/) — search plan, paper note, and
+  cross-paper synthesis templates
+
 ## Framework Analyses
 
 - [`CLAUDE_DEEP_DIVE.md`](CLAUDE_DEEP_DIVE.md)
