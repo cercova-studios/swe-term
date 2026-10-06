@@ -118,4 +118,3 @@ mod tests {
         assert_eq!(c[0].callee, "doThing");
     }
 }
-

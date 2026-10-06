@@ -192,6 +192,74 @@ base build on all four Phase 0 repos and record wall time and RSS — the first
 Rust-engine numbers against the Joern baseline. Preregister as
 `fleet-cpg-engine-v1-baseline`.
 
+### Slice 1 status — scaffolded, divergence measured 2026-10-06
+
+The four crates exist and 14 unit tests pass. Those tests cover lowering and
+store *primitives* on synthetic input (ID stability, overlay newest-wins,
+deterministic query ordering, TSX parsing). None of them exercised the pinned
+corpus the nine Phase 0–4 experiments were run against, so nothing checked
+whether the Rust port agrees with the validated Python spike. That check now
+exists: `engine/cpg-lowering-typescript/tests/corpus.rs`, `#[ignore]`d so
+`cargo test` stays hermetic, driven by `CPG_CORPUS`.
+
+Measured against zod `5ff9566`, `packages/zod/src` (324 files, matching the
+spike's corpus exactly):
+
+| | Engine | Spike | |
+|---|---|---|---|
+| files | 324 | 324 | match |
+| defs | **10,765** | 1,388 | +9,377 (7.8×) |
+| calls | 43,964 | 43,888 | +76 (1.002×) |
+
+Taking the plan's "or documents every divergence with a reason" clause at its
+word, there are three, and they are not equivalent in kind:
+
+**1. defs 7.8× — a deliberate widening, with one suspect member.** The spike
+lowered three node kinds (`function_declaration`, `class_declaration`,
+`method_definition`). The engine lowers seven, adding
+`interface_declaration`, `type_alias_declaration`, `enum_declaration`, and
+`variable_declarator`. The three type-level additions are defensible and
+arguably an improvement — interfaces and type aliases are real TypeScript
+surface the spike could not see. **`variable_declarator` is the suspect**: it
+captures every `const`/`let` binding including function locals, which is not
+a definition in any API-surface or call-graph sense, and is almost certainly
+most of the +9,377. Recommend keeping the type-level kinds and either
+dropping `variable_declarator` or restricting it to module-level bindings.
+Owner decision, not something this measurement settles.
+
+**2. calls +76 (0.17%) — the engine is more complete than the spike.** The
+spike set `callee_name = None` for any callee that was neither a plain
+identifier nor a member expression with a `property` field, and then skipped
+the call entirely (`if callee_name:` guarded the append). The engine falls
+back to the callee's full source text and records it. So the extra 76 are
+computed calls the spike silently discarded — `(fn)()`, `arr[0]()`, tagged
+templates. Recorded so the delta is not later mistaken for a bug.
+
+**3. `Call.caller` is not file-scoped — a Slice 2 precondition.** 27,993 of
+43,964 calls (**63.7%**) are attributed to the bare key `"<module>"`, which
+is identical across all 324 files; it is also the single most-attributed
+caller. Named callers collide too: 2,201 distinct caller keys for 10,765
+defs. The spike used `file:line:name` symbol ids, with module scope keyed
+per file as `file::<module>`.
+
+Why this matters, precisely: the store is **unaffected**, because
+`Call::key()` is already `file:caller:callee:line` and so is file-scoped for
+merge and dedup purposes. But Slice 2's blast radius is a reverse-BFS over
+caller and callee *names*. One `"<module>"` node carrying 64% of all call
+edges would make nearly everything reachable from everything — the exact
+failure mode `fleet-cpg-phase2-blast-radius-zod` was built to detect, and it
+validated against file-scoped symbol ids. **Fix the caller identity before
+building `cpg-derive`, or Phase 2's evidence does not transport to this
+engine.** It is a one-field change in the lowering and does not threaten
+merge keys.
+
+Still outstanding for Slice 1's done-condition: the incremental ==
+from-scratch differential suite over the phase1–3 commit chain, and the
+`fleet-cpg-engine-v1-baseline` wall-time/RSS measurement against the four
+Phase 0 repos. The latter wants a driver binary, which is Slice 3's `cpgd`;
+measuring before then means wiring a throwaway harness, so it is sequenced
+after the caller-identity fix rather than before it.
+
 **Slice 2 — Value path.** `cpg-derive` (blast radius, three-valued scope),
 `cpg-packet`, and a minimal `cpgd` binary that can be invoked once per call
 (no persistent socket loop yet) plus a Go-side `internal/analyzer/cpg` that

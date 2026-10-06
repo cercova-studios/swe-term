@@ -158,7 +158,8 @@ impl SnapshotStore {
             for d in read_defs(&self.root.join(&m.defs_file))? {
                 if d.name.is_empty() {
                     defs.retain(|_, old: &mut Def| {
-                        !(old.file == d.file && (d.line_start == 0 || old.line_start == d.line_start))
+                        !(old.file == d.file
+                            && (d.line_start == 0 || old.line_start == d.line_start))
                     });
                 } else {
                     let k = d.key();

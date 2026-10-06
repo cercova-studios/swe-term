@@ -9,7 +9,7 @@ compiled counterpart to `docs/research/papers/<topic>/synthesis.md` and
 the detailed, per-topic and per-experiment record; this is the one place that
 answers "what do we actually know so far, across everything."
 
-Last compiled: 2026-09-20.
+Last compiled: 2026-10-06.
 
 ## 1. Fleet CPG Engine — completed benchmark experiments
 
@@ -97,6 +97,36 @@ carried forward, not resolved by any phase passing: overlay granularity
 (file vs. hunk), freshness enforcement in code, compaction cost at real layer
 depth, heuristic-resolution false-positive rate, L1 schema under a third
 language.
+
+### Fleet CPG Slice 1 — divergence measured 2026-10-06
+
+The Rust engine (4 crates, 14 unit tests) was scaffolded and merged, but its
+tests only covered lowering/store primitives on synthetic input. Nothing
+checked the port against the corpus the nine Phase 0–4 experiments validated.
+A `#[ignore]`d corpus test
+(`engine/cpg-lowering-typescript/tests/corpus.rs`, driven by `CPG_CORPUS`)
+now measures it against zod `5ff9566`:
+
+| | Engine | Python spike | |
+|---|---|---|---|
+| files | 324 | 324 | match |
+| defs | 10,765 | 1,388 | +9,377 (7.8×) |
+| calls | 43,964 | 43,888 | +76 (1.002×) |
+
+Three documented divergences, unequal in kind: (1) defs 7.8× because the
+engine lowers seven node kinds vs the spike's three — the type-level
+additions are an improvement, but `variable_declarator` captures function
+locals and is almost certainly most of the delta, needing an owner decision;
+(2) calls +76 because the spike *dropped* calls whose callee was neither a
+plain identifier nor a member-with-property, so the engine is the more
+complete of the two; (3) **`Call.caller` is not file-scoped — 63.7% of all
+calls (27,993) collapse onto one bare `"<module>"` key.** The store is
+unaffected (`Call::key()` already includes `file`), but Slice 2's blast
+radius is a reverse-BFS over caller names, so a single node holding 64% of
+edges would make everything reachable from everything — precisely what
+`fleet-cpg-phase2-blast-radius-zod` was built to catch, and it validated
+against file-scoped symbol ids. **This is a Slice 2 precondition: Phase 2's
+evidence does not transport to the engine until caller identity is fixed.**
 
 ## 2. Harness mechanism-hypothesis research
 
