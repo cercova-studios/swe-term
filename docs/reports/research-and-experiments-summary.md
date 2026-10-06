@@ -84,7 +84,15 @@ Python output exact vs. ground truth on every rep; hand-verified
 ### Where this goes next
 
 Implementation plan: [`docs/plans/2026-09-05-fleet-cpg-engine-implementation.md`](../plans/2026-09-05-fleet-cpg-engine-implementation.md)
-(Rust engine, sibling Cargo workspace, five gated slices). Open questions
+(Rust engine, sibling Cargo workspace, five gated slices). **Slice 0 done
+2026-09-20**: `internal/core/context_packet.go` defines the `ContextPacket` /
+`Provenance` contract — freshness computed rather than assumed, invariant 11's
+three-valued absence (which requires *both* complete scope and compiler tier,
+so the heuristic tier can never prove non-existence), a `fresh` claim that
+must carry the revisions justifying it, and an `Unavailable` constructor so a
+missing adapter yields honest unknowns instead of an empty success. Stays
+`Target` in §5 — nothing produces a packet yet, same standing as the other
+reducers. Open questions
 carried forward, not resolved by any phase passing: overlay granularity
 (file vs. hunk), freshness enforcement in code, compaction cost at real layer
 depth, heuristic-resolution false-positive rate, L1 schema under a third
@@ -226,6 +234,106 @@ test-function names against the actual test files and running them, not by
 resemblance or session-history inference (which was tried first and came
 back inconclusive — see git log around 2026-09-20 for that dead end).
 
+## 3. Design research — not yet experiments
+
+### 3.1 Test quality and architectural fitness steering (2026-09-20)
+
+Full doc: [`docs/plans/2026-09-20-test-quality-and-architectural-fitness-steering.md`](../plans/2026-09-20-test-quality-and-architectural-fitness-steering.md).
+**No results — this is a proposal.** Four experiments are proposed there and
+none is preregistered yet.
+
+Question: how can swe-term, as a harness, steer agents away from brittle
+mock-heavy tests and from shipping locally-correct patches that compound
+architectural debt?
+
+Findings worth carrying regardless of whether the proposal proceeds:
+
+- Agent over-mocking is empirically documented ([arXiv:2602.00409](https://arxiv.org/abs/2602.00409), MSR 2026).
+- **Prompt interventions on agent test-writing do not significantly change
+  outcomes** ([arXiv:2602.07900](https://arxiv.org/abs/2602.07900)) — so an
+  `AGENTS.md` instruction is the weakest available mechanism. That paper also
+  finds agents use tests mainly as *observational probes* (print statements
+  over assertions), not as specifications.
+- Mutation score beats coverage as a test-quality proxy but is itself
+  contested: correlation with real-bug detection can vanish once suite size is
+  controlled ([arXiv:2607.22880](https://arxiv.org/abs/2607.22880)). Anything
+  we gate on belongs under `evaluator-validity-audit`.
+- Antithesis' own docs rule out naive adoption of deterministic simulation
+  testing for brownfield: the FoundationDB pluggable approach is *"generally
+  impractical for systems already in production"*.
+- The proposal adds **no new invariant** — it gives §5's `Obligation`
+  "minimum V&V rung" the definition it currently lacks, and points the Fleet
+  CPG overlay at debt signals.
+
+**Thoughtworks harness-engineering frame (added 2026-09-20).** Böckeler's
+[*Harness engineering for coding agent users*](https://martinfowler.com/articles/harness-engineering.html)
+(2026-04-02) supplies the vocabulary: `Agent = Model + Harness`, with
+**guides** (feedforward, steer before acting) and **sensors** (feedback,
+observe after, enable self-correction), each either **computational**
+(deterministic) or **inferential** (LLM). Her diagnostic — *"you get either an
+agent that keeps repeating the same mistakes (feedback-only) or an agent that
+encodes rules but never finds out whether they worked (feed-forward-only)"* —
+applied to swe-term yields the most actionable finding so far: **this repo is
+guide-heavy and sensor-poor.** It has a 14-invariant architecture contract, a
+preregistration framework, and explicit testing doctrine, and almost nothing
+that checks whether any of it held. Also imported: Ashby's Law reframes the
+Fleet CPG engine as *the regulator's model of the system* (a regulator can
+only regulate what it has a model of), the brownfield paradox — *"the harness
+is most needed where it is hardest to build"* — and the separation of
+per-change sensors from continuous drift sensors. Counter-evidence kept: she
+calls the current behaviour-harness state of the art, including mutation
+testing, *"not good enough yet"*, which is a direct challenge to this doc's
+own M3.
+
+**Acted on 2026-09-20:** the diagnostic above was closed by one degree —
+`internal/architecture/fitness_test.go` now mechanically enforces five
+dependency rules `ARCHITECTURE.md` previously only asserted in prose (core
+vendor-free per invariant 13, core depends on nothing internal, TUI owns no
+provider semantics, provider adapters don't cross-import, experiment tooling
+is not a second state model). Stdlib only, no new dependency. It carries typed
+feedback and a vacuity guard, and was mutation-tested against itself (inject a
+vendor import into core → the rule fires as expected → revert). The vacuity
+guard caught a real bug in the sensor's own first run. This is swe-term's
+first computational sensor; the repo remains guide-heavy overall.
+
+**Also acted on 2026-09-20:** `internal/core/vv_rung.go` implements the V&V
+rung ladder — six rungs ordered by what class of defect the evidence can
+catch, a closed hand-authored (kind, risk) → minimum-rung policy table where
+absence is a failure rather than a default, and a gate rejecting under-rung
+discharge plus downgrade-by-reclassification (16 trace cases). Invariant 7 is
+made *structural*: there is no event that sets a minimum rung, so "a model may
+never downgrade it" is unreachable rather than merely checked; the remaining
+downgrade vector (relabel the work as lower-risk) is rejected explicitly, and
+escalating the bar invalidates evidence that only cleared the old one. Status
+matches `receipt_gate.go` — a pure reducer, no persistence or runtime loop, so
+`ARCHITECTURE.md` §5 `Obligation` stays `Target`. **What it does not do:**
+assign a rung to real evidence. The reducer is fed one. That remaining
+question is what Experiment 8 was narrowed to.
+
+**Second sensor, same day — continuous drift.** `cmd/drift` covers the other
+half of Böckeler's timing split: it runs outside the change lifecycle and
+reports rather than blocks (`-strict` opts into failing, so CI can adopt the
+ratchet later without changing the tool). Five stdlib-only signals judged
+against a checked-in baseline (`docs/reports/drift-baseline.json`) rather
+than absolute thresholds, because a threshold fails on day one in an existing
+codebase and then gets disabled: exported surface in `internal/`, direct
+dependencies, max package fan-in, debt markers, and test-to-source line ratio
+(the one signal where higher is better). Oracle-tested by injecting drift —
+three signals fired, `-strict` exited 1, revert returned clean. It does *not*
+detect dead code, only surface growth; genuine dead-export detection needs
+cross-package resolution and is the Fleet CPG engine's job.
+
+**Build vs. adopt (§5 of the doc):** `hegel-go` (property-based testing, MIT,
+by Hypothesis' author) and Bombadil (PBT for web **and terminal** UIs — swe-term
+is a TUI) should be **adopted, not rebuilt**; they are commodity-but-deep test
+engines and they implement the rungs of the proposed ladder rather than
+competing with it. What swe-term should build is the **gate** — the
+obligation → rung → receipt layer — because nobody else builds that. Caveats:
+`hegel-go` is v0.9.5 beta and drives a native Rust `libhegel` via FFI, so it
+is a test-path dependency with CI-hermeticity implications, and Go's native
+`testing.F` fuzzing must be measured against it first (proposed experiment
+`hegel-vs-native-fuzzing`).
+
 ## Full citation list
 
 | Paper | HF Papers link | Disposition | Topic packet |
@@ -240,3 +348,10 @@ back inconclusive — see git log around 2026-09-20 for that dead end).
 | Progent | [2504.11703](https://huggingface.co/papers/2504.11703) | reference-only | temporal-journal-monitor |
 | SWE-agent | [2405.15793](https://huggingface.co/papers/2405.15793) | reference-only | (worked example, `docs/research/papers/README.md`) |
 | AutoSaddler | [2608.23041](https://huggingface.co/papers/2608.23041) | defer | (worked example, `docs/research/papers/README.md`) |
+| Hora \& Robbes, *Are Coding Agents Generating Over-Mocked Tests?* | [2602.00409](https://arxiv.org/abs/2602.00409) | experiment-candidate (unfiled) | design research §3.1 |
+| *Rethinking the Value of Agent-Generated Tests* | [2602.07900](https://arxiv.org/abs/2602.07900) | reference-only (falsifies prompt-only fix) | design research §3.1 |
+| Zhao et al., *Do Coverage and Mutation Scores Correlate with Effectiveness?* | [2607.22880](https://arxiv.org/abs/2607.22880) | evaluation challenge | design research §3.1 |
+| *Mutation-Guided LLM-based Test Generation at Meta* | [2501.12862](https://arxiv.org/pdf/2501.12862) | reference-only | design research §3.1 |
+| Böckeler, *Harness engineering for coding agent users* | [martinfowler.com](https://martinfowler.com/articles/harness-engineering.html) | frame-setting | design research §3.1 |
+| Thoughtworks, *Exploring AI coding sensors* | [blog](https://www.thoughtworks.com/en-de/insights/blog/generative-ai/harness-engineering-agent-feedback-exploring-ai-coding-sensors) | reference-only | design research §3.1 |
+| *Approved Fixtures* (Augmented Coding Patterns) | [pattern](https://lexler.github.io/augmented-coding-patterns/patterns/approved-fixtures/) | reference-only | design research §3.1 |

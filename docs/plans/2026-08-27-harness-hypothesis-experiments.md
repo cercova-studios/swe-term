@@ -13,6 +13,7 @@ curated evidence, the remaining four have not.
 | 4 Verified external task state | draft | Hypothesis and model-dependent contract are specified; task corpus and model identity remain open. |
 | 5 Protected-spine compaction | draft | The primary mechanical design is specified; the synthetic corpus remains open. |
 | 6 Evaluator validity audit | draft | Must wait for raw trajectories from earlier experiments and a named judge/annotation plan. |
+| 7–11 Test quality & architectural fitness | proposed | Not preregistered. See [the design research](2026-09-20-test-quality-and-architectural-fitness-steering.md) and the portfolio table below. |
 
 Raw runs for experiments 2 and 3 were executed by hand (the exact manifest
 `variant.command` invocations, logged under ignored `experiments/runs/`); the
@@ -78,7 +79,56 @@ the bounded execution runner remains planned.
 | 6 | Evaluator validity audit | Judge disagreement and variance | Yes | Calibrate the evaluation harness |
 
 Experiments 2 and 3 come before a production tool loop because they test the
-safety state machine without depending on model quality.
+safety state machine without depending on model quality. **Both are now
+complete** (see state table above), which unblocks the sequence below.
+
+### Proposed additions: test quality and architectural fitness
+
+From [`2026-09-20-test-quality-and-architectural-fitness-steering.md`](2026-09-20-test-quality-and-architectural-fitness-steering.md).
+None is preregistered. These target two failure modes the current portfolio
+does not cover: agents writing brittle mock-heavy tests, and agents shipping
+locally-correct patches that compound architectural debt.
+
+| ID | Experiment | Mechanism | Model required? | Promotion decision |
+|---|---|---|---|---|
+| 7 | Debt-signal foresight | Blast radius + change coupling injected *pre-decision* | Yes | Whether `ContextPacket` carries structural-cost signals |
+| 8 | V&V rung **assignment** | Can a rung be assigned to real evidence mechanically, without a judge? | No | Whether rung assignment can be automated or needs a human |
+| 9 | Mutation-gated test quality | Receipt binds to diff-scoped mutation-kill, ratcheted, not coverage | Yes | Which evidence kind discharges a testing obligation |
+| 10 | Reachability-assertion efficacy | "Sometimes"-style evidence that the changed path was actually exercised | Yes | Whether reachability is a required rung component |
+| 11 | Hegel vs. native fuzzing | Does `hegel-go` beat Go's `testing.F` enough to justify a cgo-backed beta dependency | No | Adopt or decline an external PBT engine |
+
+Sequencing note: **8 is the only model-free one and comes first.** Its cost is
+building a hand-labelled corpus of real tests tagged by rung, then checking
+whether mechanical signals (references to unexported symbols, assertions on
+call counts, presence of a mocking library) separate those classes. The corpus
+is the expensive part and may be what kills it.
+(Two earlier revisions of this note were wrong and are corrected here: 7 is
+*not* model-free — it compares agent-produced plans, so it belongs with the
+model-dependent set; and 8 is no longer about extending the `control_monitor`
+corpus, since the deterministic gate it originally covered is already built.)
+9 and 10 depend on 6 (evaluator validity), because both gate on proxies whose
+correlation with real-bug detection is contested
+([arXiv:2607.22880](https://arxiv.org/abs/2607.22880)). 11 is independent and
+decides an adoption question, not an architecture one.
+
+**Already shipped without an experiment, because it needed none:** the
+dependency rules asserted in `ARCHITECTURE.md` §4/§8/§10/§11 are now
+mechanically enforced by `internal/architecture/fitness_test.go` — five rules,
+stdlib only, no new dependency. This is a deterministic check that the
+contract holds, not a falsifiable hypothesis about agent behaviour, so it is
+not an experiment. It is swe-term's first **computational sensor** in
+Böckeler's sense; see the diagnostic in
+[the design research §4](2026-09-20-test-quality-and-architectural-fitness-steering.md).
+
+**Experiment 8 was narrowed on 2026-09-20 after building the deterministic
+half.** `internal/core/vv_rung.go` now implements the rung ladder, the closed
+(kind, risk) → minimum-rung policy table, and a gate that rejects under-rung
+discharge and downgrade-by-reclassification — 16 trace cases, all passing.
+That part needed no experiment: it is a deterministic reducer, like
+Experiments 2 and 3's treatments. What remains genuinely uncertain, and what
+Experiment 8 now tests, is whether a rung can be **assigned to real evidence**
+mechanically — telling an observable-behaviour assertion from a restatement
+of the implementation. The reducer is fed a rung; nothing yet decides it.
 
 ## Experiment 1: Structured verifier feedback
 
@@ -338,13 +388,21 @@ fixes held-out failures without regressing the full evidence-gated suite.
 
 ## Execution sequence
 
-1. Run Experiments 2 and 3 as pure deterministic prototypes.
-2. Freeze the first repair fixtures and run Experiment 1.
-3. Reuse the event and receipt vocabulary for Experiment 4.
-4. Run Experiment 5 before implementing production compaction.
-5. Audit the accumulated trajectories with Experiment 6.
-6. Write one architecture decision per promoted mechanism; rejected hypotheses
+1. ~~Run Experiments 2 and 3 as pure deterministic prototypes.~~ **Done
+   2026-09-20; both accepted with evidence.**
+2. Run Experiments 7 and 8 — the two remaining model-free ones. 8 extends the
+   trace corpus Experiment 3 just validated; 7 reuses the Fleet CPG engine.
+3. Freeze the first repair fixtures and run Experiment 1.
+4. Reuse the event and receipt vocabulary for Experiment 4.
+5. Run Experiment 5 before implementing production compaction.
+6. Audit the accumulated trajectories with Experiment 6.
+7. Run Experiments 9 and 10 only after 6 — both gate on contested proxies and
+   should not be trusted before the evaluator is calibrated.
+8. Write one architecture decision per promoted mechanism; rejected hypotheses
    remain documented with their evidence.
+
+Experiment 11 is independent of this sequence and can run whenever the
+adoption question becomes live.
 
 The stopping point after each experiment is a written decision, not automatic
 implementation. A negative result is useful if its fixtures, traces, and

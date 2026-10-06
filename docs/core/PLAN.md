@@ -16,6 +16,10 @@ Framework synthesis lives in `FRAMEWORKS.md`.
 - Grow with model capability through agent-editable extensions and evidence-based
   removal of obsolete scaffolding; see the
   [agent-editable harness direction](../plans/2026-09-05-agent-editable-harness.md).
+- Make what counts as "done" mechanically checkable, so verification strength is
+  a gate the model can escalate but not downgrade, rather than an instruction it
+  can ignore; see the
+  [test-quality and architectural-fitness direction](../plans/2026-09-20-test-quality-and-architectural-fitness-steering.md).
 
 ## Non-Goals
 
@@ -55,6 +59,20 @@ Done when:
 - Long sessions compact predictably while preserving required task context.
 - Mutating operations are explicit, visible, and policy controlled.
 
+Follow-on target, once obligations and receipts exist in core:
+
+- The **V&V rung ladder** that `Obligation` references but nothing specified
+  (ARCHITECTURE.md §5, invariant 7) now exists as a pure reducer:
+  [`internal/core/vv_rung.go`](../../internal/core/vv_rung.go). Rungs are keyed
+  to what class of defect the evidence can catch, not to a filename, and the
+  closed (kind, risk) → minimum-rung table makes invariant 7 structural —
+  there is no event that lowers a minimum, so downgrade is unreachable rather
+  than merely forbidden. Remaining work is wiring it to a real obligation
+  ledger, and deciding how a rung gets *assigned* to actual evidence.
+- The deterministic enforcement this depends on is already validated:
+  `ApplyControlEvent` and `ApplyReceiptGateEvent`, evidence under
+  [`experiments/evidence/`](../../experiments/evidence/).
+
 ### Phase 3: Extensibility Path
 
 Deliver:
@@ -76,6 +94,18 @@ Follow-on target, after loop, safety, persistence, and extension contracts exist
 - Keep core-loop self-rewrites and autonomous persistent promotion outside this
   first slice. The [design](../plans/2026-09-05-agent-editable-harness.md) defines
   the scope and evidence requirements; no improvement runtime is implemented.
+
+Analyzer/enrichment adapter — the first concrete extension of this kind
+(ARCHITECTURE.md §9, §12 item 6):
+
+- Ship the **Fleet CPG engine** as an out-of-process Rust sidecar (`cpgd`)
+  behind `internal/analyzer/cpg`, producing a `ContextPacket` with explicit
+  source, snapshot version, freshness, and three-valued scope. Five gated
+  slices in the [implementation plan](../plans/2026-09-05-fleet-cpg-engine-implementation.md);
+  nine benchmark experiments already back the design.
+- Its highest-value consumer is structural-cost context: blast radius, change
+  coupling, and duplication delta injected *before* the model decides, which is
+  the one lever against patches that are locally correct and compound debt.
 
 ### Phase 4: Surface Layer
 
@@ -110,6 +140,18 @@ Done when:
 - **Minimal core:** if a feature can be an extension, it should not be in core.
 - **Deterministic safety:** risky actions require explicit policy pathways.
 - **Portability:** backends stay swappable without core rewrites.
+- **Constraints need sensors, not just statements.** A boundary that is only
+  written down is feedforward-only — the agent (or human) "encodes rules but
+  never finds out whether they worked"
+  ([Böckeler](https://martinfowler.com/articles/harness-engineering.html)).
+  Where a contract in `ARCHITECTURE.md` is mechanically checkable, it should
+  have a check. The dependency rules in §4/§8/§10/§11 now do:
+  [`internal/architecture/fitness_test.go`](../../internal/architecture/fitness_test.go)
+  (per-change gate, blocks). Slow-accumulating health is measured separately
+  by [`cmd/drift`](../../cmd/drift) (`just drift`), which runs outside the
+  change lifecycle, ratchets against a checked-in baseline, and reports
+  rather than blocks. Adding a boundary to the architecture contract should
+  come with adding its sensor, or an explicit note on why it can't have one.
 
 ---
 
@@ -124,3 +166,9 @@ See `BACKLOG.md` for tooling and integration candidates.
 - [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md)
 - `FRAMEWORKS.md`
 - `../services/AST_SERVICE_ARCHITECTURE.md`
+- [Research and experiments summary](../reports/research-and-experiments-summary.md) —
+  the compiled digest of every finding and result, with citations
+- [Harness hypothesis experiments](../plans/2026-08-27-harness-hypothesis-experiments.md) —
+  the experiment portfolio and execution sequence
+- [Fleet CPG engine implementation](../plans/2026-09-05-fleet-cpg-engine-implementation.md)
+- [Test quality and architectural fitness steering](../plans/2026-09-20-test-quality-and-architectural-fitness-steering.md)
