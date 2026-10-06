@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "experiment_id": "evidence-gated-lifecycle",
+  "status": "complete",
+  "kind": "mechanism-hypothesis",
+  "papers": [
+    {
+      "title": "Proof-or-Stop: Don't Trust the Agent, Trust the Evidence -- Loop Engineering for Verifiable Evidence-Gated Lifecycle Control",
+      "url": "https://huggingface.co/papers/2607.14890",
+      "claim": "Lifecycle transitions are permitted only when fresh, tracked-source-state-bound, mechanically verifiable evidence satisfies the relevant gate."
+    }
+  ],
+  "design_references": [],
+  "hypothesis": "A sealed passing receipt whose identity exactly matches the current obligation identity prevents false lifecycle promotion when a relevant verification input changes.",
+  "null_hypothesis": "Exact identity binding either fails to distinguish stale evidence from current evidence or rejects an unchanged verification scope unpredictably.",
+  "independent_variable": "Result-only acceptance in the control versus a sealed receipt whose source, verifier, arguments, configuration, runtime, lockfiles, and scope identity must exactly match the current obligation in the treatment.",
+  "source": {
+    "kind": "directory",
+    "locator": "fixtures",
+    "revision": "receipt-trace-corpus-v2",
+    "content_digest": "sha256:85b3ff76efa3a901f738af47ed588f9b910e82557ed1a9c29dbf1412d43e5e32"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "disabled",
+    "network_justification": "",
+    "allowed_env": ["PATH", "HOME", "GOPATH", "GOCACHE", "GOMODCACHE", "GOFLAGS"],
+    "resources": {
+      "timeout_seconds": 300,
+      "max_parallelism": 1,
+      "max_output_bytes": 1048576,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "control",
+      "description": "A test-local baseline permits a lifecycle claim whenever a receipt reports pass, without comparing its identity to current obligation state.",
+      "command": ["go", "test", "./internal/core", "-run", "^TestReceiptGateControlTrace$", "-count=1"],
+      "config": {"identity_gate": false}
+    },
+    {
+      "name": "treatment",
+      "description": "A pure receipt reducer permits a lifecycle claim only when a sealed passing receipt exactly matches current obligation identity.",
+      "command": ["go", "test", "./internal/core", "-run", "^(TestReceiptGateTraces|TestReceiptGateReplayIsByteEquivalent|TestReceiptGateDoesNotMutateInputState)$", "-count=1"],
+      "config": {"identity_gate": true}
+    }
+  ],
+  "repetitions": 1,
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": ""
+  },
+  "metrics": {
+    "primary": "false lifecycle promotions across the frozen deterministic trace corpus",
+    "secondary": ["fresh passing claims accepted", "stale receipt rejections by rule ID", "tampered receipt rejections", "replay determinism"],
+    "acceptance_rule": "The treatment must produce zero false lifecycle promotions, accept every fresh passing trace, reject every stale, missing, failed, and tampered trace with a stable rule ID, and reach byte-equivalent state on replay."
+  },
+  "evaluator": {
+    "kind": "manual",
+    "command": [],
+    "rubric": "Inspect every trace: a lifecycle claim is allowed only with an untampered passing receipt whose identity exactly equals the current obligation identity; stale, missing, and failed receipts are rejected.",
+    "rubric_digest": "sha256:1dee9cc640fc93aab0b6e1a49909660f772730bf507ff1ffa865e47f0f727f63"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/evidence-gated-lifecycle",
+    "curated": "experiments/evidence/evidence-gated-lifecycle"
+  }
+}
