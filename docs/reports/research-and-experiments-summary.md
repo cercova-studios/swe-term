@@ -264,6 +264,48 @@ test-function names against the actual test files and running them, not by
 resemblance or session-history inference (which was tried first and came
 back inconclusive — see git log around 2026-09-20 for that dead end).
 
+- **Correction (2026-10-06): a stated falsifier was reached after
+  `status: complete`.** This manifest's `null_hypothesis` names "has
+  replay-sensitive state" as a falsifier. The reducer had exactly that.
+  `copyControlEvent` stored `Effects` through `append([]string(nil), ...)`,
+  normalising an empty-but-non-nil slice to `nil`, while
+  `controlEventsEqual` compared the field with `reflect.DeepEqual`, which
+  distinguishes the two. An accepted event carrying `Effects: []string{}`
+  was therefore rejected on identical replay with `control.event.sequence`,
+  contradicting the idempotence promised in the `ControlEvent` doc comment.
+  Reproduced before being accepted, not taken on report:
+
+  ```
+  first apply: accepted=true  rule=""
+  replay:      accepted=false rule="control.event.sequence"
+  ```
+
+  All nine pinned examples missed it because every fixture in corpus `v2`
+  builds `Effects` as `nil` or as a populated literal, so the empty-slice
+  shape is unreachable from the corpus. The sha256 lock held — nothing
+  changed silently — but the corpus was never varied on that axis. This is
+  the clearest in-repo evidence for the standing concern that example
+  corpora encode the shapes their author happened to think of.
+
+  Fixed at the comparator with `slices.Equal`, which treats nil and empty as
+  equal and is the single point all callers route through; that also retired
+  the hand-rolled `containsEffect` in favour of `slices.Contains` and dropped
+  the `reflect` import. Covered by
+  `internal/core/control_monitor_replay_test.go`, which enumerates the four
+  shapes the field can take and was confirmed to fail against the unfixed
+  reducer and pass against the fix. Source-only: the pinned test files and
+  their digests are untouched.
+
+  **The experiment record is left at `complete` pending a human decision.**
+  Whether this is "null survived, corpus gap → cut `v3`, re-digest, re-run"
+  or "falsified → reopen the decision" is a grading call the implementer
+  should not make alone. Disclosed in the spec README.
+
+  Found by an adversarial agent briefed to attack five claims this session
+  had made about the test strategy. Its strongest claims about dead code and
+  tautological properties are still open; this one it both called and
+  reproduced.
+
 ## 3. Design research — not yet experiments
 
 ### 3.1 Test quality and architectural fitness steering (2026-09-20)
@@ -367,6 +409,78 @@ is a test-path dependency with CI-hermeticity implications, and Go's native
 - `debt-signal-foresight` (`experiments/specs/debt-signal-foresight/`): benchmark evaluating whether injecting pre-decision CPG blast radius and change-coupling context alters an agent's plan vs. control on brownfield PR tasks, reducing structural debt deltas. Validated and ready.
 - `hegel-vs-native-fuzzing` (`experiments/specs/hegel-vs-native-fuzzing/`): benchmark evaluating whether `hegel-go` detects defect classes in `internal/core` that Go's native `testing.F` does not, justifying a cgo/Rust dependency. Validated and ready.
 
+### 3.2 OpenInference / OpenLLMetry tracing integration (2026-10-06)
+
+Decision informed: which LLM-observability convention swe-term should emit, and
+whether to emit anything at all before an agent loop exists. Delegated research,
+written up in
+[`docs/plans/2026-10-06-openinference-openllmetry-integration-research.md`](../plans/2026-10-06-openinference-openllmetry-integration-research.md).
+**No code landed.** Recommendation only.
+
+**Recommendation: vanilla OpenTelemetry Go with `gen_ai.*`, with the semconv
+import pinned to `v1.41.0`**, supplemented by four OpenInference keys
+(`llm.cost.total/.prompt/.completion`, `llm.invocation_parameters`) for what
+`gen_ai.*` does not model.
+
+Claims were re-verified by the delegating session against downloaded modules in
+`GOMODCACHE` rather than relayed from the report:
+
+| Claim | Verdict | Measured |
+|---|---|---|
+| `gen_ai.*` disappears from Go semconv after v1.41.0 | **confirmed** | distinct `gen_ai.*` attribute strings in `go.opentelemetry.io/otel@v1.47.0`: `v1.40.0` = 51, `v1.41.0` = 57, `v1.42.0` = 0, `v1.43.0` = 0 |
+| `gen_ai.*` defines no cost attribute at any version | **confirmed** | no key matching `cost`/`price`/`usd` under `semconv/v1.41.0` |
+| `OTEL_SDK_DISABLED` is absent from opentelemetry-go | **confirmed** for `otel@v1.47.0` and `otel/sdk@v1.47.0`; not checked in `contrib`/`autoexport` |
+| OpenInference Go semconv module exists | **confirmed** | `v0.1.11`, Apache-2.0 |
+| `usageFromResponse` is a pre-existing bug | **not confirmed — report corrected** | see below |
+
+The pin is the operative finding. GenAI conventions moved out of
+[`open-telemetry/semantic-conventions`](https://github.com/open-telemetry/semantic-conventions)
+into a separate `semantic-conventions-genai` repository that carries no tags yet,
+and the Go codegen went dark as a result. Upgrading the `otel` module is safe;
+the semconv *import path* must stay `v1.41.0` or every `gen_ai.*` constant
+vanishes. Since `OTEL_SDK_DISABLED` does not exist in the Go SDK, off-by-default
+has to be a code decision — which is the correct default for a local CLI anyway.
+
+**Go libraries exist, but the useful part does not fit.**
+[`openinference-semantic-conventions`](https://github.com/Arize-ai/openinference)
+v0.1.11 is real and usable. `openinference-instrumentation-openai-go` is not: it
+pins `openai-go v1.12.0` against this repo's `/v3` module path, and instruments
+only `/v1/chat/completions` middleware rather than the streaming Responses API
+`internal/provider/openai` actually uses. Traceloop's
+[`go-openllmetry`](https://github.com/traceloop/go-openllmetry) has been dormant
+since 2026-01-17 and is vendor-keyed; not a candidate.
+
+**One report claim did not survive verification.** It billed
+`usageFromResponse` as a bug independent of tracing, on the grounds that
+`core.Usage.InputTokens` is uncached-only while both conventions define input
+tokens as cache-inclusive. The mapping hazard is real, but it is not an active
+bug: `costForUsage` (`internal/provider/openai/pricing.go:82`) already
+reconstructs the inclusive total as
+`InputTokens + CachedInputTokens + CacheWriteTokens` for its 272,000-token tier
+test, and prices the three buckets at three distinct rates. The arithmetic is
+correct and the field is documented as uncached-only. It becomes a bug only when
+something emits that field as `gen_ai.usage.input_tokens`. §7 and §8 of the
+report were corrected and an independent-verification appendix appended, so the
+repo does not carry the overstatement.
+
+Worth pulling forward: `semconv/v1.41.0` does define
+`gen_ai.usage.cache_read.input_tokens` and
+`gen_ai.usage.cache_creation.input_tokens`, so this repo's three-way input split
+maps onto the convention 1:1 with no information loss.
+
+**Current disposition: do not build yet.** `ARCHITECTURE.md` §4 records that
+there is no agent loop, so a trace today is a *single span* — a structured log
+with a daemon attached. It would add roughly four direct dependencies against a
+baseline of six, tripping the `direct_dependencies` ratchet that `cmd/drift`
+exists to enforce, in exchange for a dashboard showing one span. The cross-turn
+visibility that justifies tracing arrives with the loop. Staged proposal if and
+when it does: Stage 0 is an owned span-taxonomy constants file plus a shared
+token-reconstruction helper (zero dependencies); Stage 1 a pass-through
+`core.Provider` decorator emitting NDJSON per turn; OTLP export is Stage 2,
+gated on the loop landing.
+
+---
+
 ## Full citation list
 
 | Paper | HF Papers link | Disposition | Topic packet |
@@ -388,3 +502,6 @@ is a test-path dependency with CI-hermeticity implications, and Go's native
 | Böckeler, *Harness engineering for coding agent users* | [martinfowler.com](https://martinfowler.com/articles/harness-engineering.html) | frame-setting | design research §3.1 |
 | Thoughtworks, *Exploring AI coding sensors* | [blog](https://www.thoughtworks.com/en-de/insights/blog/generative-ai/harness-engineering-agent-feedback-exploring-ai-coding-sensors) | reference-only | design research §3.1 |
 | *Approved Fixtures* (Augmented Coding Patterns) | [pattern](https://lexler.github.io/augmented-coding-patterns/patterns/approved-fixtures/) | reference-only | design research §3.1 |
+| OpenTelemetry GenAI semantic conventions | [semantic-conventions](https://github.com/open-telemetry/semantic-conventions) | recommended standard | design research §3.2 |
+| OpenInference (Arize) | [Arize-ai/openinference](https://github.com/Arize-ai/openinference) | partial adoption (cost keys only) | design research §3.2 |
+| OpenLLMetry Go SDK (Traceloop) | [traceloop/go-openllmetry](https://github.com/traceloop/go-openllmetry) | rejected (dormant, vendor-keyed) | design research §3.2 |

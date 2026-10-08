@@ -70,3 +70,33 @@ README, "Corpus revision after run-001").
 - [ ] reject hypothesis
 - [ ] revise the event vocabulary and preregister a new corpus
 - [ ] propose architecture promotion with human approval
+
+## Disclosure: a stated falsifier was reached after `status: complete`
+
+On 2026-10-06, outside the experiment's own corpus, the subject was shown to
+have **replay-sensitive state** — one of the conditions this manifest's
+`null_hypothesis` names explicitly as a falsifier.
+
+`copyControlEvent` stored `Effects` through `append([]string(nil), …)`, which
+normalises an empty-but-non-nil slice to `nil`, while `controlEventsEqual`
+compared the field with `reflect.DeepEqual`, which distinguishes the two. Any
+accepted event carrying `Effects: []string{}` was therefore rejected on an
+identical replay with `control.event.sequence`, contradicting the idempotence
+promised in `control_monitor.go`'s `ControlEvent` doc comment.
+
+The nine pinned examples could not observe this: every fixture in corpus `v2`
+constructs `Effects` as `nil` or as a populated literal, so the empty-slice
+shape is unreachable from the corpus. The lock held — nothing changed
+silently — but the corpus was not varied along that axis.
+
+Fixed at the comparator (`slices.Equal`, which treats nil and empty as equal)
+and covered by `control_monitor_replay_test.go`, which enumerates the four
+shapes the field can take and was confirmed to fail against the unfixed
+reducer. The fix is source-only; the pinned test files and their digests are
+untouched.
+
+**This record is left as-is pending a human decision.** Re-grading a
+`complete` experiment is not a change the implementer should make alone. The
+open question is whether this counts as the null hypothesis surviving with a
+corpus gap (corpus `v3`, re-digest, re-run) or as a falsification that
+reopens the decision above.
