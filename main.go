@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -45,13 +46,17 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%v\n", perr)
 		os.Exit(2)
 	}
-	if err := runOnce(provider, res); err != nil {
+	if err := runOnce(os.Stdout, provider, res); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func runOnce(provider core.Provider, res config.Result) error {
+// runOnce takes its writer so the one-shot path is drivable end to end in a
+// test; main passes os.Stdout. ARCHITECTURE.md §11 asks user-journey tests to
+// assert observable behaviour, which means the rendered bytes have to be
+// reachable without redirecting the process's stdout.
+func runOnce(w io.Writer, provider core.Provider, res config.Result) error {
 	ch, err := provider.Stream(context.Background(), core.StreamRequest{
 		Messages:  []core.Message{{Role: core.RoleUser, Content: res.Query}},
 		Model:     res.Config.Model,
@@ -68,11 +73,11 @@ func runOnce(provider core.Provider, res config.Result) error {
 	if err != nil {
 		return err
 	}
-	fmt.Print(out)
 	if !strings.HasSuffix(out, "\n") {
-		fmt.Print("\n")
+		out += "\n"
 	}
-	return nil
+	_, err = fmt.Fprint(w, out)
+	return err
 }
 
 func newProvider(cfg config.Config) (core.Provider, error) {
