@@ -1,6 +1,6 @@
 package core
 
-import "reflect"
+import "slices"
 
 // ControlRuleID is a stable, machine-readable reason for a rejected event.
 // Rule IDs deliberately name invariants rather than the reducer's implementation.
@@ -176,7 +176,7 @@ func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMo
 			decision = RejectedControlDecision(ControlLeaseRequired)
 			break
 		}
-		if !containsEffect(next.DeclaredEffects, event.Effect) {
+		if !slices.Contains(next.DeclaredEffects, event.Effect) {
 			decision = RejectedControlDecision(ControlEffectUndeclared)
 			break
 		}
@@ -250,20 +250,11 @@ func validDeclaredEffects(effects []string) bool {
 		return false
 	}
 	for index, effect := range effects {
-		if effect == "" || containsEffect(effects[:index], effect) {
+		if effect == "" || slices.Contains(effects[:index], effect) {
 			return false
 		}
 	}
 	return true
-}
-
-func containsEffect(effects []string, target string) bool {
-	for _, effect := range effects {
-		if effect == target {
-			return true
-		}
-	}
-	return false
 }
 
 func controlEventsEqual(left, right ControlEvent) bool {
@@ -277,7 +268,7 @@ func controlEventsEqual(left, right ControlEvent) bool {
 		left.Identity.Equal(right.Identity) &&
 		left.Receipt == right.Receipt &&
 		left.Claim == right.Claim &&
-		reflect.DeepEqual(left.Effects, right.Effects)
+		slices.Equal(left.Effects, right.Effects)
 }
 
 func copyControlEvent(event ControlEvent) ControlEvent {
