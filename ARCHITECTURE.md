@@ -66,13 +66,18 @@ and [`docs/research/`](docs/research/).
 stream into a `Response`, and renders it. The interactive TUI consumes the same
 provider event contract. There is not yet a multi-step tool-using agent loop.
 
+Because there is no loop, a trace of this slice is a single span per turn.
+`internal/telemetry` is in place and exports real `gen_ai.*` spans over OTLP,
+but its cross-turn value arrives with in-flight refactor 1; until then it
+earns its keep as per-turn cost and token attribution, not as a call tree.
+
 ## 5. Domain Types
 
 | Contract | Status | Role | Source or intended home |
 |---|---|---|---|
 | `Message`, `StreamRequest`, `StreamEvent`, `Model` | Implemented | Provider-neutral request and streaming event vocabulary | [`internal/core/provider.go`](internal/core/provider.go) |
 | `Provider` | Implemented | Streams completions and exposes model capabilities | [`internal/core/provider.go`](internal/core/provider.go) |
-| `Usage`, `UsageTotals`, `Response` | Implemented | Provider-reported completion and session accounting | [`internal/core/usage.go`](internal/core/usage.go) |
+| `Usage`, `UsageTotals`, `Response` | Implemented | Provider-reported completion and session accounting. `Usage.InputTokens` is **uncached** input; `gen_ai.usage.input_tokens` is defined cache-inclusive, so exporters must reconstruct the total rather than copy the field | [`internal/core/usage.go`](internal/core/usage.go) |
 | `Tool` | Target | Declares a versioned schema and executes a bounded invocation | [`internal/core/`](internal/core/) |
 | `EffectDeclaration` | Target | Per-invocation paths, processes, network destinations, and secret names | [`internal/core/`](internal/core/) |
 | `SessionStore` | Target | Persists sessions, journal checkpoints, task snapshots, and receipt indexes | [`internal/core/`](internal/core/) |
@@ -135,6 +140,18 @@ may refine their representation without weakening Sections 6 or 10.
 
 - **Provider adapters — implemented.** Add model backends without changing core
   stream semantics.
+- **Observability decorators — implemented.** Wrap any `core.Provider` to emit
+  telemetry without changing stream semantics.
+  [`internal/telemetry`](internal/telemetry) is the first such decorator: it
+  traces each `Stream` call with OpenTelemetry `gen_ai.*` attributes and is a
+  strict pass-through, forwarding every `StreamEvent` unchanged, in order, and
+  exactly once. A decorator here may observe but never repair, reorder,
+  filter, or synthesise an event, because doing so would mask a Section 10
+  invariant violation rather than report it; enforced by
+  `internal/telemetry/provider_test.go`. No OpenTelemetry type enters
+  `internal/core` (invariant 13). Tracing is off unless an OTLP endpoint is
+  configured, so a default local run opens no connection. Design evidence:
+  [`docs/plans/2026-10-06-openinference-openllmetry-integration-research.md`](docs/plans/2026-10-06-openinference-openllmetry-integration-research.md).
 - **Tool adapters — target.** Add bounded actions with the same manifest, effect,
   journal, and receipt contracts in every implementation language.
 - **Analyzer/enrichment adapters — target.** Add pre-model context with explicit
@@ -212,6 +229,14 @@ These are non-negotiable and require mechanical enforcement or tests:
   discovery, source fallback, signal/noise triage, and selection workflow in
   [`docs/research/papers/README.md`](docs/research/papers/README.md). Discovery
   may propose an experiment; it cannot promote a claim into architecture.
+- Architectural drift is sensed continuously by [`cmd/drift`](cmd/drift)
+  against [`docs/reports/drift-baseline.json`](docs/reports/drift-baseline.json).
+  It is a **ratchet, not a threshold**: it blocks new or worsened values rather
+  than enforcing an absolute target. Re-baselining is therefore a deliberate,
+  justified act, never a way to clear a red signal. Every baseline move must
+  name the change that caused it and why the new level is accepted; the record
+  lives in
+  [`docs/reports/research-and-experiments-summary.md`](docs/reports/research-and-experiments-summary.md).
 - Operational failures must retain enough state to resume, explain the failed
   rule, and identify whether retry is safe.
 - Rollback restores versioned session/harness records; it does not erase the

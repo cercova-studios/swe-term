@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"charm.land/glamour/v2"
 
@@ -13,8 +14,14 @@ import (
 	"swe-term/internal/core"
 	"swe-term/internal/provider/mock"
 	openaiprovider "swe-term/internal/provider/openai"
+	"swe-term/internal/telemetry"
 	"swe-term/internal/tui"
 )
+
+// version labels telemetry resources. It is not read from build info because
+// nothing else in the repository reports a version yet; when a release
+// process exists this should come from it.
+const version = "0.0.0-dev"
 
 func main() {
 	res, err := config.Load(os.Args[1:])
@@ -27,7 +34,28 @@ func main() {
 		return
 	}
 
+	// Tracing is off unless an OTLP endpoint is configured, so this is a no-op
+	// for an ordinary local run. A misconfigured endpoint is reported and
+	// fatal rather than ignored: a run that believes it is traced and is not
+	// is the reassuring falsehood ARCHITECTURE.md §10 invariant 12 forbids.
+	shutdownTracing, err := telemetry.Setup(context.Background(), version)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(2)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTracing(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "telemetry: flush failed: %v\n", err)
+		}
+	}()
+
 	provider, perr := newProvider(res.Config)
+	if perr == nil {
+		// Returns the provider unchanged when tracing is off.
+		provider = telemetry.WrapProvider(provider, res.Config.Provider)
+	}
 
 	if res.Query == "" {
 		if err := tui.Run(tui.Options{
@@ -48,7 +76,19 @@ func main() {
 	}
 	if err := runOnce(os.Stdout, provider, res); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		flushTracing(shutdownTracing)
 		os.Exit(1)
+	}
+}
+
+// flushTracing exists because os.Exit does not run deferred functions, so
+// every exit path that reports a failure has to flush the spans describing it
+// before the process dies.
+func flushTracing(shutdown func(context.Context) error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := shutdown(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "telemetry: flush failed: %v\n", err)
 	}
 }
 
