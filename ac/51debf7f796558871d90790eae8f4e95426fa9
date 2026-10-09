@@ -1,0 +1,29 @@
+experiments/specs/temporal-journal-monitor/fixtures/executable-corpus.sha256
+  s_841c2f8acbd867::t_5417d0cbefcdbc 1
+experiments/specs/temporal-journal-monitor/manifest.json
+  s_841c2f8acbd867::t_5417d0cbefcdbc 20-21,27-34,55-65,69-80,84-88,91-97
+docs/reports/research-and-experiments-summary.md
+  s_841c2f8acbd867::t_6c76dae2f5b575 571-596
+  s_841c2f8acbd867::t_f9b762209e37a2 493-534
+  s_841c2f8acbd867::t_137f45d675e8cb 299-324
+experiments/specs/temporal-journal-monitor/README.md
+  s_841c2f8acbd867::t_8981fd42827b99 98-115
+experiments/evidence/temporal-journal-monitor/README.md
+  s_841c2f8acbd867::t_32c67aec6cf705 155-239
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ac51debf7f796558871d90790eae8f4e95426fa9",
+  "prompts": {},
+  "sessions": {
+    "s_841c2f8acbd867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b733d4a-0117-4efb-9b62-94526c10dad9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
