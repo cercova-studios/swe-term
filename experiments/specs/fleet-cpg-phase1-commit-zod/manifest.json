@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "experiment_id": "fleet-cpg-phase1-commit-zod",
+  "status": "complete",
+  "kind": "benchmark",
+  "papers": [],
+  "design_references": [
+    {
+      "title": "Fleet CPG Engine — Phase 1 (Prove the core thesis)",
+      "url": "https://claude.ai/code/artifact/0c277fff-2382-485d-8316-31af8f4179e7",
+      "claim": "Overlay commits must merge into a base snapshot without copying it (O(diff) storage and write cost, not O(repo)), and the merged view must be indistinguishable from a from-scratch full-repo extraction at the same commit, or the COW-overlay design is falsified. fleet-cpg-phase1-overlay-zod measured only the extraction/lowering half of Phase 1; this experiment measures the commit-into-a-store half it explicitly left open."
+    }
+  ],
+  "hypothesis": "A committed overlay layer (defs/calls extracted for only the files a real merged PR touched) merges with a base snapshot, at query time and without copying the base, into a view that is set-identical to a from-scratch full-repo extraction at the PR's head commit -- and overlay storage, commit-write time, and merge-query time all stay small relative to the base snapshot and to full-repo rebuild cost, across PRs of varying diff size.",
+  "null_hypothesis": "The merged view diverges from the from-scratch ground-truth extraction on any bucket or repetition, or overlay storage/write/merge cost approaches the same order of magnitude as the base snapshot or a full-repo rebuild.",
+  "independent_variable": "Which real merged zod PR is committed as an overlay (three buckets by diff size: small, medium, large -- same PRs as fleet-cpg-phase1-overlay-zod for continuity), holding the base snapshot, extractor, source repo, and base revision fixed.",
+  "source": {
+    "kind": "git",
+    "locator": "https://github.com/colinhacks/zod.git",
+    "revision": "b801439b5fb160d651084ff7d7c27a61e24a7334",
+    "content_digest": "sha256:5c20f08b0bc5ce42fd1458c1940218cdbf767f53686ffdfe31a7a4bb409e4005"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "inherit",
+    "network_justification": "git clone of zod from github.com (already materialized from fleet-cpg-baseline-zod / fleet-cpg-phase1-overlay-zod). No other endpoints.",
+    "allowed_env": [
+      "PATH",
+      "HOME",
+      "PYTHON"
+    ],
+    "resources": {
+      "timeout_seconds": 600,
+      "max_parallelism": 1,
+      "max_output_bytes": 4194304,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "small",
+      "description": "Real merged PR #6511 (5ff9566): 2 files, 8 lines changed in packages/zod/src.",
+      "command": [
+        "run_commit.sh",
+        "<run-id>",
+        "small",
+        "5ff9566508e6c95873d2648a5bdcc3a371f1b757"
+      ],
+      "config": {
+        "files_changed": 2,
+        "lines_changed": 8
+      }
+    },
+    {
+      "name": "medium",
+      "description": "Real merged PR #6488 (212b941): 3 files, 38 lines changed in packages/zod/src.",
+      "command": [
+        "run_commit.sh",
+        "<run-id>",
+        "medium",
+        "212b941791e7faae078e17645eb612824fd8f79a"
+      ],
+      "config": {
+        "files_changed": 3,
+        "lines_changed": 38
+      }
+    },
+    {
+      "name": "large",
+      "description": "Real merged PR #5913 (555e5f4): 6 files, 241 lines changed in packages/zod/src.",
+      "command": [
+        "run_commit.sh",
+        "<run-id>",
+        "large",
+        "555e5f46fed0e6ba25ecf931eae96f7b980a6650"
+      ],
+      "config": {
+        "files_changed": 6,
+        "lines_changed": 241
+      }
+    }
+  ],
+  "repetitions": 3,
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": ""
+  },
+  "metrics": {
+    "primary": "defs_match_truth",
+    "secondary": [
+      "calls_match_truth",
+      "commit_write_wall_time_ms",
+      "merge_query_wall_time_ms",
+      "overlay_to_base_bytes_ratio"
+    ],
+    "acceptance_rule": "Accept: every repetition of every bucket has defs_match_truth and calls_match_truth both true, and median overlay_to_base_bytes_ratio stays well under 0.1 (base is not being duplicated). Reject: any correctness mismatch on any repetition, or storage/write/merge cost approaching base-snapshot scale."
+  },
+  "evaluator": {
+    "kind": "command",
+    "command": [
+      "python3",
+      "analyze_results.py"
+    ],
+    "rubric": "Score on: (1) the merged view (base snapshot with untouched files, unioned with the overlay layer for touched files) is byte-for-byte set-equal, on defs and calls, to a from-scratch full-repo extraction at the PR's head commit, across every repetition -- any mismatch is a hard correctness failure of the COW-merge mechanism, not something to average away; (2) overlay storage cost (defs.parquet + calls.parquet for the touched files only) is a small fraction of base snapshot size, confirming the base is never duplicated; (3) commit-write and merge-query wall time stay small in absolute terms (milliseconds, not seconds) so the commit path doesn't reintroduce the O(repo) cost the extraction half already avoided.",
+    "rubric_digest": "sha256:4dc968f584351b2bd4ed955c486574376ecaa18cdf8d5fb1fca130bb870335c1"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/fleet-cpg-phase1-commit-zod",
+    "curated": "experiments/evidence/fleet-cpg-phase1-commit-zod"
+  }
+}

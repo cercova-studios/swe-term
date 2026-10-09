@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+# Git adapter for scripts/check-research-summary.sh: feeds the staged paths
+# to the shared check. Jujutsu has no hooks, so the documented `jj commit`
+# path is covered by `just research-check` and by `just stack` (which runs
+# the same check on every bookmark before pushing).
+#
+# Escape hatch: `git commit --no-verify` or SKIP_RESEARCH_CHECK=1.
+set -eu
+
+git diff --cached --name-only | sh "$(git rev-parse --show-toplevel)/scripts/check-research-summary.sh"

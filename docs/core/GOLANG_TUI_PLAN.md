@@ -1,7 +1,8 @@
 # Harness: A Go Agent Framework (Detailed Reference)
 
 > This document is the long-form architecture rationale and reference.
-> Canonical architecture decisions live in `ARCHITECTURE.md`.
+> Canonical architecture decisions live in the root
+> [`ARCHITECTURE.md`](../../ARCHITECTURE.md).
 
 > *Inspired by [pi-mono](https://github.com/badlogic/pi-mono). Distilled. Faster. Simpler.*
 
