@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -73,17 +72,4 @@ func Setup(ctx context.Context, version string) (func(context.Context) error, er
 	)
 	otel.SetTracerProvider(provider)
 	return provider.Shutdown, nil
-}
-
-// cost returns the cost attribute only when the provider reported one.
-//
-// ARCHITECTURE.md §10 invariant 12: unknown pricing stays explicit and is
-// never converted to a reassuring zero. An absent CostUSD means the model is
-// not in the price table, which is not the same as a free call, so the
-// attribute is omitted rather than set to 0.
-func cost(usd *float64) []attribute.KeyValue {
-	if usd == nil {
-		return nil
-	}
-	return []attribute.KeyValue{attribute.Float64(costTotalUSDKey, *usd)}
 }

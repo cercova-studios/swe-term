@@ -180,13 +180,22 @@ func TestWrapProviderWrapsWhenEndpointIsSet(t *testing.T) {
 // Invariant 12: unknown pricing stays unknown. A model absent from the price
 // table reports no cost, which must not become a cost of zero.
 func TestUnknownCostEmitsNoAttribute(t *testing.T) {
-	if got := cost(nil); got != nil {
-		t.Fatalf("unknown cost produced attributes: %v", got)
+	for _, attr := range usageAttributes(core.Usage{InputTokens: 1}) {
+		if string(attr.Key) == costTotalUSDKey {
+			t.Fatalf("unknown cost emitted %v", attr.Value.AsFloat64())
+		}
 	}
+
 	usd := 0.25
-	got := cost(&usd)
-	if len(got) != 1 || got[0].Key != costTotalUSDKey || got[0].Value.AsFloat64() != usd {
-		t.Fatalf("known cost attribute = %v", got)
+	var got float64
+	found := false
+	for _, attr := range usageAttributes(core.Usage{InputTokens: 1, CostUSD: &usd}) {
+		if string(attr.Key) == costTotalUSDKey {
+			got, found = attr.Value.AsFloat64(), true
+		}
+	}
+	if !found || got != usd {
+		t.Fatalf("known cost = %v (found=%v), want %v", got, found, usd)
 	}
 }
 
