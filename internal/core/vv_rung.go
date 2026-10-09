@@ -168,44 +168,23 @@ func NewVVGateState() VVGateState {
 	return VVGateState{Obligations: make(map[string]ObligationRecord)}
 }
 
-type VVGateViolation struct {
-	RuleID  string
-	Message string
-}
-
-func (violation *VVGateViolation) Error() string {
-	return violation.RuleID + ": " + violation.Message
-}
-
-func vvViolation(ruleID, message string) *VVGateViolation {
-	return &VVGateViolation{RuleID: ruleID, Message: message}
-}
-
-func cloneVVGateState(state VVGateState) VVGateState {
-	next := NewVVGateState()
-	for key, value := range state.Obligations {
-		next.Obligations[key] = value
-	}
-	return next
-}
-
 // ApplyVVGateEvent applies one closed V&V-gate transition. Unknown policy,
 // risk downgrade, and under-rung discharge all fail closed and return the
 // original state unchanged.
-func ApplyVVGateEvent(state VVGateState, event VVGateEvent) (VVGateState, *VVGateViolation) {
+func ApplyVVGateEvent(state VVGateState, event VVGateEvent) (VVGateState, *GateViolation) {
 	if event.ObligationID == "" {
-		return state, vvViolation("vv.obligation_missing", "every event must name an obligation")
+		return state, gateViolation("vv.obligation_missing", "every event must name an obligation")
 	}
-	next := cloneVVGateState(state)
+	next := VVGateState{Obligations: cloneOrEmpty(state.Obligations)}
 
 	switch event.Kind {
 	case VVDeclareObligation:
 		if _, exists := next.Obligations[event.ObligationID]; exists {
-			return state, vvViolation("vv.obligation_exists", "obligation is already declared")
+			return state, gateViolation("vv.obligation_exists", "obligation is already declared")
 		}
 		minimum, ok := MinimumRung(event.Obligation, event.Risk)
 		if !ok {
-			return state, vvViolation("vv.policy_unknown",
+			return state, gateViolation("vv.policy_unknown",
 				fmt.Sprintf("no hand-authored policy for kind %q at risk %q; add a policy row rather than defaulting",
 					event.Obligation, event.Risk))
 		}
@@ -217,21 +196,21 @@ func ApplyVVGateEvent(state VVGateState, event VVGateEvent) (VVGateState, *VVGat
 	case VVReclassify:
 		record, exists := next.Obligations[event.ObligationID]
 		if !exists {
-			return state, vvViolation("vv.obligation_unknown", "cannot reclassify an undeclared obligation")
+			return state, gateViolation("vv.obligation_unknown", "cannot reclassify an undeclared obligation")
 		}
 		minimum, ok := MinimumRung(event.Obligation, event.Risk)
 		if !ok {
-			return state, vvViolation("vv.policy_unknown", "no hand-authored policy for the requested classification")
+			return state, gateViolation("vv.policy_unknown", "no hand-authored policy for the requested classification")
 		}
 		// Reclassification is the real downgrade vector: lowering risk, or
 		// switching to a laxer kind, would lower the bar after the fact.
 		// Invariant 7 permits escalation only.
 		if riskOrder[event.Risk] < riskOrder[record.Risk] {
-			return state, vvViolation("vv.risk_downgrade",
+			return state, gateViolation("vv.risk_downgrade",
 				fmt.Sprintf("risk may be escalated but never downgraded (%s -> %s)", record.Risk, event.Risk))
 		}
 		if minimum < record.MinimumRung {
-			return state, vvViolation("vv.rung_downgrade",
+			return state, gateViolation("vv.rung_downgrade",
 				fmt.Sprintf("reclassification would lower the required rung (%s -> %s)",
 					record.MinimumRung, minimum))
 		}
@@ -247,13 +226,13 @@ func ApplyVVGateEvent(state VVGateState, event VVGateEvent) (VVGateState, *VVGat
 	case VVSubmitEvidence:
 		record, exists := next.Obligations[event.ObligationID]
 		if !exists {
-			return state, vvViolation("vv.obligation_unknown", "cannot submit evidence for an undeclared obligation")
+			return state, gateViolation("vv.obligation_unknown", "cannot submit evidence for an undeclared obligation")
 		}
 		if !event.EvidenceRung.Valid() {
-			return state, vvViolation("vv.rung_invalid", "evidence rung is outside the closed ladder")
+			return state, gateViolation("vv.rung_invalid", "evidence rung is outside the closed ladder")
 		}
 		if event.EvidenceRung < record.MinimumRung {
-			return state, vvViolation("vv.rung_insufficient",
+			return state, gateViolation("vv.rung_insufficient",
 				fmt.Sprintf("evidence at rung %s does not satisfy required rung %s for %s/%s",
 					event.EvidenceRung, record.MinimumRung, record.Kind, record.Risk))
 		}
@@ -268,10 +247,10 @@ func ApplyVVGateEvent(state VVGateState, event VVGateEvent) (VVGateState, *VVGat
 	case VVClaimDischarged:
 		record, exists := next.Obligations[event.ObligationID]
 		if !exists {
-			return state, vvViolation("vv.obligation_unknown", "cannot discharge an undeclared obligation")
+			return state, gateViolation("vv.obligation_unknown", "cannot discharge an undeclared obligation")
 		}
 		if !record.Satisfied {
-			return state, vvViolation("vv.undischarged",
+			return state, gateViolation("vv.undischarged",
 				fmt.Sprintf("obligation requires rung %s and has no satisfying evidence", record.MinimumRung))
 		}
 		record.Discharged = true
@@ -279,6 +258,6 @@ func ApplyVVGateEvent(state VVGateState, event VVGateEvent) (VVGateState, *VVGat
 		return next, nil
 
 	default:
-		return state, vvViolation("vv.event_unknown", fmt.Sprintf("unsupported event kind %q", event.Kind))
+		return state, gateViolation("vv.event_unknown", fmt.Sprintf("unsupported event kind %q", event.Kind))
 	}
 }

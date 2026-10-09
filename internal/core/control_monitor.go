@@ -201,7 +201,7 @@ func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMo
 		}
 		next.CurrentReceipt = event.Receipt
 	case ControlLifecycleClaimed:
-		if event.Claim != ClaimVerified && event.Claim != ClaimDone && event.Claim != ClaimReadyToMerge {
+		if !validLifecycleClaim(event.Claim) {
 			decision = RejectedControlDecision(ControlEventInvalid)
 			break
 		}
