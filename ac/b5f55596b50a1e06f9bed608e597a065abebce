@@ -1,0 +1,14 @@
+.gitignore
+  h_f55e8856ec8c19 52-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "acb5f55596b50a1e06f9bed608e597a065abebce",
+  "prompts": {},
+  "humans": {
+    "h_f55e8856ec8c19": {
+      "author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}

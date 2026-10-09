@@ -1,0 +1,21 @@
+internal/telemetry/provider.go
+  s_841c2f8acbd867::t_f69d2bbee783cc 9-17,25-33,54,62-63,66-69,107-108,119-120,128-132,135-141,143
+internal/telemetry/provider_test.go
+  s_841c2f8acbd867::t_2aa9d8b73cf017 183-186,188,190-198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "02b0c65262771b0c8b6c8746f730faf669b8b36f",
+  "prompts": {},
+  "sessions": {
+    "s_841c2f8acbd867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b733d4a-0117-4efb-9b62-94526c10dad9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
