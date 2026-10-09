@@ -296,10 +296,32 @@ back inconclusive — see git log around 2026-09-20 for that dead end).
   reducer and pass against the fix. Source-only: the pinned test files and
   their digests are untouched.
 
-  **The experiment record is left at `complete` pending a human decision.**
-  Whether this is "null survived, corpus gap → cut `v3`, re-digest, re-run"
-  or "falsified → reopen the decision" is a grading call the implementer
-  should not make alone. Disclosed in the spec README.
+  **Re-graded 2026-10-08 on corpus `v3`.** Decided as "null survived, corpus
+  gap" rather than "falsified": the four ordering rules were never wrong, the
+  corpus could not express the shape that broke replay. The record was
+  reopened to `preregistered` (`experimentctl` refuses a result-producing run
+  at `complete`), corpus `v3` was cut adding
+  `control_monitor_replay_test.go` to the pinned lock and the new test to the
+  `treatment` command, the fixtures were re-digested
+  (`sha256:6bd4b6cf…6e016`), the preregistration gate was re-passed, both
+  variants ran as `run-003`, and the status returned to `complete`.
+
+  `run-003` includes `falsification-prefix-comparator.log`: the treatment
+  command against the **pre-fix** comparator, everything else held at the
+  post-fix tree, exiting 1 on the `empty` shape. A corpus row that cannot
+  fail proves nothing, so the new row was checked for discriminating power
+  instead of assumed to have it; the other eight corpus tests pass in both
+  configurations, localising the row's power to the defect it covers.
+
+  **A second gap surfaced during the regrade: there is no `run-002`.** The v2
+  rows were recorded in the manifest, and this report and the evidence README
+  both said they needed a recorded `run-002` before counting as results. That
+  run never happened, so the earlier `complete` rested on `run-001` against
+  corpus **v1**. The new run is numbered `run-003` to keep that visible
+  rather than quietly filling the hole. The substantive decision is
+  unchanged — a bounded durable-journal follow-up, not an architecture
+  promotion — but it now rests on a corpus that was run and that
+  discriminates.
 
   Found by an adversarial agent briefed to attack five claims this session
   had made about the test strategy. Its strongest claims about dead code and
@@ -468,7 +490,48 @@ Worth pulling forward: `semconv/v1.41.0` does define
 `gen_ai.usage.cache_creation.input_tokens`, so this repo's three-way input split
 maps onto the convention 1:1 with no information loss.
 
-**Current disposition: do not build yet.** `ARCHITECTURE.md` §4 records that
+**Disposition changed 2026-10-08: built.** The research below recommended
+deferring, and that recommendation was overridden by an explicit instruction
+after the objection was raised. What landed: `internal/telemetry`, a
+pass-through `core.Provider` decorator emitting `gen_ai.*` spans over OTLP,
+off unless an endpoint is configured. Verified end to end against a local
+OTLP receiver — one POST, 861 bytes, carrying `gen_ai.operation.name`,
+`gen_ai.provider.name`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`,
+`gen_ai.usage.output_tokens`, `gen_ai.usage.cache_read.input_tokens`,
+`swe_term.reasoning_effort`, the span name `chat mock-model`, and the
+`swe-term` service resource. `llm.cost.total` was correctly **absent**:
+`mock-model` is not in the price table, so cost is unknown and the attribute
+is omitted rather than emitted as zero (invariant 12).
+
+Two findings that only the end-to-end export could produce:
+
+1. **The pin bites at the resource.** `resource.Default()` is built against
+   the SDK's newest schema (1.43.0 at otel v1.47.0) while the `gen_ai.*`
+   attributes are pinned to 1.41.0, and `resource.Merge` refuses two different
+   non-empty schema URLs. The run failed with `conflicting Schema URL`. Fixed
+   with `resource.NewSchemaless` for the service attributes, letting the merge
+   adopt the default's schema. No unit test over attribute mapping could have
+   seen this, because none of them builds a resource.
+2. **The sensor was reading a stale `go.mod`.** `go get` parked the otel
+   modules in the indirect block, so `direct_dependencies` still read 6 while
+   four new direct dependencies were in use. `go mod tidy` made it honest and
+   the signal moved to 10. A dependency ratchet that reads `go.mod` rather
+   than the import graph under-reports until someone tidies.
+
+The pass-through guarantee is enforced, not asserted:
+`internal/telemetry/provider_test.go` compares the decorated event sequence
+against the inner one for seven stream shapes — including malformed ones
+(duplicate completion, text after completion, missing completion) that the
+decorator must forward *unrepaired*, because masking them would hide an
+invariant 1 violation instead of surfacing it — and checks that
+`core.CollectResponse` returns the identical verdict and error text with and
+without tracing. Both oracles were mutation-tested: injecting an error-swallow
+and a completion-dedupe into the decorator each failed two independent tests.
+
+The original recommendation and its reasoning are kept below, because the cost
+it named was real and was paid.
+
+**Original disposition: do not build yet.** `ARCHITECTURE.md` §4 records that
 there is no agent loop, so a trace today is a *single span* — a structured log
 with a daemon attached. It would add roughly four direct dependencies against a
 baseline of six, tripping the `direct_dependencies` ratchet that `cmd/drift`
@@ -505,3 +568,29 @@ gated on the loop landing.
 | OpenTelemetry GenAI semantic conventions | [semantic-conventions](https://github.com/open-telemetry/semantic-conventions) | recommended standard | design research §3.2 |
 | OpenInference (Arize) | [Arize-ai/openinference](https://github.com/Arize-ai/openinference) | partial adoption (cost keys only) | design research §3.2 |
 | OpenLLMetry Go SDK (Traceloop) | [traceloop/go-openllmetry](https://github.com/traceloop/go-openllmetry) | rejected (dormant, vendor-keyed) | design research §3.2 |
+
+---
+
+## 4. Drift-baseline moves
+
+`cmd/drift` is a ratchet, not a threshold (ARCHITECTURE.md §11), so each
+baseline move is recorded here with the change that caused it. A move without
+a justification in this table should be treated as a signal someone cleared a
+red number rather than accepted a cost.
+
+### 2026-10-08 — OpenTelemetry instrumentation
+
+| Signal | Before | After | Why accepted |
+|---|---|---|---|
+| `direct_dependencies` | 6 | 10 | `go.opentelemetry.io/otel`, `/otel/trace`, `/otel/sdk`, `/otel/exporters/otlp/otlptrace/otlptracehttp`. Exactly the four-dependency cost the research in §3.2 predicted and argued against; built anyway on an explicit instruction after that objection was raised and reaffirmed. This is the single largest supply-chain increase the repository has taken. |
+| `internal_exported_decls` | 145 | 147 | Net of two changes: the gate collapse removed 3 (`ReceiptGateViolation`, `VVGateViolation`, and one constructor, replaced by one `GateViolation`), and `internal/telemetry` added 5. The telemetry package exports only `Setup`, `WrapProvider`, and the `Provider` type; its whole span taxonomy is unexported, which cut this delta from +21 to +2 on review. |
+| `max_package_fan_in` | 4 | 5 | `internal/core` gained one dependent, `internal/telemetry`. Structural and expected: a decorator over `core.Provider` must depend on core. The hub is still core, which is the intended shape. |
+
+`test_to_source_line_ratio` improved 0.576 → 0.614 and `debt_markers` stayed
+at 0 across the same change.
+
+**What was not done to make these numbers smaller.** The pass-through test
+suite was not trimmed, the dependencies were not vendored to disguise the
+count, and nothing was moved out of `internal/` to dodge the exported-decl
+signal. The one legitimate reduction available — unexporting the span
+taxonomy, since nothing outside the package reads it — was taken.

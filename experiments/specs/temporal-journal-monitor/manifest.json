@@ -17,14 +17,21 @@
   "source": {
     "kind": "directory",
     "locator": "fixtures",
-    "revision": "temporal-monitor-trace-corpus-v2",
-    "content_digest": "sha256:9cb353fea951c0320dcc5e91263e0ab59a5945838bb7cf394966c4942e67e0fc"
+    "revision": "temporal-monitor-trace-corpus-v3",
+    "content_digest": "sha256:6bd4b6cffcdd2fa59e22597a6de89914f6003121943b7277bafdc2846596e016"
   },
   "environment": {
     "adapter": "process",
     "network": "disabled",
     "network_justification": "",
-    "allowed_env": ["PATH", "HOME", "GOPATH", "GOCACHE", "GOMODCACHE", "GOFLAGS"],
+    "allowed_env": [
+      "PATH",
+      "HOME",
+      "GOPATH",
+      "GOCACHE",
+      "GOMODCACHE",
+      "GOFLAGS"
+    ],
     "resources": {
       "timeout_seconds": 300,
       "max_parallelism": 1,
@@ -45,21 +52,49 @@
     {
       "name": "control",
       "description": "The agreement trace: the same passed receipt, recorded against the target it was produced for, authorizes the lifecycle claim through ApplyControlEvent. An outcome-only gate would also authorize it after the target changed; the treatment shows the reducer does not.",
-      "command": ["go", "test", "./internal/core", "-run", "^TestControlMonitorControlTrace$", "-count=1"],
-      "config": {"event_monitor": false}
+      "command": [
+        "go",
+        "test",
+        "./internal/core",
+        "-run",
+        "^TestControlMonitorControlTrace$",
+        "-count=1"
+      ],
+      "config": {
+        "event_monitor": false
+      }
     },
     {
       "name": "treatment",
-      "description": "A pure closed-event reducer enforces approval, lease, effect, receipt, cancellation, and replay rules across the whole frozen trace corpus: the stale-receipt contrast trace plus every legal, illegal, retention, replay, and bounds trace the primary metric counts.",
-      "command": ["go", "test", "./internal/core", "-run", "^(TestControlMonitorTreatmentTrace|TestControlMonitorLegalTrace|TestControlMonitorRejectsIllegalTracesWithStableRules|TestControlMonitorRetainsFailedReceipt|TestControlMonitorRepeatedTargetKeepsReceipt|TestControlMonitorReplayDuplicateAndSequenceRules|TestControlMonitorPrefixReplayMatchesUninterruptedTrace|TestControlMonitorBoundsEffectDeclaration)$", "-count=1"],
-      "config": {"event_monitor": true}
+      "description": "A pure closed-event reducer enforces approval, lease, effect, receipt, cancellation, and replay rules across the whole frozen trace corpus: the stale-receipt contrast trace plus every legal, illegal, retention, replay, and bounds trace the primary metric counts. Corpus v3 adds the replay-shape row that v2 could not express: every fixture built Effects as nil or as a populated literal, so the empty-but-non-nil slice that broke replay idempotence was unreachable.",
+      "command": [
+        "go",
+        "test",
+        "./internal/core",
+        "-run",
+        "^(TestControlMonitorTreatmentTrace|TestControlMonitorLegalTrace|TestControlMonitorRejectsIllegalTracesWithStableRules|TestControlMonitorRetainsFailedReceipt|TestControlMonitorRepeatedTargetKeepsReceipt|TestControlMonitorReplayDuplicateAndSequenceRules|TestControlMonitorPrefixReplayMatchesUninterruptedTrace|TestControlMonitorBoundsEffectDeclaration|TestControlEventReplayIsIdempotentAcrossEffectsShapes)$",
+        "-count=1"
+      ],
+      "config": {
+        "event_monitor": true
+      }
     }
   ],
   "repetitions": 1,
-  "randomness": {"mode": "deterministic", "seeds": [], "justification": ""},
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": ""
+  },
   "metrics": {
     "primary": "illegal treatment traces accepted across the frozen deterministic corpus",
-    "secondary": ["legal trace acceptance", "stable rejection rule IDs", "immediate replay idempotence", "prefix replay equality", "bounded declared-effect state"],
+    "secondary": [
+      "legal trace acceptance",
+      "stable rejection rule IDs",
+      "immediate replay idempotence",
+      "prefix replay equality",
+      "bounded declared-effect state"
+    ],
     "acceptance_rule": "Treatment must accept every legal trace, reject every frozen illegal trace with a stable rule ID, produce identical terminal state after prefix replay, and accept zero unsafe lifecycle promotions."
   },
   "evaluator": {

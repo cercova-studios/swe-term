@@ -95,8 +95,21 @@ shapes the field can take and was confirmed to fail against the unfixed
 reducer. The fix is source-only; the pinned test files and their digests are
 untouched.
 
-**This record is left as-is pending a human decision.** Re-grading a
-`complete` experiment is not a change the implementer should make alone. The
-open question is whether this counts as the null hypothesis surviving with a
-corpus gap (corpus `v3`, re-digest, re-run) or as a falsification that
-reopens the decision above.
+**Resolved 2026-10-08: re-graded on corpus `v3`.** The decision was taken as
+"null hypothesis survives, corpus gap" rather than "falsified": the reducer's
+rules were never wrong, the corpus simply could not express the shape that
+broke replay. The record was reopened to `preregistered`, corpus `v3` was cut
+adding `TestControlEventReplayIsIdempotentAcrossEffectsShapes` to the pinned
+lock and the `treatment` command, the preregistration gate was re-passed, both
+variants were run as `run-003`, and the status returned to `complete`.
+
+A second gap surfaced during the regrade: there is no `run-002`. The v2 rows
+were recorded in the manifest but never executed, so the previous
+`status: complete` rested on `run-001` against corpus **v1**. The v3 run is
+numbered `run-003` to keep that visible.
+
+The new row was checked for discriminating power, not assumed to have it: it
+fails against the pre-fix comparator and passes against the fix, with the
+other eight corpus tests passing in both configurations. See
+[`experiments/evidence/temporal-journal-monitor/`](../../evidence/temporal-journal-monitor/),
+section "Regrade on corpus v3".

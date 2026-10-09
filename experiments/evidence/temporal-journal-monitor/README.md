@@ -152,3 +152,88 @@ results until a `run-002` against v2 is recorded here.
 This is a mechanism-hypothesis experiment; promoting `ApplyControlEvent`
 into an architectural invariant or a `Target` → `Implemented` contract
 change is a separate human decision this evidence bundle does not make.
+
+---
+
+## Regrade on corpus v3 (2026-10-08)
+
+**Status: re-graded `complete` on `temporal-monitor-trace-corpus-v3`
+(`sha256:6bd4b6cffcdd2fa59e22597a6de89914f6003121943b7277bafdc2846596e016`),
+which pins `internal/core/control_monitor_test.go` and
+`internal/core/control_monitor_replay_test.go`.**
+
+### Why the record was reopened
+
+The v2 manifest's `null_hypothesis` names "has replay-sensitive state" as a
+falsifier. The reducer had exactly that. `copyControlEvent` stored `Effects`
+through `append([]string(nil), ...)`, normalising an empty-but-non-nil slice
+to `nil`, while `controlEventsEqual` compared the field with
+`reflect.DeepEqual`, which distinguishes the two. An accepted event carrying
+`Effects: []string{}` was rejected on identical replay:
+
+```
+first apply: accepted=true  rule=""
+replay:      accepted=false rule="control.event.sequence"
+```
+
+Every fixture in v1 and v2 built `Effects` as `nil` or as a populated
+literal, so the empty-slice shape was unreachable from the corpus. The
+sha256 lock held — nothing changed silently — but the corpus was never
+varied on that axis.
+
+### Two gaps found, not one
+
+1. **The falsifier was reachable and unobserved** (above). Fixed at the
+   comparator with `slices.Equal`, which treats nil and empty as equal, in
+   commit `fed174d`.
+2. **The v2 rows were never run.** `experiments/runs/temporal-journal-monitor/`
+   contains `run-001` and now `run-003`; there is no `run-002`. The v2
+   corpus revision was recorded in the manifest and the "Corpus revision
+   after run-001" note above explicitly says the v2 rows "need a recorded
+   `run-002` before they count as results" — that run never happened. So the
+   v2 `status: complete` rested on `run-001`, executed against corpus **v1**.
+   This run is numbered `run-003` rather than `run-002` to avoid implying it
+   is the missing v2 run.
+
+### Corpus v3
+
+Adds one row the earlier corpora could not express:
+`TestControlEventReplayIsIdempotentAcrossEffectsShapes` enumerates the four
+shapes `Effects` can take (nil, empty, one, several) and asserts that an
+accepted event replays idempotently and leaves state unchanged for each. It
+is now listed in the manifest's `treatment` command and pinned by
+`fixtures/executable-corpus.sha256`.
+
+### Raw runs
+
+`experiments/runs/temporal-journal-monitor/run-003/` —
+
+| Log | Command | Result |
+|---|---|---|
+| `control.log` | manifest `control` variant, `-v` added | exit 0 |
+| `treatment.log` | manifest `treatment` variant, `-v` added | exit 0, 43 RUN/PASS lines |
+| `falsification-prefix-comparator.log` | the same `treatment` command against the **pre-fix** comparator, everything else held at the post-fix tree | **exit 1**, as intended |
+
+The third log is the one that matters. A corpus row that cannot fail proves
+nothing, so the v3 row was checked for discriminating power rather than
+assumed to have it: it fails against the unfixed reducer with
+`control.event.sequence` on the `empty` shape and passes against the fix.
+The other eight corpus tests pass in both configurations, which localises
+the new row's power to exactly the defect it was added for.
+
+### Verdict
+
+**Hypothesis accepted on v3 evidence; the v2 acceptance is superseded.** A
+closed deterministic reducer does mechanically protect the target ordering
+invariants, and now also replays idempotently across every shape its event
+fields can take. The decision recorded in the spec README is unchanged in
+substance — accept a bounded durable-journal follow-up, not an architecture
+promotion — but it now rests on a corpus that was run and that is known to
+discriminate.
+
+What this episode is evidence *for*, beyond the reducer: an example corpus
+encodes the shapes its author thought of. Nine hand-written traces, a
+cryptographic lock, and a passing suite did not notice a two-valued axis
+(nil versus empty) on a field the comparator read. That is the standing
+argument for property-shaped rows over additional examples, recorded here
+because it was paid for rather than argued.
