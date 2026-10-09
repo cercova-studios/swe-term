@@ -1,0 +1,48 @@
+internal/telemetry/provider_test.go
+  s_841c2f8acbd867::t_3ed1ed02caf87f 1-58,60-187,189-193,195-196,198-212
+  s_841c2f8acbd867::t_27c371425b09ad 59,197
+  s_841c2f8acbd867::t_25958ddc8b5777 188,194
+internal/telemetry/otel.go
+  s_841c2f8acbd867::t_a5211b02af8947 1-15,17-27,29-41,43-50,59-60,62-87,89
+  s_841c2f8acbd867::t_e228c1675d2256 51-58,61
+  s_841c2f8acbd867::t_25958ddc8b5777 16,28,42,88
+ARCHITECTURE.md
+  s_841c2f8acbd867::t_8e128005a8862d 143-154
+  s_841c2f8acbd867::t_89d8dddfaf27dc 69-73,80
+  s_841c2f8acbd867::t_6c76dae2f5b575 232-239
+docs/reports/drift-baseline.json
+  s_841c2f8acbd867::t_c88f00c65d44f0 2,5-8
+main.go
+  s_841c2f8acbd867::t_248d050a55721b 9,17,37-52,79,84-91
+  s_841c2f8acbd867::t_f5a1df40e9323b 21-25,55-58,92
+  s_841c2f8acbd867::t_cbfc22c9343e50 53,93-94
+internal/telemetry/provider.go
+  s_841c2f8acbd867::t_360da3eb69a037 25-27
+  s_841c2f8acbd867::t_e4e52372420872 128-129
+  s_841c2f8acbd867::t_25958ddc8b5777 33,48,51-55,111-113,119-120,130-133,136
+  s_841c2f8acbd867::t_8bc7c6cfafe031 1-24,28-32,34-47,49-50,56-110,114-118,121-127,134-135,137-139
+go.mod
+  s_841c2f8acbd867::t_dcef36e1c30cca 3,22-23,34-36,38,51-63
+  s_841c2f8acbd867::t_f2b665450a611d 12-15
+internal/telemetry/attributes.go
+  s_841c2f8acbd867::t_ae54e57b6cfdbc 1-28,39-48,55-56,59,61,63
+  s_841c2f8acbd867::t_25958ddc8b5777 29-38,49-54,57-58,60,62
+go.sum
+  s_841c2f8acbd867::t_895a4242cbc3fa 21-24,47-57,60-61,78-79,98-121,124-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dfda7ca2debd914137142b426689ff1c74c324cf",
+  "prompts": {},
+  "sessions": {
+    "s_841c2f8acbd867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b733d4a-0117-4efb-9b62-94526c10dad9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
