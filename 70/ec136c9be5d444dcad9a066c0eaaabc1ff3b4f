@@ -1,0 +1,21 @@
+ARCHITECTURE.md
+  s_055735bab1a062::t_fec2dc4c547ac1 42-49,248-252
+docs/core/MECHANISM_LEDGER.md
+  s_055735bab1a062::t_e062fea33d45ca 1-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "70ec136c9be5d444dcad9a066c0eaaabc1ff3b4f",
+  "prompts": {},
+  "sessions": {
+    "s_055735bab1a062": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "54c72f4b-7425-45f8-be3e-3a802d0089e4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Rohit Nair <6954311+rnair98@users.noreply.github.com>"
+    }
+  }
+}
