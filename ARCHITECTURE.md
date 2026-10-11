@@ -39,6 +39,14 @@ and [`docs/research/`](docs/research/).
 - Separate agent infrastructure from product surface concerns.
 - Optimize for debuggability, replay, and predictable rollback.
 - Spend complexity only on correctness or a measured operational constraint.
+- The harness owns authority, state, and ground truth; the model owns
+  cognition. Boundaries (approval, effect declarations, confinement, the
+  control journal, receipts, provenance, budgets) are durable core contracts.
+  Cognitive aids (planning scaffolds, prompt structure, reflection loops,
+  per-model edit formats, summary-based compaction) are optional, configured
+  per model, and expire when an ablation shows no lift. The core never imposes
+  a fixed plan/act/reflect structure on the loop. The register is
+  [`docs/core/MECHANISM_LEDGER.md`](docs/core/MECHANISM_LEDGER.md).
 
 ## 4. System Shape and Boundaries
 
@@ -237,6 +245,11 @@ These are non-negotiable and require mechanical enforcement or tests:
   name the change that caused it and why the new level is accepted; the record
   lives in
   [`docs/reports/research-and-experiments-summary.md`](docs/reports/research-and-experiments-summary.md).
+- Every harness mechanism has a row in
+  [`docs/core/MECHANISM_LEDGER.md`](docs/core/MECHANISM_LEDGER.md). A cognitive
+  aid needs a `mechanism-hypothesis` ablation before it ships by default and is
+  re-ablated when a supported model changes; a boundary is measured for the
+  friction it costs, not for whether it should exist.
 - Operational failures must retain enough state to resume, explain the failed
   rule, and identify whether retry is safe.
 - Rollback restores versioned session/harness records; it does not erase the
