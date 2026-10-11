@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "experiment_id": "fleet-cpg-phase3-differential-zod",
+  "status": "complete",
+  "kind": "benchmark",
+  "papers": [],
+  "design_references": [
+    {
+      "title": "Fleet CPG Engine — Phase 3 (Prove steady-state operation)",
+      "url": "https://claude.ai/code/artifact/0c277fff-2382-485d-8316-31af8f4179e7",
+      "claim": "Replace full re-index on push with differential base maintenance -- a delta fixpoint over standing relations. Golden-query differential tests must pass: incremental result equals from-scratch result, on every query, after every push, with zero exceptions carved out. This is the base indexer's own correctness bar, tested for the first time as a sequence of real pushes rather than a single update -- Phases 1 and 2 held the base fixed and only tested one overlay against it."
+    }
+  ],
+  "hypothesis": "Walking a real 7-commit chain on zod's own history (every commit touching packages/zod/src), maintaining one base snapshot incrementally step by step with no full re-scan after the initial build, both the L1 facts (defs, calls) and an L2 blast-radius relation computed on the incrementally-maintained base match a from-scratch full extraction at every single step, with per-step update cost that does not grow across the chain.",
+  "null_hypothesis": "Any step's incrementally-maintained facts or blast-radius relation diverge from a from-scratch extraction at that commit, or per-step update cost grows as the chain progresses (indicating the base is not staying O(diff) per step, e.g. because of an accumulating error or a full-scan leaking in).",
+  "independent_variable": "Chain length -- short-chain (3 commits, 2 steps) vs. full-chain (7 commits, 6 steps), both real prefixes of the same zod commit sequence -- holding the extractor, merge mechanism, and blast-radius relation fixed. Each variant repeated 3 times to check the whole chain replays deterministically.",
+  "source": {
+    "kind": "git",
+    "locator": "https://github.com/colinhacks/zod.git",
+    "revision": "84e416fbf4740527bbc8f319634f4e1b065bb42c",
+    "content_digest": "sha256:a40aad7dbfdb4fe7a387e1ba82235193579e0e146d15f11e37884fcff0594002"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "inherit",
+    "network_justification": "git clone of zod from github.com (already materialized from earlier fleet-cpg-* experiments). No other endpoints.",
+    "allowed_env": [
+      "PATH",
+      "HOME",
+      "PYTHON"
+    ],
+    "resources": {
+      "timeout_seconds": 900,
+      "max_parallelism": 1,
+      "max_output_bytes": 4194304,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "short-chain",
+      "description": "First 3 commits of the same real chain, oldest to newest: 0a69bcb3 (4.5.0) -> 8e033805 (4.5.1) -> 212b9417 (#6488). One init + 2 incremental steps per repetition. A comparison point against full-chain to check per-step cost doesn't depend on chain length.",
+      "command": [
+        "run_phase3.sh",
+        "<run-id>",
+        "short-chain"
+      ],
+      "config": {
+        "chain_length": 3,
+        "steps": 2
+      }
+    },
+    {
+      "name": "full-chain",
+      "description": "Real 7-commit chain on zod's own history, oldest to newest, every commit touching packages/zod/src: 0a69bcb3 (4.5.0) -> 8e033805 (4.5.1) -> 212b9417 (#6488) -> 9a193aa2 (4.5.2) -> eab51ff3 (#6497) -> 1a16102a (4.5.3) -> 84e416fb (#6500). One init + 6 incremental steps per repetition.",
+      "command": [
+        "run_phase3.sh",
+        "<run-id>",
+        "full-chain"
+      ],
+      "config": {
+        "chain_length": 7,
+        "steps": 6
+      }
+    }
+  ],
+  "repetitions": 3,
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": ""
+  },
+  "metrics": {
+    "primary": "all_steps_correct_all_reps",
+    "secondary": [
+      "incremental_update_wall_time_ms",
+      "defs_match_truth",
+      "calls_match_truth",
+      "blast_radius_match_truth"
+    ],
+    "acceptance_rule": "Accept: every step of every repetition has defs_match_truth, calls_match_truth, and blast_radius_match_truth all true, and median incremental_update_wall_time_ms does not trend upward across the 6 steps (a late step should cost about the same as an early one). Reject: any single mismatch anywhere in the chain, or a clear upward trend in per-step update cost."
+  },
+  "evaluator": {
+    "kind": "command",
+    "command": [
+      "python3",
+      "analyze_results.py"
+    ],
+    "rubric": "Score on: (1) every step of every repetition -- 6 steps per rep, walking a real 7-commit chain -- has both L1 facts (defs, calls) and the L2 blast-radius relation computed on the incrementally-maintained base matching a from-scratch full extraction at that same commit exactly; one mismatch anywhere fails the run, not just that step, since a real differential base carries a wrong state forward rather than self-healing; (2) incremental update cost per step stays small and does not grow across the chain -- a step late in the chain should cost about the same as a step early in it, since each step's cost is a function of that push's diff size, not the chain's length or the base's accumulated size; (3) the base is never fully re-scanned after the initial build -- each step's extractor call is scoped to only that push's changed files, verified structurally from the driver's own arguments, not just asserted.",
+    "rubric_digest": "sha256:ce73511475bc1b3eb8723d62556ded12138afd36c27f09ea63f3953d07a22fb8"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/fleet-cpg-phase3-differential-zod",
+    "curated": "experiments/evidence/fleet-cpg-phase3-differential-zod"
+  }
+}

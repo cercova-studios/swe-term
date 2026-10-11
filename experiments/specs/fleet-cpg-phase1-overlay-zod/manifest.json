@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "experiment_id": "fleet-cpg-phase1-overlay-zod",
+  "status": "complete",
+  "kind": "benchmark",
+  "papers": [],
+  "design_references": [
+    {
+      "title": "Fleet CPG Engine \u2014 Phase 1 (Prove the core thesis)",
+      "url": "https://claude.ai/code/artifact/0c277fff-2382-485d-8316-31af8f4179e7",
+      "claim": "Overlay build cost (re-extracting facts for only the files a PR touches) must be proportional to diff size, not repo size, or the O(diff)-per-PR architecture is falsified. This is the fact-store-spike measurement of that claim: a minimal tree-sitter-to-Parquet extractor over zod, run full-repo once as a baseline and per-PR (small/medium/large real merged zod PRs) as the overlay."
+    }
+  ],
+  "hypothesis": "Overlay build wall time (re-extracting defs/calls facts for only the files changed by a real merged PR) is at least an order of magnitude lower than full-repo build wall time, for real zod PRs of varying diff size (small/medium/large), and does not grow with total repo size (324 files) the way a full rebuild does.",
+  "null_hypothesis": "Overlay build wall time is within the same order of magnitude as full-repo build wall time, or grows with the PR's position in a large repo rather than with the files it actually touches.",
+  "independent_variable": "Which real merged zod PR is materialized (three buckets by diff size: small ~2 files/8 lines, medium ~3 files/38 lines, large ~6 files/241 lines), holding the extractor, source repo, and base revision fixed.",
+  "source": {
+    "kind": "git",
+    "locator": "https://github.com/colinhacks/zod.git",
+    "revision": "b801439b5fb160d651084ff7d7c27a61e24a7334",
+    "content_digest": "sha256:5c20f08b0bc5ce42fd1458c1940218cdbf767f53686ffdfe31a7a4bb409e4005"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "inherit",
+    "network_justification": "git clone of zod from github.com (already materialized from fleet-cpg-baseline-zod) and, once, a GitHub REST API call to list recent merged PRs to pick real diff-size buckets. No other endpoints.",
+    "allowed_env": [
+      "PATH",
+      "HOME",
+      "PYTHON"
+    ],
+    "resources": {
+      "timeout_seconds": 600,
+      "max_parallelism": 1,
+      "max_output_bytes": 4194304,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "small",
+      "description": "Real merged PR #6511 (5ff9566): 2 files, 8 lines changed in packages/zod/src.",
+      "command": [
+        "run_overlay.sh",
+        "<run-id>",
+        "small",
+        "5ff9566508e6c95873d2648a5bdcc3a371f1b757"
+      ],
+      "config": {
+        "files_changed": 2,
+        "lines_changed": 8
+      }
+    },
+    {
+      "name": "medium",
+      "description": "Real merged PR #6488 (212b941): 3 files, 38 lines changed in packages/zod/src.",
+      "command": [
+        "run_overlay.sh",
+        "<run-id>",
+        "medium",
+        "212b941791e7faae078e17645eb612824fd8f79a"
+      ],
+      "config": {
+        "files_changed": 3,
+        "lines_changed": 38
+      }
+    },
+    {
+      "name": "large",
+      "description": "Real merged PR #5913 (555e5f4): 6 files, 241 lines changed in packages/zod/src.",
+      "command": [
+        "run_overlay.sh",
+        "<run-id>",
+        "large",
+        "555e5f46fed0e6ba25ecf931eae96f7b980a6650"
+      ],
+      "config": {
+        "files_changed": 6,
+        "lines_changed": 241
+      }
+    }
+  ],
+  "repetitions": 3,
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": ""
+  },
+  "metrics": {
+    "primary": "extract_wall_time_ms",
+    "secondary": [
+      "files_changed",
+      "lines_changed",
+      "defs_extracted",
+      "calls_extracted",
+      "full_repo_baseline_wall_time_ms"
+    ],
+    "acceptance_rule": "Accept: median overlay extract_wall_time_ms for every bucket is at least 10x lower than the median full-repo baseline. Reject: any bucket's overlay time approaches the same order of magnitude as the full-repo baseline, or overlay time correlates with total repo file count rather than files/bytes actually touched."
+  },
+  "evaluator": {
+    "kind": "command",
+    "command": [
+      "python3",
+      "analyze_results.py"
+    ],
+    "rubric": "Score on: (1) every bucket's median overlay extract_wall_time_ms is at least an order of magnitude below the full-repo baseline median \u2014 the core O(diff) claim; (2) overlay time correlates with files_changed and/or the total size of the touched files, not with lines_changed alone (a large-diff/few-files PR should not necessarily cost more than a small-diff/many-files one) and not with total repo size; (3) defs/calls counts are stable across repetitions of the same bucket on a pinned revision \u2014 instability would indicate the extractor itself is nondeterministic; (4) any extraction error is a hard failure, not averaged away.",
+    "rubric_digest": "sha256:d53e423157b47702748e672dd5c5f6f6e7cd31fc025c7c4cfb36dbd081ff68ef"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/fleet-cpg-phase1-overlay-zod",
+    "curated": "experiments/evidence/fleet-cpg-phase1-overlay-zod"
+  }
+}

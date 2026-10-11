@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "experiment_id": "fleet-cpg-phase2-blast-radius-zod",
+  "status": "complete",
+  "kind": "benchmark",
+  "papers": [],
+  "design_references": [
+    {
+      "title": "Fleet CPG Engine — Phase 2 (Prove the value path)",
+      "url": "https://claude.ai/code/artifact/0c277fff-2382-485d-8316-31af8f4179e7",
+      "claim": "PR event -> overlay -> impact-set relation -> materialized packet served to a stub agent must run end to end, with no manual step standing in for a missing component, before anything downstream (Phase 3's differential maintenance, Phase 4's second language) is built on top of it. This is the first full traversal of the value path: it chains fleet-cpg-phase1-overlay-zod's extraction and fleet-cpg-phase1-commit-zod's commit/merge mechanisms, adds the L2 blast-radius relation neither Phase 1 spike built, and materializes the file-tree context packet the harness's progressive-disclosure doctrine calls for."
+    }
+  ],
+  "hypothesis": "For a real merged zod PR, the full pipeline (base snapshot at the PR's true parent, overlay extraction and commit, query-time merge, reverse-call-graph blast radius, context-packet materialization, stub-agent readback) completes end to end without manual intervention, the materialized packet round-trips as a plain file tree, and end-to-end wall time stays small (order of 1 second or less) at zod's scale.",
+  "null_hypothesis": "Any stage requires a manual step or fails to compose with the next, the packet does not round-trip (readback count diverges from the computed impact set), or end-to-end wall time is large enough to threaten the harness's context-readiness SLO even at this small scale.",
+  "independent_variable": "Which real merged zod PR drives the pipeline -- the same three buckets as both Phase 1 spikes (small, medium, large), holding the pipeline stages, extractor, and source repo fixed.",
+  "source": {
+    "kind": "git",
+    "locator": "https://github.com/colinhacks/zod.git",
+    "revision": "b801439b5fb160d651084ff7d7c27a61e24a7334",
+    "content_digest": "sha256:5c20f08b0bc5ce42fd1458c1940218cdbf767f53686ffdfe31a7a4bb409e4005"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "inherit",
+    "network_justification": "git clone of zod from github.com (already materialized from earlier fleet-cpg-* experiments). No other endpoints.",
+    "allowed_env": [
+      "PATH",
+      "HOME",
+      "PYTHON"
+    ],
+    "resources": {
+      "timeout_seconds": 600,
+      "max_parallelism": 1,
+      "max_output_bytes": 4194304,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "small",
+      "description": "Real merged PR #6511 (5ff9566): 2 files, 8 lines changed in packages/zod/src.",
+      "command": [
+        "run_phase2.sh",
+        "<run-id>",
+        "small",
+        "5ff9566508e6c95873d2648a5bdcc3a371f1b757"
+      ],
+      "config": {
+        "files_changed": 2,
+        "lines_changed": 8
+      }
+    },
+    {
+      "name": "medium",
+      "description": "Real merged PR #6488 (212b941): 3 files, 38 lines changed in packages/zod/src.",
+      "command": [
+        "run_phase2.sh",
+        "<run-id>",
+        "medium",
+        "212b941791e7faae078e17645eb612824fd8f79a"
+      ],
+      "config": {
+        "files_changed": 3,
+        "lines_changed": 38
+      }
+    },
+    {
+      "name": "large",
+      "description": "Real merged PR #5913 (555e5f4): 6 files, 241 lines changed in packages/zod/src.",
+      "command": [
+        "run_phase2.sh",
+        "<run-id>",
+        "large",
+        "555e5f46fed0e6ba25ecf931eae96f7b980a6650"
+      ],
+      "config": {
+        "files_changed": 6,
+        "lines_changed": 241
+      }
+    }
+  ],
+  "repetitions": 3,
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": ""
+  },
+  "metrics": {
+    "primary": "end_to_end_wall_time_ms",
+    "secondary": [
+      "packet_round_trips",
+      "impact_set_size",
+      "max_bfs_depth",
+      "blast_radius_compute_wall_time_ms",
+      "packet_materialize_wall_time_ms"
+    ],
+    "acceptance_rule": "Accept: every repetition of every bucket completes end to end with packet_round_trips true and no manual intervention, and median end_to_end_wall_time_ms stays under 1000ms at this repo's scale. Reject: any repetition fails to complete, any packet fails to round-trip, or end-to-end time is large enough to be a visible latency risk at this small scale."
+  },
+  "evaluator": {
+    "kind": "command",
+    "command": [
+      "python3",
+      "analyze_results.py"
+    ],
+    "rubric": "Score on: (1) the pipeline runs end to end with no manual step standing in for a missing component -- PR event (merge-commit SHA) in, materialized context packet out, on every repetition; (2) the packet round-trips as a plain file tree (impact-set.json readback count equals the computed impact set, README present and non-empty) with no special client required, per the harness's progressive-disclosure doctrine; (3) end-to-end wall time and its per-stage breakdown are reported honestly, including which stage dominates -- a first realistic latency number for the value path, not the Phase 1 micro-benchmarks; (4) the blast-radius computation is inspected by hand on the small bucket against the actual zod source, since no independent ground truth exists for this relation at this scale (unlike Phase 1's defs/calls correctness check) -- documented as a spot check, not a statistical claim.",
+    "rubric_digest": "sha256:0d7d04feaaa032686462f0c65f06e6eaf3e00873189b8c60534cc48b2c62b8af"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/fleet-cpg-phase2-blast-radius-zod",
+    "curated": "experiments/evidence/fleet-cpg-phase2-blast-radius-zod"
+  }
+}

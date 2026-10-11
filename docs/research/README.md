@@ -1,29 +1,20 @@
 # Research Docs
 
-Deep-dive and critique evidence packs used to inform architectural decisions.
+swe-term keeps only its own research decisions here. General, source-derived
+knowledge (paper findings, harness architecture notes) lives in the
+`source-insights` library at `~/.agents/knowledge/sources/`; entry IDs are
+cited where they are used.
 
-## Framework Analyses
+## Paper discovery
 
-- [`CLAUDE_DEEP_DIVE.md`](CLAUDE_DEEP_DIVE.md)
-- [`CLAUDE_CODE_CRITIQUE.md`](CLAUDE_CODE_CRITIQUE.md)
-- [`CODEX_DEEP_DIVE.md`](CODEX_DEEP_DIVE.md)
-- [`CODEX_CRITIQUE.md`](CODEX_CRITIQUE.md)
-- [`PI_MONO_DEEP_DIVE.md`](PI_MONO_DEEP_DIVE.md)
-- [`PI_MONO_CRITIQUE.md`](PI_MONO_CRITIQUE.md)
-- [`FLUE_DEEP_DIVE.md`](FLUE_DEEP_DIVE.md)
-- [`FLUE_CRITIQUE.md`](FLUE_CRITIQUE.md)
-- [`DEEPAGENTS_DEEP_DIVE.md`](DEEPAGENTS_DEEP_DIVE.md)
-- [`DEEPAGENTS_CRITIQUE.md`](DEEPAGENTS_CRITIQUE.md)
-- [`PRIME_AGENT_DEEP_DIVE.md`](PRIME_AGENT_DEEP_DIVE.md)
-- [`PRIME_AGENT_CRITIQUE.md`](PRIME_AGENT_CRITIQUE.md)
-- [`DEEPSEEK_HARNESS_DEEP_DIVE.md`](DEEPSEEK_HARNESS_DEEP_DIVE.md)
-- [`DEEPSEEK_HARNESS_CRITIQUE.md`](DEEPSEEK_HARNESS_CRITIQUE.md)
-- [`OH_MY_PI_DEEP_DIVE.md`](OH_MY_PI_DEEP_DIVE.md)
-- [`OH_MY_PI_CRITIQUE.md`](OH_MY_PI_CRITIQUE.md)
+- [`papers/README.md`](papers/README.md) — Hugging Face Papers discovery,
+  signal/noise triage, extraction, synthesis, and experiment handoff contract
+- [`papers/templates/`](papers/templates/) — search plan, paper note, and
+  cross-paper synthesis templates
 
-## Code intelligence engines
+## Harness and engine verdicts
 
-- [`JOERN_DEEP_DIVE.md`](JOERN_DEEP_DIVE.md)
-- [`JOERN_CRITIQUE.md`](JOERN_CRITIQUE.md) — Rust rewrite vs CPG-lite sidecar vs wrap
-
-Use [`../core/FRAMEWORKS.md`](../core/FRAMEWORKS.md) first for agent frameworks; use these docs for detailed evidence.
+- [`../core/FRAMEWORKS.md`](../core/FRAMEWORKS.md) — compressed port/avoid matrix
+- [`../core/HARNESS_VERDICTS.md`](../core/HARNESS_VERDICTS.md) — per-harness
+  verdicts for pi, Codex, Claude Code, opencode, oh-my-pi, Prime Agent,
+  DeepSeek Harness, Flue, Deep Agents, and Joern

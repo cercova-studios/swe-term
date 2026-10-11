@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "experiment_id": "fleet-cpg-phase4-second-language",
+  "status": "complete",
+  "kind": "benchmark",
+  "papers": [],
+  "design_references": [
+    {
+      "title": "Fleet CPG Engine — Phase 4 (Prove generality)",
+      "url": "https://claude.ai/code/artifact/0c277fff-2382-485d-8316-31af8f4179e7",
+      "claim": "Add language #2 and watch the lowering layer, not the feature. Exit: language #2 requires zero changes below the lowering layer. Any change there means the IR boundary is wrong -- fix it now, not after five languages have calcified around the mistake. This experiment makes that mechanically checkable: a single shared core.py (store I/O, COW/LSM merge, L2 blast radius, packet materialization) is finalized against TypeScript first, then a Python lowering module is added, and core.py's sha256 is compared before and after."
+    }
+  ],
+  "hypothesis": "A shared, language-agnostic core (store I/O, merge, blast radius, packet materialization) built and finalized against a TypeScript lowering module requires zero source changes to also support a Python lowering module on a real merged fastapi PR -- core.py's sha256 hash is bitwise identical whether the pipeline runs TypeScript or Python, and both produce facts that exactly match a from-scratch extraction at their respective commits.",
+  "null_hypothesis": "Supporting Python requires any change to core.py (a different hash across runs, or a hash that no longer matches the file on disk), or either language's extracted facts diverge from a from-scratch ground-truth extraction.",
+  "independent_variable": "Which lowering module drives the shared core -- typescript (zod, reproducing fleet-cpg-phase2-blast-radius-zod's small bucket as a regression check) vs. python (a real merged fastapi PR, genuinely new) -- holding core.py, the merge mechanism, and the blast-radius relation fixed.",
+  "source": {
+    "kind": "git",
+    "locator": "https://github.com/colinhacks/zod.git",
+    "revision": "5ff9566508e6c95873d2648a5bdcc3a371f1b757",
+    "content_digest": "sha256:5c20f08b0bc5ce42fd1458c1940218cdbf767f53686ffdfe31a7a4bb409e4005"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "inherit",
+    "network_justification": "git clone of zod and fastapi from github.com (fastapi already materialized from fleet-cpg-baseline-fastapi; zod from earlier fleet-cpg-* experiments). No other endpoints.",
+    "allowed_env": [
+      "PATH",
+      "HOME",
+      "PYTHON",
+      "PYTHONPATH"
+    ],
+    "resources": {
+      "timeout_seconds": 600,
+      "max_parallelism": 1,
+      "max_output_bytes": 4194304,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "typescript",
+      "description": "zod @ 5ff9566 (same small-bucket PR #6511 as fleet-cpg-phase2-blast-radius-zod) through core.py + lowering_typescript.py. A regression check: must reproduce that experiment's exact small-bucket numbers (merged_defs=1388, merged_calls=43888, impact_set_size=0).",
+      "command": [
+        "run_phase4.sh",
+        "<run-id>",
+        "typescript"
+      ],
+      "config": {
+        "source_locator": "https://github.com/colinhacks/zod.git",
+        "source_revision": "5ff9566508e6c95873d2648a5bdcc3a371f1b757"
+      }
+    },
+    {
+      "name": "python",
+      "description": "fastapi @ d623544 (real merged PR #16105, 'Fix support for background tasks and headers from dependencies in app.frontend()', 1 file / 22 lines in fastapi/routing.py) through the identical core.py + a new lowering_python.py. The genuinely new case.",
+      "command": [
+        "run_phase4.sh",
+        "<run-id>",
+        "python"
+      ],
+      "config": {
+        "source_locator": "https://github.com/fastapi/fastapi.git",
+        "source_revision": "d62354434b2e508fe89024213b220ca8e67dea5e",
+        "source_content_digest": "sha256:ef12eeab5598f196e46705ec0c840260b4ed436ea196aadf68f077581359db2b"
+      }
+    }
+  ],
+  "repetitions": 3,
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": ""
+  },
+  "metrics": {
+    "primary": "core_py_sha256",
+    "secondary": [
+      "defs_match_truth",
+      "calls_match_truth",
+      "merged_defs",
+      "merged_calls",
+      "impact_set_size"
+    ],
+    "acceptance_rule": "Accept: core_py_sha256 is identical across every repetition of both variants and matches the current core.py file on disk, the typescript variant reproduces fleet-cpg-phase2-blast-radius-zod's small-bucket numbers exactly, and the python variant's defs/calls match a from-scratch extraction on every repetition. Reject: any hash divergence, any correctness mismatch, or a typescript-variant number that fails to reproduce the prior experiment's result."
+  },
+  "evaluator": {
+    "kind": "command",
+    "command": [
+      "python3",
+      "analyze_results.py"
+    ],
+    "rubric": "Score on: (1) core.py's sha256 hash is identical across every TypeScript and every Python run, and matches the actual core.py file on disk at evaluation time -- not merely agreeing with itself, which would pass even if core.py had been silently edited after the recorded runs; this is the agnosticism gate's mechanical test, standing in for \"language #2 requires zero changes below the lowering layer\"; (2) the TypeScript variant reproduces fleet-cpg-phase2-blast-radius-zod's small-bucket numbers exactly (merged_defs=1388, merged_calls=43888, impact_set_size=0) as a regression check that refactoring the shared logic into core.py did not change behavior; (3) the Python variant, on a real merged fastapi PR, has defs and calls that exactly match a from-scratch extraction at that commit, proving the new lowering module is correct on real code, not just structurally present; (4) any single failure on either check -- a hash mismatch or a correctness mismatch -- fails the whole gate, since either one falsifies the IR-boundary claim this phase exists to test.",
+    "rubric_digest": "sha256:52acc0362e339126c57d9a9080b88cc0a810e112becc78ae7e87cfda368186f2"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/fleet-cpg-phase4-second-language",
+    "curated": "experiments/evidence/fleet-cpg-phase4-second-language"
+  }
+}

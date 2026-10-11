@@ -1,0 +1,37 @@
+{
+  "n_rows": 54,
+  "errors": [],
+  "unstable_result_counts": {},
+  "process_wall_time_ms": {
+    "cold_median": 7254,
+    "warm_median": 7611,
+    "cold_all": [
+      7254,
+      7184,
+      7323
+    ],
+    "warm_all": [
+      8028,
+      7611,
+      7570
+    ]
+  },
+  "acceptance_rule_met": false,
+  "cold_build": [
+    {
+      "run": "experiments/runs/fleet-cpg-baseline-fastapi/run-001/artifacts/cold_build.log",
+      "wall_time_s": 1.57,
+      "peak_rss_bytes": 328105984
+    },
+    {
+      "run": "experiments/runs/fleet-cpg-baseline-fastapi/run-002/artifacts/cold_build.log",
+      "wall_time_s": 1.55,
+      "peak_rss_bytes": 327876608
+    },
+    {
+      "run": "experiments/runs/fleet-cpg-baseline-fastapi/run-003/artifacts/cold_build.log",
+      "wall_time_s": 1.7,
+      "peak_rss_bytes": 328564736
+    }
+  ]
+}

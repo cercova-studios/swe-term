@@ -1,7 +1,8 @@
 # Harness: A Go Agent Framework (Detailed Reference)
 
 > This document is the long-form architecture rationale and reference.
-> Canonical architecture decisions live in `ARCHITECTURE.md`.
+> Canonical architecture decisions live in the root
+> [`ARCHITECTURE.md`](../../ARCHITECTURE.md).
 
 > *Inspired by [pi-mono](https://github.com/badlogic/pi-mono). Distilled. Faster. Simpler.*
 
@@ -1780,7 +1781,7 @@ This project teaches through building. Each module exercises specific engineerin
 
 ## Anti-Patterns: What NOT to Do
 
-*Derived from analysis of Claude Code (~512K LoC). See `../research/CLAUDE_CODE_CRITIQUE.md` for the full evaluation.*
+*Derived from analysis of Claude Code (~512K LoC). See `HARNESS_VERDICTS.md` § Claude Code for the current verdict.*
 
 These are explicit guardrails for Harness development. Each anti-pattern was observed in a production system and represents a trap that seems reasonable at first.
 
@@ -1847,8 +1848,8 @@ Claude Code maintains a ~15K-line custom Ink fork (layout engine, reconciler, ev
 - [extensions/swe_distiller/ARCHITECTURE.md](../../extensions/swe_distiller/ARCHITECTURE.md) — Native extraction service wrapped by `cli/distiller`
 - [claw-code](../../claw-code/) — Rust agent port in this repo: mock parity harness, permission modes, typed events/reports, RAG sidecar, lean `claw-analog`. See `claw-code/rust/PARITY.md`, `claw-code/rust/MOCK_PARITY_HARNESS.md`, `claw-code/docs/g004-events-reports-contract.md`.
 - [flue](../../flue/) — Local reference copy (gitignored) of [withastro/flue](https://github.com/withastro/flue): headless harness on pi-mono, sandbox tiers, instance/harness/session API, structured `prompt` results, `flue run` / HTTP deploy. Read `flue/README.md`, `flue/packages/runtime/src/session.ts`, `flue/packages/runtime/src/compaction.ts`, `flue/packages/runtime/src/result.ts`.
-- [Deep Agents](https://github.com/langchain-ai/deepagents) — LangChain's middleware-over-LangGraph harness; the survey's strongest *organizational* reference (composition, pluggable backends, FS-as-overflow, thin ACP/Harbor adapters). Local checkout at `../../deepagents`. See `../research/DEEPAGENTS_DEEP_DIVE.md` and `../research/DEEPAGENTS_CRITIQUE.md`.
-- [Claude Code](https://github.com/anthropics/claude-code) — Anthropic's production agentic CLI. Studied for permission system, tool orchestration, compaction, and startup patterns. See `../research/CLAUDE_CODE_CRITIQUE.md` and `../research/CLAUDE_DEEP_DIVE.md`.
+- [Deep Agents](https://github.com/langchain-ai/deepagents) — LangChain's middleware-over-LangGraph harness; the survey's strongest *organizational* reference (composition, pluggable backends, FS-as-overflow, thin ACP/Harbor adapters). Local checkout at `../../deepagents`. See `HARNESS_VERDICTS.md#deep-agents`.
+- [Claude Code](https://github.com/anthropics/claude-code) — Anthropic's production agentic CLI. Studied for permission system, tool orchestration, compaction, and startup patterns. See `HARNESS_VERDICTS.md#claude-code`.
 - [Aider](https://github.com/Aider-AI/aider) — Repository map and AST-based code analysis patterns
 - [OpenAI Codex CLI](https://github.com/openai/codex) — Agent-client protocol design
 

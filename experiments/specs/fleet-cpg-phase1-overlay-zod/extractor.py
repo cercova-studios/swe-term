@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""Phase 1 fact-store spike: tree-sitter -> lowering -> columnar (Parquet)
+facts for TypeScript, scoped to zod's own vocabulary.
+
+Deliberately minimal L1 schema (two tables, not the full design doc set):
+  defs(symbol_id, file, kind, name, start_line, end_line)
+  calls(caller_symbol_id, callee_name, file, call_line)
+
+`refs` (every identifier use) is out of scope for this spike: the thing
+being tested is whether overlay-build cost tracks diff size, and defs+calls
+is enough surface to measure that honestly without building a production
+fact schema. Callee resolution is name-based only (heuristic tier, per the
+design doc's tree-sitter fast path) -- no cross-file type resolution.
+
+Usage:
+  extractor.py <src-root> <file1.ts> [file2.ts ...] --out defs.parquet calls.parquet
+  extractor.py <src-root> --all --out defs.parquet calls.parquet   # full-repo build
+"""
+import argparse
+import sys
+import time
+from pathlib import Path
+
+import duckdb
+import tree_sitter_typescript as tsts
+from tree_sitter import Language, Parser
+
+TS_LANGUAGE = Language(tsts.language_typescript())
+
+DEF_KINDS = {
+    "function_declaration": "function",
+    "class_declaration": "class",
+    "method_definition": "method",
+}
+
+
+def node_text(src: bytes, node) -> str:
+    return src[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+
+
+def find_name(node, src: bytes):
+    name_node = node.child_by_field_name("name")
+    if name_node is not None:
+        return node_text(src, name_node)
+    return None
+
+
+def extract_file(parser: Parser, root: Path, rel_path: str):
+    src = (root / rel_path).read_bytes()
+    tree = parser.parse(src)
+    defs = []
+    calls = []
+
+    def enclosing_symbol_id(stack):
+        return stack[-1] if stack else f"{rel_path}::<module>"
+
+    def walk(node, scope_stack):
+        kind = node.type
+        if kind in DEF_KINDS:
+            name = find_name(node, src) or "<anonymous>"
+            symbol_id = f"{rel_path}:{node.start_point[0]+1}:{name}"
+            defs.append({
+                "symbol_id": symbol_id,
+                "file": rel_path,
+                "kind": DEF_KINDS[kind],
+                "name": name,
+                "start_line": node.start_point[0] + 1,
+                "end_line": node.end_point[0] + 1,
+            })
+            scope_stack = scope_stack + [symbol_id]
+        elif kind == "call_expression":
+            callee = node.child_by_field_name("function")
+            callee_name = None
+            if callee is not None:
+                if callee.type == "identifier":
+                    callee_name = node_text(src, callee)
+                elif callee.type == "member_expression":
+                    prop = callee.child_by_field_name("property")
+                    if prop is not None:
+                        callee_name = node_text(src, prop)
+            if callee_name:
+                calls.append({
+                    "caller_symbol_id": enclosing_symbol_id(scope_stack),
+                    "callee_name": callee_name,
+                    "file": rel_path,
+                    "call_line": node.start_point[0] + 1,
+                })
+        for child in node.children:
+            walk(child, scope_stack)
+
+    walk(tree.root_node, [])
+    return defs, calls
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("src_root")
+    ap.add_argument("files", nargs="*", help="files relative to src_root; ignored if --all")
+    ap.add_argument("--all", action="store_true", help="extract every .ts file under src_root")
+    ap.add_argument("--out", nargs=2, metavar=("DEFS_PARQUET", "CALLS_PARQUET"), required=True)
+    args = ap.parse_args()
+
+    root = Path(args.src_root)
+    if args.all:
+        files = [str(p.relative_to(root)) for p in root.rglob("*.ts")]
+    else:
+        files = args.files
+
+    parser = Parser(TS_LANGUAGE)
+    all_defs, all_calls = [], []
+    start = time.perf_counter()
+    for f in files:
+        try:
+            defs, calls = extract_file(parser, root, f)
+        except Exception as e:  # noqa: BLE001 - spike: record and move on
+            print(f"error extracting {f}: {e}", file=sys.stderr)
+            continue
+        all_defs.extend(defs)
+        all_calls.extend(calls)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+
+    con = duckdb.connect()
+    con.execute("CREATE TABLE defs AS SELECT * FROM (SELECT unnest($1, max_depth:=2))", [all_defs]) if all_defs else con.execute("CREATE TABLE defs (symbol_id VARCHAR, file VARCHAR, kind VARCHAR, name VARCHAR, start_line BIGINT, end_line BIGINT)")
+    con.execute("CREATE TABLE calls AS SELECT * FROM (SELECT unnest($1, max_depth:=2))", [all_calls]) if all_calls else con.execute("CREATE TABLE calls (caller_symbol_id VARCHAR, callee_name VARCHAR, file VARCHAR, call_line BIGINT)")
+    con.execute(f"COPY defs TO '{args.out[0]}' (FORMAT PARQUET)")
+    con.execute(f"COPY calls TO '{args.out[1]}' (FORMAT PARQUET)")
+
+    print(f"{{\"files\":{len(files)},\"defs\":{len(all_defs)},\"calls\":{len(all_calls)},\"extract_wall_time_ms\":{elapsed_ms:.3f}}}")
+
+
+if __name__ == "__main__":
+    main()

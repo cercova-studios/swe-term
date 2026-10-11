@@ -1,0 +1,37 @@
+{
+  "n_rows": 54,
+  "errors": [],
+  "unstable_result_counts": {},
+  "process_wall_time_ms": {
+    "cold_median": 213006,
+    "warm_median": 216186,
+    "cold_all": [
+      207279,
+      214855,
+      213006
+    ],
+    "warm_all": [
+      223717,
+      200232,
+      216186
+    ]
+  },
+  "acceptance_rule_met": false,
+  "cold_build": [
+    {
+      "run": "experiments/runs/fleet-cpg-baseline-home-assistant-core/run-001/artifacts/cold_build.log",
+      "wall_time_s": 49.79,
+      "peak_rss_bytes": 15558819840
+    },
+    {
+      "run": "experiments/runs/fleet-cpg-baseline-home-assistant-core/run-002/artifacts/cold_build.log",
+      "wall_time_s": 59.72,
+      "peak_rss_bytes": 14098595840
+    },
+    {
+      "run": "experiments/runs/fleet-cpg-baseline-home-assistant-core/run-003/artifacts/cold_build.log",
+      "wall_time_s": 61.28,
+      "peak_rss_bytes": 13183139840
+    }
+  ]
+}

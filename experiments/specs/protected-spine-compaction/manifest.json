@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "experiment_id": "protected-spine-compaction",
+  "status": "draft",
+  "kind": "mechanism-hypothesis",
+  "papers": [{"title": "TRUSTMEM: Learning Trustworthy Memory Consolidation for LLM Agents with Long-Term Memory", "url": "https://huggingface.co/papers/2606.25161", "claim": "Memory transitions can be evaluated for coverage, preservation, and faithfulness to reduce omission, corruption, and unsupported updates."}],
+  "design_references": [],
+  "hypothesis": "A mechanically protected spine preserves required current state and removes superseded state more reliably than ordinary free-form compaction at a comparable token budget.",
+  "null_hypothesis": "The protected representation does not improve preservation or retains enough stale state to offset its benefit.",
+  "independent_variable": "Ordinary free-form summary versus protected-spine extraction followed by summary of the remaining context.",
+  "source": {"kind": "directory", "locator": "fixtures", "revision": "pending-reviewed-compaction-corpus", "content_digest": ""},
+  "environment": {"adapter": "process", "network": "disabled", "network_justification": "", "allowed_env": ["PATH"], "resources": {"timeout_seconds": 1800, "max_parallelism": 1, "max_output_bytes": 1048576, "memory_bytes": null, "cpu_seconds": null}},
+  "model": {"required": true, "provider": "", "id": "", "parameters": {}, "prompt_digest": "", "tool_schema_digest": ""},
+  "variants": [{"name": "control", "description": "Ordinary free-form compaction.", "command": [], "config": {"protected_spine": false}}, {"name": "treatment", "description": "Mechanical protected-spine extraction plus ordinary remainder summary.", "command": [], "config": {"protected_spine": true}}],
+  "repetitions": 3,
+  "randomness": {"mode": "seeded", "seeds": [], "justification": "Model sampling will be frozen with the provider choice."},
+  "metrics": {"primary": "must-retain preservation", "secondary": ["invented protected facts", "correct superseded-fact removal", "token size", "downstream constraint violations"], "acceptance_rule": "Treatment requires 100 percent preservation on the frozen mechanical suite; stale retention requires explicit invalidation refinement."},
+  "evaluator": {"kind": "manual", "command": [], "rubric": "Compare each output to the fixture's required, superseded, conflicting, and untrusted fact labels before judging continuation behavior.", "rubric_digest": ""},
+  "evidence": {"raw_runs": "experiments/runs/protected-spine-compaction", "curated": "experiments/evidence/protected-spine-compaction"}
+}

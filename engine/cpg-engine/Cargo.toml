@@ -1,0 +1,10 @@
+[package]
+name = "cpg-engine"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+cpg-schema = { path = "../cpg-schema" }
+cpg-store = { path = "../cpg-store" }
+thiserror = "2"
+[dev-dependencies]
+tempfile = "3"
