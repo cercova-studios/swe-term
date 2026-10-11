@@ -6,7 +6,8 @@ marked accordingly so plans are not mistaken for shipped behavior.
 
 Long-form rationale lives in [`docs/core/GOLANG_TUI_PLAN.md`](docs/core/GOLANG_TUI_PLAN.md).
 Comparative evidence lives in [`docs/core/FRAMEWORKS.md`](docs/core/FRAMEWORKS.md)
-and [`docs/research/`](docs/research/).
+[`docs/core/HARNESS_VERDICTS.md`](docs/core/HARNESS_VERDICTS.md), and
+[`docs/research/papers/`](docs/research/papers/).
 
 ## 1. Document Contract
 
@@ -286,7 +287,7 @@ When documents conflict:
 1. `ARCHITECTURE.md` at the repository root
 2. `docs/core/PLAN.md`
 3. `docs/core/FRAMEWORKS.md`
-4. Detailed evidence in `docs/research/`
+4. Per-harness verdicts in `docs/core/HARNESS_VERDICTS.md`; paper packets in `docs/research/papers/`
 5. Extended rationale in `docs/core/GOLANG_TUI_PLAN.md`
 
 Scoped operational contracts govern their own workflows unless they conflict

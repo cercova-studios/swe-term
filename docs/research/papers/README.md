@@ -31,7 +31,7 @@ Create one directory per research question:
 docs/research/papers/<topic>/
   search-plan.md
   notes/
-    <arxiv-id>.md
+    <arxiv-id>.md      # swe-term transfer and disposition only
   synthesis.md
 ```
 
@@ -40,6 +40,12 @@ Start from:
 - [`templates/SEARCH_PLAN.md`](templates/SEARCH_PLAN.md)
 - [`templates/PAPER_NOTE.md`](templates/PAPER_NOTE.md)
 - [`templates/SYNTHESIS.md`](templates/SYNTHESIS.md)
+
+Publish each paper's general findings (claim, mechanism, evidence, evaluator
+audit) to the `source-insights` library first, and record the entry ID in the
+note's identity section. The repository note keeps only what is specific to
+swe-term: boundary conditions, transfer, cheapest falsification, admission
+gates, judgment, and disposition.
 
 Keep rejected and deferred candidates in the packet. The negative trail is part
 of the evidence: it shows which attractive ideas failed the transfer test and

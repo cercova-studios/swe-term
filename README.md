@@ -98,8 +98,8 @@ preregistered experiments.
 
 - [`docs/core/FRAMEWORKS.md`](docs/core/FRAMEWORKS.md) — port/avoid verdicts
   for pi, Codex, Claude Code, opencode, oh-my-pi, Prime Agent, DeepSeek
-  Harness, Flue, and Deep Agents, revalidated 2026-10-10. Evidence lives in
-  [`docs/research/`](docs/research/).
+  Harness, Flue, and Deep Agents, revalidated 2026-10-10. Per-harness verdicts:
+  [`docs/core/HARNESS_VERDICTS.md`](docs/core/HARNESS_VERDICTS.md).
 - [`docs/research/papers/README.md`](docs/research/papers/README.md) — paper
   discovery and triage contract.
 - [`experiments/README.md`](experiments/README.md) — preregistered

@@ -568,8 +568,29 @@ Cross-cutting: every pi-family descendant kept growing its session class
 stayed small (dsh 705 ln, opencode 375 ln). The "do not grow another
 `AgentSession`" rule in `FRAMEWORKS.md` is now better supported.
 
-Sources: `docs/research/*_DEEP_DIVE.md` and `*_CRITIQUE.md` (each cites its
+Sources: `docs/core/HARNESS_VERDICTS.md` and the per-harness source-insights entries (each cites its
 upstream commits and paths).
+
+### 3.4 General research moved to the source-insights library (2026-10-10)
+
+General, source-derived findings now live in the shared `source-insights`
+library (`~/.agents/knowledge/sources/`), re-distilled from primary sources
+with page- or line-level citations. The repository keeps swe-term's decisions.
+
+- **Removed from the repository:** the ten harness deep dives and critiques
+  and the 2026-08 harness self-report. Each critique's verdict, port, and
+  do-not-port sections moved to `docs/core/HARNESS_VERDICTS.md`, pinned to an
+  upstream commit.
+- **Trimmed:** paper notes under `docs/research/papers/*/notes/` keep only
+  boundary conditions, transfer, falsification, admission gates, judgment, and
+  disposition. Each cites its library entry. The paper contract now requires
+  publishing general findings to the library first.
+- **Library entries (25):** 8 packet papers, 4 test-quality papers plus the
+  approved-scenarios article, OTel GenAI / OpenInference / go-openllmetry,
+  the self-report, and 10 harness/engine architecture notes. The Thoughtworks
+  sensors post was skipped as a duplicate of existing Böckeler entries.
+- **Limit:** the library is local to one machine. Repository claims keep
+  public citations (paper URLs, upstream commits) so they do not depend on it.
 
 ## Full citation list
 

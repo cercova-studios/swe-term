@@ -143,7 +143,7 @@ engineering outcomes with improving models and less unnecessary machinery.
 - [Framework synthesis](../core/FRAMEWORKS.md): DSH capability seams and Prime
   versioned harness state inform this direction; their runtime packaging is
   not a requirement.
-- [Prime critique](../research/PRIME_AGENT_CRITIQUE.md): closed sidecar RPC,
+- [Prime verdict](../core/HARNESS_VERDICTS.md#prime-agent): closed sidecar RPC,
   single-owner state, and rollback rather than IPython as the default loop.
-- [DSH critique](../research/DEEPSEEK_HARNESS_CRITIQUE.md): log-derived context
+- [DSH verdict](../core/HARNESS_VERDICTS.md#deepseek-harness): log-derived context
   and named extension phases rather than in-process model-authored eval.

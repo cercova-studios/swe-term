@@ -14,16 +14,7 @@ entrypoint; `docs/core/ARCHITECTURE.md` remains a compatibility pointer.
   - `BACKLOG.md`
   - `GOLANG_TUI_PLAN.md`
 - `docs/research/`
-  - `CLAUDE_DEEP_DIVE.md`
-  - `CLAUDE_CODE_CRITIQUE.md`
-  - `CODEX_DEEP_DIVE.md`
-  - `CODEX_CRITIQUE.md`
-  - `PI_MONO_DEEP_DIVE.md`
-  - `PI_MONO_CRITIQUE.md`
-  - `FLUE_DEEP_DIVE.md`
-  - `FLUE_CRITIQUE.md`
-  - `DEEPAGENTS_DEEP_DIVE.md`
-  - `DEEPAGENTS_CRITIQUE.md`
+  - `papers/` (discovery packets; general findings live in the source-insights library)
 - `docs/services/`
   - `AST_SERVICE_ARCHITECTURE.md`
 
@@ -46,4 +37,4 @@ entrypoint; `docs/core/ARCHITECTURE.md` remains a compatibility pointer.
   - roadmap
   - framework synthesis
   - backlog
-- Deep-dive and critique docs remain intact and discoverable under `docs/research/`.
+- Per-harness verdicts remain discoverable in `docs/core/HARNESS_VERDICTS.md`.

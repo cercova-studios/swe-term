@@ -25,19 +25,12 @@ This directory is organized to keep architecture decisions centralized and reduc
 
 ## Comparative Analysis Documents
 
-Deep dives and critiques are retained as supporting evidence under `research/`:
+- [`core/FRAMEWORKS.md`](core/FRAMEWORKS.md) — compressed port/avoid matrix. Read first.
+- [`core/HARNESS_VERDICTS.md`](core/HARNESS_VERDICTS.md) — per-harness verdicts, port and do-not-port lists, each pinned to an upstream commit.
 
-- [`research/CLAUDE_DEEP_DIVE.md`](research/CLAUDE_DEEP_DIVE.md), [`research/CLAUDE_CODE_CRITIQUE.md`](research/CLAUDE_CODE_CRITIQUE.md)
-- [`research/CODEX_DEEP_DIVE.md`](research/CODEX_DEEP_DIVE.md), [`research/CODEX_CRITIQUE.md`](research/CODEX_CRITIQUE.md)
-- [`research/PI_MONO_DEEP_DIVE.md`](research/PI_MONO_DEEP_DIVE.md), [`research/PI_MONO_CRITIQUE.md`](research/PI_MONO_CRITIQUE.md)
-- [`research/FLUE_DEEP_DIVE.md`](research/FLUE_DEEP_DIVE.md), [`research/FLUE_CRITIQUE.md`](research/FLUE_CRITIQUE.md)
-- [`research/DEEPAGENTS_DEEP_DIVE.md`](research/DEEPAGENTS_DEEP_DIVE.md), [`research/DEEPAGENTS_CRITIQUE.md`](research/DEEPAGENTS_CRITIQUE.md)
-- [`research/PRIME_AGENT_DEEP_DIVE.md`](research/PRIME_AGENT_DEEP_DIVE.md), [`research/PRIME_AGENT_CRITIQUE.md`](research/PRIME_AGENT_CRITIQUE.md)
-- [`research/DEEPSEEK_HARNESS_DEEP_DIVE.md`](research/DEEPSEEK_HARNESS_DEEP_DIVE.md), [`research/DEEPSEEK_HARNESS_CRITIQUE.md`](research/DEEPSEEK_HARNESS_CRITIQUE.md)
-- [`research/OH_MY_PI_DEEP_DIVE.md`](research/OH_MY_PI_DEEP_DIVE.md), [`research/OH_MY_PI_CRITIQUE.md`](research/OH_MY_PI_CRITIQUE.md)
-- [`research/JOERN_DEEP_DIVE.md`](research/JOERN_DEEP_DIVE.md), [`research/JOERN_CRITIQUE.md`](research/JOERN_CRITIQUE.md)
-
-Use `core/FRAMEWORKS.md` first; read deep dives/critiques only when detailed evidence is needed.
+General architecture notes on each harness and the papers behind the research
+packets live in the `source-insights` library (`~/.agents/knowledge/sources/`),
+not in this repository. Entry IDs are cited where they are used.
 
 ## Reading Order
 

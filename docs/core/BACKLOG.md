@@ -45,7 +45,7 @@ architecture snapshot; four findings converged and are already applied to
 
 ## Harness capabilities to steal (from 2026-08 research)
 
-Evidence: `docs/research/{PRIME_AGENT,DEEPSEEK_HARNESS,OH_MY_PI}_*` and `docs/core/FRAMEWORKS.md`.
+Evidence: `docs/core/HARNESS_VERDICTS.md` (Prime Agent, DeepSeek Harness, oh-my-pi) and `docs/core/FRAMEWORKS.md`.
 
 - Session-log reconstruction check before every provider call (dsh invariant)
 - Hashline / snapshot-verified apply as an edit sidecar, with a per-model format table (omp)
@@ -59,7 +59,7 @@ Evidence: `docs/research/{PRIME_AGENT,DEEPSEEK_HARNESS,OH_MY_PI}_*` and `docs/co
 ## Control / OODA / V&V (from 2026-08 Codex design critique)
 
 Evidence: independent `codex exec --sandbox read-only` pass over
-`ARCHITECTURE.md`, `JOERN_*`, `HARNESS_SELF_REPORT`, and the swe_graph /
+`ARCHITECTURE.md`, the Joern deep dive and critique, the 2026-08 harness self-report (both since moved to the source-insights library), and the swe_graph /
 OODA canvases. Amp/Grok delegates did not produce usable output this round.
 Verified against `GOLANG_TUI_PLAN.md` (lossy bus at Event Bus §2; `ReadOnly()`
 still executable; `AgentState` is messages/UI; persistence in Phase 6).

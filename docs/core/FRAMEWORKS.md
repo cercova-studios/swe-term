@@ -1,7 +1,7 @@
 # Framework Comparison (Compressed)
 
 This document is the terse, explicit comparison layer for architecture decisions.
-Detailed evidence remains in each framework's deep-dive and critique docs.
+Per-harness verdicts are in [`HARNESS_VERDICTS.md`](HARNESS_VERDICTS.md#`harness_verdicts.md`).
 
 ## Executive Takeaways
 
@@ -53,14 +53,14 @@ Three independent pi-family / harness systems converge on the same cuts swe-term
 
 | Decision Area | swe-term Direction | Primary Source |
 |---|---|---|
-| Core architecture | Interface-driven Go core with explicit layering | `../research/PI_MONO_*`, `ARCHITECTURE.md` |
-| Protocol boundary | Frontend/core boundary should be wire-protocol friendly | `../research/CODEX_*`, `../research/PRIME_AGENT_*` |
-| Safety boundary | Layered approvals + deterministic policy + sandbox | `../research/CLAUDE_CODE_CRITIQUE.md`, `../research/CODEX_CRITIQUE.md`, `../research/DEEPSEEK_HARNESS_*` |
-| Context management | Token budget + explicit compaction + log-derived history | `../research/CLAUDE_*`, `../research/DEEPAGENTS_*`, `../research/DEEPSEEK_HARNESS_*` |
-| Tool quality | Model-parameterized edit/read/grep; engines as sidecars | `../research/OH_MY_PI_*` |
-| Long-running / detach | Protocol first; resident daemon only when needed | `../research/PRIME_AGENT_*`, `../research/FLUE_*` |
-| Extensibility | Plugins/adapters over loop forks | `../research/PI_MONO_*`, `../research/DEEPAGENTS_*`, `../research/DEEPSEEK_HARNESS_*` |
-| Deployment posture | Single-binary local-first core, optional sidecars/services | `ARCHITECTURE.md`, `../research/FLUE_*`, `../research/OH_MY_PI_CRITIQUE.md` |
+| Core architecture | Interface-driven Go core with explicit layering | `ARCHITECTURE.md`, [pi](HARNESS_VERDICTS.md#pi) |
+| Protocol boundary | Frontend/core boundary should be wire-protocol friendly | [Codex](HARNESS_VERDICTS.md#codex), [Prime Agent](HARNESS_VERDICTS.md#prime-agent) |
+| Safety boundary | Layered approvals + deterministic policy + sandbox | [Codex](HARNESS_VERDICTS.md#codex), [Claude Code](HARNESS_VERDICTS.md#claude-code), [DeepSeek Harness](HARNESS_VERDICTS.md#deepseek-harness) |
+| Context management | Token budget + explicit compaction + log-derived history | [Claude Code](HARNESS_VERDICTS.md#claude-code), [DeepSeek Harness](HARNESS_VERDICTS.md#deepseek-harness), [Deep Agents](HARNESS_VERDICTS.md#deep-agents) |
+| Tool quality | Model-parameterized edit/read/grep; engines as sidecars | [oh-my-pi](HARNESS_VERDICTS.md#oh-my-pi) |
+| Long-running / detach | Protocol first; resident daemon only when needed | [Prime Agent](HARNESS_VERDICTS.md#prime-agent), [Flue](HARNESS_VERDICTS.md#flue) |
+| Extensibility | Plugins/adapters over loop forks | [pi](HARNESS_VERDICTS.md#pi), [DeepSeek Harness](HARNESS_VERDICTS.md#deepseek-harness), [Deep Agents](HARNESS_VERDICTS.md#deep-agents) |
+| Deployment posture | Single-binary local-first core, optional sidecars/services | `ARCHITECTURE.md`, [oh-my-pi](HARNESS_VERDICTS.md#oh-my-pi), [Flue](HARNESS_VERDICTS.md#flue) |
 
 ## Agent Self-Report Synthesis (2026-08)
 
@@ -70,8 +70,8 @@ cost them turns, context, or correctness, and to push back from lived
 operational experience rather than validate the plan. Two are the exact
 harnesses already studied here (`prime-agent`, `omp` = oh-my-pi); one is
 outside that family (`codex`, OpenAI). Full transcripts, method, and the
-findings not carried into `ARCHITECTURE.md`:
-`docs/research/HARNESS_SELF_REPORT_2026-08.md`.
+findings not carried into `ARCHITECTURE.md`: source-insights entry
+`6c46f47e8ecd5edc8ea8dd4a` (moved out of the repository 2026-10-10).
 
 | Finding | prime-agent | omp | codex | Applied to |
 |---|---|---|---|---|

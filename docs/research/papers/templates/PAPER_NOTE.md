@@ -11,34 +11,7 @@ Final disposition: pending
 - Publication status and date checked:
 - Linked code, data, models, or project page:
 - Source/fallback path used:
-
-## Narrow claim
-
-State the smallest claim supported by the paper's evidence. Do not copy the
-headline or abstract summary without narrowing it.
-
-## Mechanism
-
-- Treatment or causal change:
-- Control or comparator:
-- Enforcement point:
-- Dependencies on model, data, topology, or infrastructure:
-
-## Evidence
-
-- Fixtures, dataset, or benchmark:
-- Repetitions and sample size:
-- Primary and component metrics:
-- Ablations or counterfactuals:
-- Discordant or negative cases:
-- Result most likely to change our mind:
-
-## Evaluator audit
-
-- Measurement type: deterministic / human / model judge / mixed
-- Independence from the system under test:
-- Rubric, judge, or verifier identity:
-- Known disagreement, variance, or circularity:
+- source-insights entry ID (publish the paper's general findings there first):
 
 ## Boundary conditions and limitations
 
