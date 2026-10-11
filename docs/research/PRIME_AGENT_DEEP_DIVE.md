@@ -1,15 +1,65 @@
 # Prime Agent Deep Dive — Architecture & Feature Analysis
 
 > Analysis of [`PrimeIntellect-ai/prime-agent`](https://github.com/PrimeIntellect-ai/prime-agent)
-> — Prime Intellect's **self-improving RLM agent**. Runtime: Node.js. Language: TypeScript
-> (host) + Python (IPython kernel). Distribution: versioned installer + npm workspaces.
-> License: MIT.
+> — Prime Intellect's **self-improving RLM agent**. Runtime: native Rust binaries
+> (`pa-cli`, `pa-daemon`). Language: Rust (host) + Python (CPython REPL runtime).
+> Distribution: versioned installer (`install-rust.sh`, `install.ps1`) with an npm
+> launcher kept for upgrades from the TypeScript era. License: MIT.
 >
-> **Validated against a local source checkout** at `prime-agent/` version **0.7.2**
-> (`package.json`), HEAD `2c34b82` (2026-08-16). Line counts below are exact from that
-> checkout. The product is a hard fork of [`pi-mono`](https://github.com/badlogic/pi-mono)
-> republished as `@earendil-works/pi-*`, then grown into a daemon-backed, IPython-first
-> control plane.
+> **Validated against a local source checkout** at `prime-agent/` version **0.10.0**
+> (`Cargo.toml` `[workspace.package]`), HEAD `2ee7e62` (2026-10-10). Line counts below
+> are exact from that checkout and exclude `*test*` files and `tests/` dirs unless
+> stated. Previous validation: 0.7.2, `2c34b82` (2026-08-16), when the product was a
+> TypeScript hard fork of [`pi-mono`](https://github.com/badlogic/pi-mono). On
+> 2026-09-29 the whole product was ported to Rust (`39bc99a`, "Port Prime Agent to
+> Rust (#2524)", 2,797 files, +668k/−416k lines). No product `.ts` source remains; the only `.ts` file is the differential-test driver `crates/pa-ai/tests/differential/ts_driver.ts`.
+
+---
+
+## Changes since 0.7.2 (2026-08-16)
+
+548 commits. The most significant:
+
+1. **TypeScript → Rust port.** `packages/{ai,agent,coding-agent,tui}` are gone,
+   replaced by a 9-crate Cargo workspace (`Cargo.toml` `members`). Commit `39bc99a`
+   (2026-09-29). Byte-for-byte TS wire/disk parity was a port goal (`Cargo.toml`
+   `serde_json` `preserve_order` comment; `crates/pa-daemon/src/ts_era.rs`).
+2. **IPython/ZMQ kernel replaced by a minimal CPython REPL runtime.** `python -m
+   rlm.repl`, NDJSON over stdin / a private dup of fd 1, protocol version 3
+   (`prime-agent-runtime/src/rlm/repl.md`, `crates/pa-core/src/kernel/protocol.rs`
+   `REPL_PROTOCOL_VERSION = 3`). Added in `61eb647` (2026-08-27). The runtime wheel
+   now depends only on `mcp` and `tyro`; `dill` is a dev dependency, imported lazily
+   for snapshots (`prime-agent-runtime/pyproject.toml`, `repl.md` §Snapshot).
+3. **Default RLM max depth raised from 1 to 2.** `9e49b73` (2026-08-24); now
+   `DEFAULT_RLM_MAX_DEPTH: u32 = 2` (`crates/pa-daemon/src/rlm_children.rs:34`).
+4. **Subagent API grew from one call to a family.** `rlm.spawn`, `collect` (typed
+   results, optional bounded wait), `list_subagents`, `delete_subagent`, `rename`,
+   `progress_note`, `create_session`, `find_models`; spawn `kind="decision"` for a
+   Decision API child (`prime-agent-runtime/src/rlm/__init__.py:179–507`).
+5. **Factory: declarative subagent state machines.** New harness kind `factory`
+   (`crates/pa-core/src/refinement/mod.rs:10`), validated/compiled/executed in the
+   kernel (`prime-agent-runtime/src/rlm/factory.py`), host bridge in
+   `crates/pa-core/src/session_engine/factory_host.rs`. Rust port `e387021`
+   (2026-10-02).
+6. **User extensions removed.** jiti-loaded TS extensions deleted in `f54551d`
+   (2026-09-30, −6,778 lines). A package manager for `npm:`/git/local *resource*
+   sources remains, explicitly not executing session code
+   (`crates/pa-core/src/packages/mod.rs:1–4`).
+7. **Catalog subprocess and command recovery journal removed.** `pa-daemon` is now
+   `supervisor | worker` only (`crates/pa-daemon/src/main.rs:15–43`); catalog resolve
+   lives in-supervisor (`crates/pa-daemon/src/session_catalog.rs`).
+   `CommandRecoveryJournal` deleted in `121e59d`; only `WorkerRecoveryJournal`
+   remains (`crates/pa-daemon/src/journal.rs:174`).
+8. **ACP stdio mode on the daemon path.** `crates/pa-daemon/src/acp/` (5,541 ln);
+   single daemon path with the in-process transport deleted in `15929ad`
+   (2026-10-03).
+9. **Daemon schema revision 16 → 30**, protocol version still 7
+   (`crates/pa-types/src/daemon/mod.rs:12–17`).
+10. **`AgentSession` god object dissolved into modules.** The TS class had reached
+    15,101 lines just before the port (`git show 39bc99a^:packages/coding-agent/src/core/agent-session.ts`).
+    Its Rust successor is `SessionEngine` (`crates/pa-core/src/session_engine/engine.rs`,
+    971 ln) inside a 61-file, 28,338-line module; no non-generated Rust file exceeds
+    2,235 lines.
 
 ---
 
@@ -17,10 +67,10 @@
 
 1. [System Overview](#system-overview)
 2. [Lineage vs pi-mono](#lineage-vs-pi-mono)
-3. [Package Layout](#package-layout)
+3. [Crate Layout](#crate-layout)
 4. [The RLM Bet: One LLM Tool](#the-rlm-bet-one-llm-tool)
 5. [Host-Request Bridge](#host-request-bridge)
-6. [Subagents: `rlm()` Admission, Not Awaits](#subagents-rlm-admission-not-awaits)
+6. [Subagents: Admission, Collect, Factory](#subagents-admission-collect-factory)
 7. [Continual Harness and `/refine`](#continual-harness-and-refine)
 8. [Daemon: Client / Supervisor / Worker](#daemon-client--supervisor--worker)
 9. [Persistence](#persistence)
@@ -39,162 +89,179 @@ Prime Agent is a coding/research agent built for **work that outlives a chat win
 The README names two abstractions:
 
 - **Recursive Language Model (RLM)** — context is a Python variable space; tools and
-  child agents are function calls inside a persistent IPython REPL.
-- **Continual Harness** — supplemental prompts, memories, skill descriptions, and
-  subagent specs live as durable, reviewable state that `/refine` can update without
-  rewriting the immutable base system prompt.
+  child agents are function calls inside a persistent Python REPL.
+- **Continual Harness** — supplemental prompts, memories, skill descriptions,
+  subagent specs, and factory machines live as durable, reviewable state that
+  `/refine` can update without rewriting the immutable base system prompt.
 
-The architectural split is sharper than the marketing:
+The architectural split:
 
 | Layer | Owns |
 |-------|------|
-| **Client** (TUI / print / JSON / RPC) | Rendering, keyboard, local UI prefs. Does **not** own execution. |
-| **Daemon supervisor** | Discovery, routing, attachments, worker health, cross-agent messages. |
-| **Session worker** | One root `AgentSessionRuntime`, scheduler, kernels, RLM descendants. |
-| **IPython kernel** | Model-facing control environment. Typed host requests bounce authority back to TypeScript. |
+| **Client** (`pa-cli`: TUI / print / JSON / RPC / ACP) | Rendering, keyboard, local UI prefs. Does **not** own execution. |
+| **Daemon supervisor** (`pa-daemon supervisor`) | Socket, worker fleet, routing, session catalog, agent roster, cross-agent messages. |
+| **Session worker** (`pa-daemon worker`) | One root session engine, scheduler, kernels, RLM descendants. |
+| **Python REPL runtime** (`rlm.repl`) | Model-facing control environment. Typed host requests bounce authority back to Rust. |
 | **Storage** | Session JSONL trees, harness JSON, spawn ledger, kernel dill snapshots. |
 
 Workers and kernels are separate processes for **lifecycle isolation**, not security
-sandboxes. They run with the user's OS permissions (`README.md` warning block).
+sandboxes. They run with the user's OS permissions (`README.md:87`).
 
 The execution path is the same whether the prompt comes from a human, a heartbeat, a
-cron job, a goal continuation, autonomous mode, or another agent.
+cron job, a goal continuation, autonomous mode, a factory state, or another agent.
 
 ---
 
 ## Lineage vs pi-mono
 
-Prime Agent **is** pi-mono's layering with a philosophical pivot.
+Prime Agent **was** pi-mono's layering with a philosophical pivot. Since `39bc99a`
+it is a Rust reimplementation of that layering; the pi lineage survives in crate
+boundaries and on-disk formats, not in shared code.
 
 Preserved:
 
-- Package direction: `pi-ai` → `pi-agent-core` → `pi-coding-agent` + `pi-tui`
-- `Agent` + `runAgentLoop()` in `packages/agent`
-- JSONL session trees with `id`/`parentId`
-- jiti-loaded TypeScript extensions (`packages/coding-agent/src/core/extensions/loader.ts`)
+- Layer direction: `pa-ai` → `pa-agent` → `pa-core` → `pa-daemon` / `pa-tui` / `pa-cli`
+  (mirrors pi's `ai` → `agent-core` → `coding-agent` + `tui`)
+- An agent loop module (`crates/pa-agent/src/agent_loop/`, 1,498 ln)
+- JSONL session trees with `id`/`parentId`, `CURRENT_SESSION_VERSION = 3`
+  (`crates/pa-core/src/session/mod.rs:19`)
 - Interactive / print / RPC modes
 
-Changed:
+Changed since the fork:
 
-- npm scope `@mariozechner/*` → `@earendil-works/pi-*` (loader still aliases the old
-  names at `loader.ts:62–72`)
-- Product config: `piConfig.name = "prime-agent"`, `configDir = ".prime/agent"`
-- **Default LLM-visible tool set collapsed to `ipython` only**
-- Daemon-backed resident workers; TUI attaches over a local JSONL unix-socket protocol
-- Continual harness, RLM spawn, agent-to-agent messaging, goals, autonomous mode
-
-The loop itself is still pi's. Turn execution calls `this.agent.prompt(...)` on the
-pi `Agent` (`packages/coding-agent/src/core/agent-session.ts`). Prime's originality is
-**around** the loop: what the model is allowed to call, where execution lives, and
-what state survives a disconnect.
+- **Language and runtime:** Rust binaries instead of Node; TS-era compatibility shims
+  only where on-disk/wire state must be read (`crates/pa-daemon/src/ts_era.rs`)
+- **Extensions removed** (`f54551d`); pi's jiti extension loader no longer exists
+- Default LLM-visible tool set is `ipython` only
+- Daemon-backed resident workers; clients attach over a local JSONL unix-socket protocol
+- Continual harness, RLM spawn/collect, factory, agent messaging, goals, autonomous mode
 
 ---
 
-## Package Layout
+## Crate Layout
 
-Four TypeScript workspaces plus a Python runtime:
+Nine Rust crates plus a Python runtime (`Cargo.toml` `members`):
 
-| Path | npm name | Role |
-|------|----------|------|
-| `packages/ai` | `@earendil-works/pi-ai` | Provider abstraction, generated model catalog |
-| `packages/agent` | `@earendil-works/pi-agent-core` | Domain-agnostic agent loop (~986 ln `agent-loop.ts`) |
-| `packages/coding-agent` | `@earendil-works/pi-coding-agent` | Product: session, RLM, daemon, TUI glue (~119k ln src) |
-| `packages/tui` | `@earendil-works/pi-tui` | Differential terminal renderer |
-| `prime-agent-runtime/` | Python wheel | Kernel shim: `rlm`, `host_request`, harness CRUD |
+| Path | Role | Rust ln (all, incl. tests) |
+|------|------|------:|
+| `crates/pa-types` | Wire/domain types, daemon protocol constants | 13,153 |
+| `crates/pa-telemetry` | Usage telemetry | 4,941 |
+| `crates/pa-ai` | Provider abstraction, generated model catalog | 38,027 |
+| `crates/pa-models` | Model selection | 4,702 |
+| `crates/pa-agent` | Domain-agnostic agent loop | 6,944 |
+| `crates/pa-core` | Session engine, kernel manager, tools, refinement, cron, MCP | 135,007 |
+| `crates/pa-daemon` | Supervisor, worker, ACP, catalog, ledgers | 157,867 |
+| `crates/pa-tui` | Terminal UI | 137,088 |
+| `crates/pa-cli` | Entry point, print/headless modes, login, update | 71,256 |
+| `prime-agent-runtime/` | Python wheel: `rlm` REPL, host requests, harness, factory, MCP, bash | — |
 
-Build order matches pi: tui → ai → agent → coding-agent (`package.json` `build` script).
+Rust total: 568,985 lines; 378,314 excluding test files.
 
-**Prime-original directories** (not in vanilla pi):
+**Prime-original areas** (not in pi):
 
-- `packages/coding-agent/src/core/kernel/` — ZMQ IPython manager
-- `packages/coding-agent/src/core/refinement/` — continual harness
-- `packages/coding-agent/src/modes/daemon/` — supervisor, worker, catalog, protocol
-- `packages/coding-agent/src/core/rlm-runtime.ts`, `rlm-ledger.ts`
+- `crates/pa-core/src/kernel/` — REPL manager, provisioner, snapshots (10,135 ln)
+- `crates/pa-core/src/refinement/` — continual harness
+- `crates/pa-core/src/session_engine/` — session, RLM host, goals, factory host
+- `crates/pa-daemon/src/{supervisor,worker,acp,rlm_ledger}`
 - `prime-agent-runtime/`
 
 ---
 
 ## The RLM Bet: One LLM Tool
 
-This is the load-bearing design choice. The built-in tool registry is:
+This is still the load-bearing design choice. The session engine injects the
+`ipython` tool when the configured tool list lacks it
+(`crates/pa-core/src/session_engine/engine.rs:432–443`). `bash` and `edit` tool
+definitions exist in `crates/pa-core/src/tools/{bash,edit}.rs` and are exported from
+`pa-core` (`lib.rs:40–51`), but no daemon or CLI path registers them as LLM tools.
+Bash and edit are used by the model as **Python skills inside the REPL**
+(`prime-agent-runtime/src/rlm/bash.py`, `skills/edit`).
 
-```46:47:prime-agent/packages/coding-agent/src/core/tools/index.ts
-export type ToolName = "ipython";
-export const allToolNames: Set<ToolName> = new Set(["ipython"]);
-```
+The thesis: instead of teaching the model many tool schemas, give it a persistent
+REPL. File ops, shell, skills, subagents, MCP, and context management are code.
+Python state survives tool calls **and** compaction. The namespace is dill-snapshotted
+on request (`repl.md` §Snapshot / restore; `crates/pa-core/src/kernel/state_snapshot.rs`).
 
-Bash, edit, read, and write still exist as **Python skills** invoked *inside* the
-kernel, and as SDK exports for extensions. They are not native multi-tool LLM calls
-in the default product. Goals force-activate ipython
-(`agent-session.ts:2037–2052`).
+What changed is the kernel itself. The Jupyter stack (ipykernel + ZMQ) was replaced
+by a ~one-module CPython REPL runtime (`prime-agent-runtime/src/rlm/repl.py`, `61eb647`)
+speaking NDJSON on stdin and a private dup of fd 1. Requests: `execute`, `interrupt`,
+`host_reply`, `snapshot`, `restore`, `list_names`, `mcp_status`, `bash_activity`,
+`shutdown`. The handshake requires an exact protocol-version match
+(`crates/pa-core/src/kernel/protocol.rs:12–14`).
 
-The thesis: instead of teaching the model 20 tool schemas, give it a persistent
-REPL. File ops, shell, skills, subagents, and context management are code. Python
-state (imports, parsed results, child handles) survives tool calls **and**
-compaction. Kernel namespace is dill-snapshotted (`kernel/state-snapshot.ts`).
-
-Tradeoff, stated plainly: the model must be good at writing Python, the host must
-run a Jupyter kernel (ZMQ, `ipykernel`, uv bootstrap), and every capability that
-needs authoritative host state must round-trip through `host_request`. That is a
-large operational surface for a "coding agent."
+Tradeoff, restated: the model must still be good at Python and the host must still
+provision a Python environment (`crates/pa-core/src/kernel/provisioner.rs`, 1,784 ln),
+but the ZMQ/Jupyter operational surface is gone.
 
 ---
 
 ## Host-Request Bridge
 
-Python is the programming surface; TypeScript remains the authority.
+Python is the programming surface; Rust remains the authority.
 
-- Kernel comm target: `host.request` (`packages/coding-agent/src/core/kernel/index.ts`)
-- Python: `rlm.host_request(type, **payload)` in `prime-agent-runtime/src/rlm/__init__.py`
-- TypeScript registers branded handlers per request type (`rlm.run`, `goal.*`,
-  `refine.*`, `agent_message.*`, `compact`, …)
+- Python: `rlm.host_request(type, payload)` (`prime-agent-runtime/src/rlm/__init__.py:153`)
+- Frames: `host_request` events out, `host_reply` requests back (`repl.md`)
+- Rust routes by exact type string through a per-session handler map; an
+  unregistered type fails with `host request type "…" is not available in this
+  session` (`crates/pa-core/src/kernel/manager/host_requests.rs:70–85`)
+- Handlers implement `HostRequestHandler` (`crates/pa-core/src/kernel/shared.rs:246`).
+  The TS branded-wrapper check is gone; closure over the map is the control.
+- Registered families include `rlm.*` (`session_engine/rlm_host.rs`), `goal.*` and
+  `rlm_heartbeat.*` (`session_engine/host_requests.rs:76–305`), plus factory, refine,
+  and agent-message handlers.
 
 Credentials, provider calls, transcript writes, worker routing, and scheduling stay
-out of Python. The kernel can *request* a child spawn; the host *creates* the child
-`AgentSession`. Forged handlers are rejected via branded capability wrappers
-(`kernel/index.ts:114–137`).
+out of Python. The kernel *requests* a child; the host *creates* it. Each request is
+tagged with the triggering cell's source (`cellSourceCode`, `host_requests.rs:87–98`).
 
-This is the cleanest Prime idea: **a typed RPC from an execution environment into
-the harness**, rather than stuffing every privileged operation into a model-visible
-tool schema.
+This remains the cleanest Prime idea: **a closed, typed RPC from an execution
+environment into the harness**.
 
 ---
 
-## Subagents: `rlm()` Admission, Not Awaits
+## Subagents: Admission, Collect, Factory
 
 ```python
-handle = await rlm("Review the authentication flow", name="auth-reviewer")
+handle = await rlm.spawn("Review the authentication flow", name="auth-reviewer")
+results = await rlm.collect(handle, timeout_ms=60_000)
 ```
 
-The call returns immediately after **task admission** with
-`{rlm_child_id, name, session_dir, model}`. It never waits for the child's answer
-(`prime-agent-runtime/src/rlm/__init__.py`, `packages/coding-agent/src/core/prompts/rlm.ts`).
-Results arrive through `agent_message` or files.
+`spawn` returns once the task is **admitted** (`__init__.py:179–210`). Kwargs are
+`name` (required, unique among siblings), `model`, `thinking`, and `kind`
+(`"decision"` only). The wire type stays `rlm.run` for cross-version compatibility
+(`__init__.py:207`).
 
-Host path (`agent-session.ts` `_handleRlmRun`):
+New since 0.7.2: `collect(targets, timeout_ms=0)` returns typed `RLMChildResult`s.
+`0` is a non-blocking snapshot; a positive value blocks only that kernel call and
+never steers the parent (`__init__.py:416–440`). Admission-not-await is preserved;
+`collect` adds an explicit, bounded join. Also new: `list_subagents`,
+`delete_subagent`, `rename`, `progress_note`, `create_session`, `find_models`.
 
-1. Validate kwargs (`name`, `model` only).
-2. Enforce depth: `if (this._rlmDepth >= this._rlmMaxDepth)`.
-3. Create `sub-<8hex>` under the parent RLM session dir.
-4. Spawn via `AgentSessionRuntime.createRlmSubagentRuntime`.
+Depth policy (`crates/pa-daemon/src/agent_engine/session_engine_impl.rs:840–861`):
+persisted chat state → inherited → global settings → env `RLM_MAX_DEPTH` → default
+**2** (`rlm_children.rs:34`, changed from 1 in `9e49b73`). `set_rlm_max_depth` is a
+daemon command (`crates/pa-daemon/src/rlm_surface.rs:71`).
 
-Default max depth is **1** (`_resolveRlmMaxDepth()`, `agent-session.ts:1577+`):
-persisted chat state → inherited → global settings → env `RLM_MAX_DEPTH` → 1.
-Even Prime treats deep recursion as dangerous.
+Spawn topology is still recorded in an append-only ledger
+(`crates/pa-daemon/src/rlm_ledger/`) separate from session headers. The supervisor
+now also serves an event-driven agent roster from that ledger (`8d5722e`, `1d2e91d`).
 
-Spawn topology is recorded in an append-only ledger
-(`packages/coding-agent/src/modes/daemon/rlm-ledger.ts`) **separate** from session
-headers — the parent can recover the child roster after compaction, kernel restart,
-or parent restore.
+**Factory** (`prime-agent-runtime/src/rlm/factory.py`): a harness entry of kind
+`factory` stores a declarative state machine of subagent states — entry states,
+guarded transitions, bounded re-entry (`max_entries`). A DAG form compiles to the
+machine form. The executor admits states via `rlm.spawn`, settles via `rlm.collect`,
+cancels via `rlm.delete_subagent`. Run state lives in kernel memory and **does not
+survive a kernel restart**; children are supervisor-owned and keep running
+(`factory.py` module docstring).
 
 ---
 
 ## Continual Harness and `/refine`
 
-Editable supplemental state, explicitly **not** the base system prompt
-(`packages/coding-agent/src/core/refinement/refinement.ts:123–138`).
+Editable supplemental state, explicitly not the base system prompt.
 
-Kinds: `prompt | memory | skill | subagent` (`refinement.ts:30–31`).
+Kinds: `prompt | memory | skill | subagent | factory`
+(`crates/pa-core/src/refinement/mod.rs:10`).
 
 Storage:
 
@@ -203,75 +270,82 @@ Storage:
 | Global | `~/.prime/agent/harness/harness_state.json` + `refinements.jsonl` |
 | Local | `<session-artifacts>/<id>/harness/harness_state.json` |
 
-`/refine` reviews the current trajectory, proposes structured create/update/delete
-edits, applies them atomically (temp file + rename, `refinement.ts:350–358`), and
-records a session custom entry (`REFINEMENT_CUSTOM_TYPE`). `/refine --rollback <id>`
-builds inverse edits from stored `before` snapshots (`refinement.ts:804–835`).
+`/refine` reviews the trajectory, proposes edits, and applies them
+(`crates/pa-core/src/refinement/planner.rs`: "proposal parsing, edit validation,
+application, and rollback"). Each applied outcome is persisted with a
+`rollback_of` link (`refinement/mod.rs:325–336`). Auto-refine is triggered from
+`session_engine/auto_refine_trigger.rs` and post-compaction
+(`crates/pa-daemon/src/compact_autorefine.rs`).
 
-Auto-refine can fire on a turn interval or post-compaction
-(`agent-session.ts:195–196`). The reviewer still decides whether to apply.
-
-Python `harness.py` mirrors the same state model into the kernel. That dual-writer
-is a consistency tax (see the critique).
+Python `harness.py` still writes the same JSON file (`os.replace` at
+`harness.py:648`; `create_memory`/`update_memory`/`delete_memory` at `:914–940`).
+Since `97b4a03` (2026-10-07) both writers share a cross-process lock directory with
+an owner file (`crates/pa-core/src/platform/lock_dir.rs:1–3`; `harness.py:471–485`).
+Two writers remain, but they are now serialized.
 
 ---
 
 ## Daemon: Client / Supervisor / Worker
 
-Transport: local JSONL over a unix domain socket
-(`packages/coding-agent/src/modes/daemon/daemon-protocol.ts:43–50`).
+Transport: local JSONL over a unix domain socket (`crates/pa-daemon/src/socket.rs`,
+`framing.rs`).
 
-Versioning is unusually adult for a CLI:
+Versioning (`crates/pa-types/src/daemon/mod.rs:12–25`):
 
-```52:64:prime-agent/packages/coding-agent/src/modes/daemon/daemon-protocol.ts
-export const DAEMON_PROTOCOL_NAME = "prime-agent.daemon";
-export const DAEMON_PROTOCOL_VERSION = 7;
-export const DAEMON_COMMAND_ENVELOPE_MIN_PROTOCOL_VERSION = 7;
-// ...
-export const DAEMON_SCHEMA_REVISION = 16;
-export const DAEMON_SCHEMA_ID = "protocol-7-schema-16-1bcb9e7f1a49";
+```rust
+pub const DAEMON_PROTOCOL_NAME: &str = "prime-agent.daemon";
+pub const DAEMON_PROTOCOL_VERSION: u64 = 7;
+pub const DAEMON_SCHEMA_REVISION: u64 = 30;
+pub const DAEMON_SCHEMA_ID: &str = "protocol-7-schema-30-8e4b17c2a9f5";
+pub type DaemonClientCapability = String;
+pub type DaemonServerCapability = String;
 ```
 
-Protocol version vs schema revision vs capability sets
-(`DaemonClientCapability` / `DaemonServerCapability`) lets optional features
-degrade instead of hard-breaking attach. `AGENTS.md` requires classifying every
-wire change as compatible, capability-gated, or incompatible.
+`DAEMON_COMMAND_ENVELOPE_MIN_PROTOCOL_VERSION` equals the protocol version
+(`crates/pa-daemon/src/protocol.rs:19`). Capabilities are open strings on the wire
+(closed unions in TS, comment at `mod.rs:23`). Schema revision moved 16 → 30 across
+the port with no protocol bump: the capability-gating discipline held.
 
 Roles:
 
 | Process | Job |
 |---------|-----|
-| Client | `attach` / `reattach` / `prompt` / `detach` |
-| Supervisor (`daemon-supervisor.ts`, **5,236 ln**) | Socket server, worker fleet, prompt admission, idle eviction, recovery |
-| Worker (`daemon-mode.ts`, **7,064 ln**) | Owns `AgentSessionRuntime`, executes daemon commands |
-| Catalog (`daemon-catalog-process.ts`) | List/resolve/delete sessions **without loading agents** |
+| Client (`pa-cli`) | `attach` / `reattach` / `prompt` / `detach`; ACP stdio mode |
+| Supervisor (`crates/pa-daemon/src/supervisor/`, 14 files, 8,725 ln) | Accept loop, worker lifecycle, routing, launch budget, catalog resolve, roster |
+| Worker (`crates/pa-daemon/src/worker/`, 18 files, 9,973 ln) | Owns the session engine, executes daemon commands |
 
-Crash recovery uses JSONL journals (`WorkerRecoveryJournal`,
-`CommandRecoveryJournal`) plus worker lifecycle states
-`starting | ready | recovering | stopping | failed`.
+The separate **catalog process is gone**: `pa-daemon` accepts only `supervisor` or
+`worker` (`main.rs:15–43`). Listing/resolving saved sessions is done in the
+supervisor without loading runtimes (`session_catalog.rs`; metadata append without
+full transcript parses, `c37f5eb`).
 
-This is distributed-systems engineering inside a local agent CLI. It is how
-"the terminal disconnected but the agent kept working" is actually implemented.
+Crash recovery uses `WorkerRecoveryJournal` (`journal.rs:174`) plus worker lifecycle
+`Starting | Ready | Recovering | Stopping | Failed`
+(`crates/pa-types/src/daemon/worker.rs:12–18`). `CommandRecoveryJournal` was deleted
+as unused (`121e59d`); the per-append session lease guard was dropped (`92dc7e5`).
+
+**ACP** (`crates/pa-daemon/src/acp/`): JSON-RPC stdio mode served over a daemon
+session — a second client protocol on the same supervisor/worker path (`15929ad`,
+`da8a80a`).
 
 ---
 
 ## Persistence
 
-No SQLite in the core product.
+No SQLite in the product (no `rusqlite`/`sqlite` in any crate `Cargo.toml`).
 
 | Artifact | Format |
 |----------|--------|
 | Session transcript tree | Append-only JSONL, `CURRENT_SESSION_VERSION = 3` |
-| Harness state | JSON (global + per-session) |
+| Harness state | JSON (global + per-session), lock-dir guarded |
 | Refinement history | JSONL |
 | RLM spawn ledger | JSONL |
-| Cron / heartbeats | JSON via `getCronJobsPath()` |
+| Cron / heartbeats | JSON (`AgentCronJobStore`, `crates/pa-core/src/cron/store`) |
 | Kernel namespace | dill + manifest |
-| Agent logs | `~/.prime/agent/logs/agent.jsonl` |
 
-Session files live under `~/.prime/agent/sessions/<uuid>.jsonl`. The tree model
-(`id`/`parentId`) is pi's. Prime adds artifact dirs for harness, RLM child
-metadata, and scheduled jobs.
+On-disk formats were kept byte-compatible with the TS era so upgrades read old
+sessions (`Cargo.toml` `preserve_order` comment; `c174739` "support TypeScript
+updates to Rust").
 
 ---
 
@@ -279,94 +353,93 @@ metadata, and scheduled jobs.
 
 | Feature | Mechanism |
 |---------|-----------|
-| Compaction | Branch summaries + token threshold; **kernel state survives** |
-| Goals | IPython `goal` skill + `goal.*` host handlers; `/goal` slash |
-| Heartbeats | Cron jobs with `source: "heartbeat" \| "rlm_heartbeat"` |
-| Schedules | `AgentCronScheduler` — once / cron / interval |
-| Autonomous | Host injects continuations; optional **quality gates** as shell commands (`autonomous.ts`, default `maxTurns: 12`) |
-| Agent messaging | Discover, send, observe; family-reach rules + rate limits |
+| Compaction | Branch summaries + token threshold; kernel state survives (`session_engine/compaction*.rs`) |
+| Goals | `goal` skill + `goal.*` host handlers (`session_engine/host_requests.rs:76–96`) |
+| Heartbeats | `rlm_heartbeat.*` handlers over the cron store (`host_requests.rs:211–305`) |
+| Schedules | `crates/pa-core/src/cron/`, `crates/pa-daemon/src/scheduled_jobs/` |
+| Autonomous | Host-injected continuations, `DEFAULT_MAX_TURNS = 12` (`crates/pa-core/src/autonomous/mod.rs:23`) |
+| Factory | Declarative subagent state machines (see Subagents) |
+| Agent messaging | `crates/pa-daemon/src/agent_messaging*`, broadcast/ingest |
 
-Busy-session delivery: `steer` (interrupt into the current step) vs `follow_up`
-(queue for the next turn) — the same vocabulary DeepSeek Harness uses, reached
-independently.
+Busy-session delivery still distinguishes `steer` vs `follow_up`
+(`crates/pa-types/src/daemon/plane.rs:26–27`).
 
 ---
 
 ## Skills
 
-Discovery scans skill dirs for `SKILL.md` plus optional `pyproject.toml`
-(`packages/coding-agent/src/core/skills.ts`).
+Bundled skills (`skills/`): `agent-message`, `agent-observe`, `attach-image`,
+`compact`, `decision-api`, `edit`, `factory`, `goal`, `mcp`, `prime-intellect`,
+`refine`, `rlm-heartbeat`, `skill-creator`, `websearch`.
 
-| Kind | Detection | Invocation |
-|------|-----------|------------|
-| Markdown | No `pyproject.toml` | Prompt / context only |
-| Python | `pyproject.toml` + `src/<name>/__init__.py` | Pre-imported into the kernel; `await <import>(...)` |
+Skills are Markdown (`SKILL.md`) or Python packages pre-imported into the REPL.
+Python skills that fail to import are reported to the model on the next turn
+(`session_engine/engine.rs:402–415`). Only metadata enters the startup prompt.
 
-Only skill **metadata** is in the startup prompt. Full `SKILL.md` loads on match.
-Built-in skills include `edit`, `goal`, `refine`, `agent-message`, `agent-observe`,
-`compact`, `rlm-heartbeat`, `skill-creator`.
-
-Python-backed skills are a superset of instruction-only skills and may themselves
-call `rlm(...)`.
+MCP servers run **inside the kernel** (`prime-agent-runtime/src/rlm/mcp.py`); the
+host opens configured servers in the background after kernel prewarm
+(`engine.rs:452–470`).
 
 ---
 
 ## Security and Trust
 
-The product is honest:
+The README is still honest (`README.md:87`):
 
-> Worker and kernel processes improve lifecycle isolation and recovery; they are
+> Its worker and kernel processes improve lifecycle isolation and recovery; they are
 > **not** a security sandbox.
 
-`@anthropic-ai/sandbox-runtime` is a **devDependency** used only in
-`packages/coding-agent/examples/extensions/sandbox/` — opt-in OS-level bash
-sandboxing, not the default path. The default RLM runtime executes
-model-generated Python with the worker's user permissions.
+The 0.7.2 opt-in sandbox example extension is gone with the extension system
+(`f54551d`); `examples/` contains only `catch`. Model-generated Python runs with the
+worker's user permissions.
 
-The host-request branded-handler check is a real control against a confused
-kernel, not a sandbox.
+Hardening that did land: the closed host-request map, removal of user-executed
+extension code, log redaction of session ids (`c6926c5`), and a contributor trust
+gate in CI (`069014c`).
 
 ---
 
 ## Key Design Patterns
 
-1. **UI does not own execution.** Attach is a client of a protocol.
+1. **UI does not own execution.** TUI, print, RPC, and ACP are clients of one daemon path.
 2. **One model-facing tool, many host operations.** Privileged work is typed RPC.
-3. **Admission ≠ completion.** `rlm()` returns a handle; answers are messages.
-4. **Immutable base prompt, mutable harness.** Refinement is evidence-backed and
-   rollbackable.
-5. **Capability-gated wire protocol.** Optional features degrade; schema revision
-   is not a silent break.
-6. **Catalog process.** Listing sessions must not mean loading them.
-7. **Spawn ledger vs session log.** Topology is a first-class artifact.
+3. **Admission ≠ completion.** `spawn` returns a handle; `collect` is an explicit, bounded join.
+4. **Immutable base prompt, mutable harness.** Refinement is rollbackable.
+5. **Capability-gated wire protocol.** 14 schema revisions and a language rewrite without a protocol bump.
+6. **Catalog without loading runtimes.** Now in-supervisor rather than a subprocess.
+7. **Spawn ledger vs session log.** Topology is a first-class artifact, and the roster reads it.
+8. **Rewrite behind a frozen wire/disk contract.** The Rust port kept byte parity with TS state.
 
 ---
 
 ## Why It Matters for swe-term
 
-Prime Agent is the strongest existence proof that **pi's loop can grow a
-long-running, detachable, multi-agent product** without replacing the loop. That
-is encouraging for swe-term's port.
+Prime Agent is now also the strongest existence proof that **a pi-shaped harness can
+be rewritten into a native systems language behind a stable wire and disk
+contract**. The daemon protocol, host-request bridge, harness rollback, and spawn
+ledger all survived the rewrite unchanged in shape.
 
-What it does *not* prove is that IPython-as-the-only-tool is the right programming
-model for a Go single-binary harness. The daemon protocol, harness snapshots,
-host-request idea, and catalog split are the portable pieces. The kernel control
-plane is the tax.
+It still does not prove that a Python REPL as the only tool is the right programming
+model for a Go single-binary harness. The kernel got cheaper (no Jupyter), not
+optional.
 
 ---
 
 ## Summary Statistics
 
-| Metric | Value (local 0.7.2) |
-|--------|---------------------|
-| TS packages | 4 (`ai`, `agent`, `coding-agent`, `tui`) |
-| `agent-session.ts` | **11,288** lines |
-| `interactive-mode.ts` | **10,024** lines |
-| `daemon-mode.ts` | **7,064** lines |
-| `daemon-supervisor.ts` | **5,236** lines |
-| `agent-loop.ts` (pi-core) | 986 lines |
-| Default LLM tools | 1 (`ipython`) |
-| Daemon protocol | v7 / schema revision 16 |
-| Default RLM max depth | 1 |
-| Session store | JSONL tree, no SQLite |
-| Sandbox default | None (example extension only) |
+| Metric | 0.7.2 (`2c34b82`) | 0.10.0 (`2ee7e62`) |
+|--------|------|------|
+| Host language | TypeScript (4 npm workspaces) | Rust (9 crates) |
+| Rust lines (all / non-test) | — | 568,985 / 378,314 |
+| Session orchestrator | `agent-session.ts` 11,288 ln (15,101 just before port) | `SessionEngine` 971 ln; `session_engine/` 61 files, 28,338 ln |
+| Largest non-generated source file | `agent-session.ts` 11,288 | `acp/daemon.rs` 2,235 |
+| Agent loop | `agent-loop.ts` 986 ln | `pa-agent/src/agent_loop/` 1,498 ln |
+| Default LLM tools | 1 (`ipython`) | 1 (`ipython`) |
+| Kernel | ipykernel over ZMQ | CPython `rlm.repl`, NDJSON, protocol v3 |
+| Daemon protocol | v7 / schema 16 | v7 / schema 30 |
+| Daemon processes | client, supervisor, worker, catalog | client, supervisor, worker |
+| Default RLM max depth | 1 | 2 |
+| Harness kinds | 4 | 5 (+`factory`) |
+| User extensions | jiti TS | Removed |
+| Session store | JSONL tree, no SQLite | Same |
+| Sandbox default | None (example extension only) | None |

@@ -4,25 +4,42 @@
 > zero-dependency core, interface-driven plugins, immutable state,
 > goroutine-native concurrency, content-addressable caching, single binary.
 >
-> **Validated against the local dsh source** at `deepseek-harness/` (`0.1.0-rc.5`).
-> This is a pre-release composition platform, not a small coding loop.
+> **Validated against the local dsh source** at `deepseek-harness/`
+> (`0.2.1-alpha.2`, HEAD `d743267388`), refreshed 2026-10-10. Previous
+> validation: `c15f2f4d2` (2026-08-16). This is a pre-release composition
+> platform, not a small coding loop.
+
+## Verdict Changes (2026-10-10)
+
+| Verdict | Before | Now | Evidence |
+|---------|--------|-----|----------|
+| Dispatch-time reconstruction invariant | dsh enforces it at runtime | dsh **removed** the runtime check; reconstruction is by construction (derive, freeze, brand) plus a test. Still the top steal, but swe-term keeps the runtime check dsh dropped. | `f028f25667`; `packages/core/agent-loop/src/agent.ts:688–700`; `packages/core/agent-loop/tests/request-reconstruction.spec.ts` |
+| `JSON.stringify` equality footgun | Live concern | Moot: that code was deleted with the invariant | `f028f25667` |
+| `SESSION_FORMAT_VERSION = 0` / "migrate or abandon" | Open risk | Resolved toward **migrate**: format 4, adjacent migration chain, V4 recorded as released | `packages/core/session/src/types.ts:70–89`; `docs/session-format-status.md` |
+| Package explosion | 226 packages | **Worse**: 340 manifests, ~1.10M TS/TSX lines | `packages/*/*/package.json` |
+| In-process `eval` self-modification | Research demo in `dsh-tool-cordis` | Narrowed: `cordis_define` moved to `dsh-cordis-host-runner` with human-approved client activation, web-app bundle only. "Do not port" stands. | `packages/extensions/cordis-host-runner/src/index.ts:1–5`; `packages/bundle/web-app/cordis.patch.yml` |
+| Invariant-companion bureaucracy | Every package owns `./invariant` | Removed; other gates (per-file 100% coverage, doc budgets, bilingual docs) remain | `f028f25667`; `vitest.config.ts:377–387`; `AGENTS.md:173` |
+
+Unchanged: seams, waterfall phases, turn/step vocabulary, fail-closed sandbox,
+profiles-as-patches, `AgentFactory` dependency direction, "do not port Cordis".
 
 ---
 
 ## Verdict Summary
 
 DeepSeek Harness is the **best written harness architecture** in this survey and
-the **worst template to copy at face value**. The loop is 496 lines. The session
-log is the only model history. A runtime invariant refuses to send a request the
-log cannot reconstruct. Capability seams mean swapping the filesystem backend
+the **worst template to copy at face value**. The loop is 705 lines. The session
+log is the only model history. Every loop request is derived from the log,
+deep-frozen, and branded; a test proves reconstruction (the runtime invariant
+was removed in `f028f25667`). Capability seams mean swapping the filesystem backend
 moves Bash and LSP with it. Sandbox missing → fail closed. Profiles are ordered
 patches. ACP is a thin adapter over `ctx.agents`.
 
-It takes **226 packages**, a vendored actor/DI framework, per-file 100%
+It takes **340 packages**, a vendored actor/DI framework, per-file 100%
 coverage, generated catalogs, bilingual doc budgets, and a Typert type-graph
 gateway to hold that architecture in TypeScript. That is an org-scale machine
-for a product that still pins `SESSION_FORMAT_VERSION = 0` and advertises
-breaking changes.
+for a product that still advertises breaking changes, though it now migrates
+session logs (`SESSION_FORMAT_VERSION = 4`).
 
 **Import the log-centric loop contract and the seam taxonomy. Do not import
 Cordis, the package explosion, or the gate factory. A Go core can be an order
@@ -35,15 +52,20 @@ correct.**
 
 ### What dsh does well
 
-**The LLM sees only the log.** `deriveMessages()` plus the `llm/stream`
-invariant (`packages/core/agent-loop/src/invariant.ts`) is the strongest
-correctness property of any agent here. Prime's kernel state and oh-my-pi's
+**The LLM sees only the log.** `deriveMessages()` at the step boundary plus a
+frozen, `markAgentLoopRequest`-branded request
+(`packages/core/agent-loop/src/agent.ts:688–700`) is the strongest
+correctness property of any agent here. dsh dropped the runtime `llm/stream`
+check (`f028f25667`) and now relies on construction and
+`tests/request-reconstruction.spec.ts`. Prime's kernel state and oh-my-pi's
 eval namespace are hidden context channels. dsh forbids them at the dispatch
 boundary.
 
 > **Lesson for Harness:** Before every provider call, reconstruct the message
 > list from `SessionStore` and compare. In Go this is a function and a test,
 > not a Cordis companion plugin. This is the single highest-leverage steal.
+> Keep the runtime compare even though dsh removed theirs: in Go it costs one
+> structured equality per step and catches desyncs that tests miss.
 
 **Named extension phases beat god objects.** `agent/pre-step`, `agent/request`,
 `tools/pre|execute|post`, `agent/turn-stopping` are the hook surface. Prime and
@@ -90,7 +112,7 @@ the protocol adapter. That is the right dependency direction for
 
 ### What dsh gets wrong (for *our* purposes)
 
-**The platform is the product.** 226 packages is not modularity; it is
+**The platform is the product.** 340 packages (226 two months earlier) is not modularity; it is
 granularity past the point of human navigation. "Add a tool" means a package,
 a seam role, a README Model Experience section, an invariant companion, a
 REAL-composition test, a snapshot, and a catalog regen. Correct for a lab with
@@ -112,12 +134,13 @@ replay, UI, ACP, and invariants require the same `SessionEventMap`. That is
 fine — be honest that the log schema *is* the core. dsh sometimes writes as if
 the loop were the only replaceable piece.
 
-**JSON.stringify equality** for the reconstruction check is pragmatic in TS
-and a footgun (key order, undefined). Go should use canonical encoding or
-structured compare.
+**JSON.stringify equality** was the old reconstruction check; it was deleted
+with the runtime invariant (`f028f25667`). The lesson stands for Go: use
+canonical encoding or structured compare, not string equality.
 
 **Self-modification via in-process `eval`.** `cordis_define` accepts JS
-function bodies. That contradicts swe-term's "no dynamic in-process loading"
+function bodies. It now sits in `dsh-cordis-host-runner` behind human-approved
+client activation and only in the web-app bundle; it still contradicts swe-term's "no dynamic in-process loading"
 and the lethal-trifecta lessons in the Claude critique.
 
 ---
@@ -126,7 +149,7 @@ and the lethal-trifecta lessons in the Claude critique.
 
 ### Small loop, huge tree
 
-The 496-line driver is efficient *to read*. The 226-package build, tsdown dual
+The 705-line driver is efficient *to read*. The 340-package build, tsdown dual
 host/client faces, and catalog generators are not efficient *to change*.
 Contributor latency is the real cost.
 
@@ -147,14 +170,17 @@ harness does not need this. ACP + TUI over one event stream is enough.
 ## 3. Simplicity
 
 dsh's *concepts* are simple (log, seam, waterfall, profile). The
-*implementation* is a bureaucracy designed to keep 226 packages from lying.
-Word budgets, bilingual pairing, export JSDoc verification, package invariant
-companions — admirable, and hostile to a three-person core.
+*implementation* is a bureaucracy designed to keep 340 packages from lying.
+Word budgets, bilingual pairing, export JSDoc verification — admirable, and
+hostile to a three-person core. (Per-package invariant companions were
+removed in `f028f25667`.)
 
-Pre-release "foundation over blast radius" is the tell: they are still allowed
-to rename everything. Once `SESSION_FORMAT_VERSION` leaves 0, this machine
-either pays migration costs or abandons users. swe-term should pick a small
-schema and version it from day one (PLAN already says SQLite).
+`SESSION_FORMAT_VERSION` has left 0 (now 4), and dsh chose to pay migration
+costs: an adjacent migration chain, a released-format record
+(`docs/session-format-status.md`), and per-release upgrade guides
+(`docs/upgrade-guide/`). That confirms the prediction and its price. swe-term
+should pick a small schema and version it from day one (PLAN already says
+SQLite).
 
 ---
 
@@ -164,7 +190,7 @@ schema and version it from day one (PLAN already says SQLite).
 |-----|-----|---------|
 | Single binary | Node + native addons + Python SDK | Go core |
 | Plugin model | Cordis fibers + YAML | Go interfaces + optional sidecars |
-| Package count | 226 | core + extensions |
+| Package count | 340 | core + extensions |
 | Session store | Log + SQLite backends (good) | SQLite (align) |
 | Tokenization | LLM-reported + compaction plugin | Real tokenizer for triggers |
 | Content-addressable cache | Not a design center | `core/cache` |
@@ -207,7 +233,7 @@ One core, many frontends. The browser is a frontend, not a second runtime.
 
 | From dsh | To Harness | Why |
 |----------|------------|-----|
-| `deriveMessages()` + dispatch invariant | `SessionStore.Messages()` checked before `Provider.Stream` | Ghost context becomes a failed test |
+| `deriveMessages()` + frozen branded request (dsh dropped its runtime check) | `SessionStore.Messages()` checked before `Provider.Stream` | Ghost context becomes a failed test |
 | Turn/step durable events | Protocol event types | Resume, ACP, telemetry share units |
 | Waterfall hook phases | `Hook` with must-continue | Extension without loop forks |
 | Seam triple (def/provider/consumer) | Go interfaces | Swap sandbox world, not tools |
@@ -226,14 +252,14 @@ One core, many frontends. The browser is a frontend, not a second runtime.
 DeepSeek Harness                         Harness (swe-term)
 ────────────────────────────────────     ─────────────────────────────────
 Cordis plugin kernel                     Go interfaces, no DI framework
-226 packages, generated catalogs         Small core + extensions
-496-line loop + huge plugin tree         Small loop, same idea
-Session log + reconstruction invariant   Same invariant, SQLite store
+340 packages, generated catalogs         Small core + extensions
+705-line loop + huge plugin tree         Small loop, same idea
+Log-derived frozen request + test        Runtime invariant, SQLite store
 YAML profiles / bundles                  Flags + config file layers
 Landlock/bwrap/Seatbelt fail-closed      Same policy, adapter-driven
 ACP + JSON-RPC + web + Python SDK        ACP + TUI + print; SDK later
-In-process cordis_define eval            Sidecar / Starlark, not eval
-SESSION_FORMAT_VERSION = 0               Version from v1, migrate or refuse
+Human-gated cordis_define eval (web)     Sidecar / Starlark, not eval
+SESSION_FORMAT_VERSION = 4 + migrations  Version from v1, migrate or refuse
 Per-file 100% coverage                   Critical-path + snapshots
 ```
 
@@ -250,5 +276,5 @@ The codebase says: enforcing that spec in TypeScript at lab scale requires an
 operating system of packages and gates.
 
 swe-term should implement the spec in Go in a few thousand lines, then add
-features as extensions. If the Go port ever needs 226 packages to stay honest,
+features as extensions. If the Go port ever needs 340 packages to stay honest,
 the architecture has already failed.

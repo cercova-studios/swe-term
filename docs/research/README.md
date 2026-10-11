@@ -27,6 +27,8 @@ Deep-dive and critique evidence packs used to inform architectural decisions.
 - [`DEEPSEEK_HARNESS_CRITIQUE.md`](DEEPSEEK_HARNESS_CRITIQUE.md)
 - [`OH_MY_PI_DEEP_DIVE.md`](OH_MY_PI_DEEP_DIVE.md)
 - [`OH_MY_PI_CRITIQUE.md`](OH_MY_PI_CRITIQUE.md)
+- [`OPENCODE_DEEP_DIVE.md`](OPENCODE_DEEP_DIVE.md)
+- [`OPENCODE_CRITIQUE.md`](OPENCODE_CRITIQUE.md)
 
 ## Code intelligence engines
 

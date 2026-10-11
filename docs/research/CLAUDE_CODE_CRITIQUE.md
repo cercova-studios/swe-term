@@ -4,6 +4,21 @@
 > zero-dependency core, interface-driven plugins, immutable state,
 > goroutine-native concurrency, content-addressable caching, single binary.
 
+> **Provenance (refreshed 2026-10-10, Claude Code v2.1.296).** Original critique: 2026-06-06,
+> based on the 2026-03-31 source snapshot analysed in `CLAUDE_DEEP_DIVE.md`. Code-structure claims
+> (file sizes, `AppState`, `transitions.ts`, lazy requires) are `[source-snapshot, unverifiable]`
+> against public sources. Refresh sources: https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md,
+> https://code.claude.com/docs/en/permission-modes, https://code.claude.com/docs/en/sandboxing.
+>
+> **Verdicts changed in this refresh:**
+> 1. *Permission system* (§1): strengthened, and its mechanism corrected. Auto mode is now the default
+>    starting mode (v2.1.283) and uses a model classifier, not only pattern-matching validators.
+> 2. *Port table* (§6): "Bash safety patterns" stays, and an OS-level sandbox row is added. Public evidence
+>    now shows deterministic egress/credential controls (`sandbox.network.strictAllowlist`,
+>    `sandbox.credentials`) carrying the safety load beside the classifier.
+>
+> All other verdicts are unchanged: no public evidence bears on them.
+
 ---
 
 ## Verdict Summary
@@ -19,6 +34,14 @@ Claude Code is an impressively **feature-complete product** but a **poor archite
 ### What Claude Code does well
 
 **Permission system is production-hardened.** The multi-layered permission model (bash classifier → rule matching → mode dispatch → UI prompt) is the most battle-tested part of the codebase. The `dangerousPatterns.ts`, `sedValidation.ts`, `pathValidation.ts` trio demonstrates what a real safety boundary looks like after thousands of edge cases.
+
+> **Update 2026-10-10 (verdict changed):** the public design has moved. Auto mode, the default
+> starting mode since v2.1.283, sends actions to a second model (a classifier) that can run
+> server-side, with editable rules in `/permissions` (https://code.claude.com/docs/en/permission-modes;
+> changelog v2.1.246, v2.1.278). Hard limits sit in an OS sandbox: Seatbelt on macOS, bubblewrap on
+> Linux, plus a strict egress allowlist and credential masking (https://code.claude.com/docs/en/sandboxing).
+> **Lesson for swe-term:** keep deterministic policy as the enforcement boundary and treat any model
+> classifier as advisory triage in front of it. Do not port a model-in-the-loop gate as the only gate.
 
 **Tool orchestration is sophisticated.** `toolOrchestration.ts` partitions tool calls into concurrent-safe (read-only) and sequential (write) batches. Read-only tools run in parallel; write tools serialize. Context modifiers queue up and apply in order. This is a pattern worth studying.
 
@@ -230,6 +253,7 @@ In Harness, the bridge is a `Frontend` implementation. It implements the same in
 | Compaction concept | `core/agent/compact.go` | Multi-strategy with memory extraction |
 | Token budget tracking | `core/agent/budget.go` | Context window management is essential |
 | Bash safety patterns | `ext/tools/terminal/safety.go` | Dangerous pattern detection, path validation |
+| OS sandbox + default-deny egress (added 2026-10-10) | approval/sandbox boundary | Seatbelt/bubblewrap isolation, strict host allowlist, credential masking (https://code.claude.com/docs/en/sandboxing) |
 | MCP client architecture | `ext/mcp/client.go` | Multi-transport, auth, elicitation |
 | Structured diff rendering | `ext/tui/components/diff.go` | Good UX pattern |
 

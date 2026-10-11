@@ -2,12 +2,45 @@
 
 > Analysis of [`can1357/oh-my-pi`](https://github.com/can1357/oh-my-pi) (`omp`) —
 > a **pi-mono fork with the IDE wired in**. Runtime: **Bun**. Languages:
-> TypeScript + **~80k LoC Rust** (N-API). Distribution: curl installer, Homebrew,
+> TypeScript + **~302k LoC Rust** excluding `crates/vendor/` (N-API; README
+> still says ~80k). Distribution: curl installer, Homebrew,
 > npm/bun, Nix, compiled bun binary. License: see repo `LICENSE`.
 >
-> **Validated against a local source checkout** at `oh-my-pi/` version **17.3.5**,
-> HEAD `37eee71978` (2026-08-16). Fork delta list:
+> **Validated against a local source checkout** at `oh-my-pi/` version **18.8.9**,
+> HEAD `fd27203d27` (validated 2026-10-10). Previous validation: 17.3.5,
+> upstream `316c11868` (2026-08-16); 10,850 commits between. Fork delta list:
 > `docs/porting-from-pi-mono.md` (upstream marker `b21b42d`).
+
+---
+
+## Changes since 17.3.5 (2026-08-16)
+
+1. **Edit engine moved to Rust.** `crates/pi-edit` (~30k ln) owns parsing,
+   matching, streaming preview, and atomic apply for every edit mode; the
+   `packages/hashline` TS package was deleted. Commit `c478e41a04`.
+2. **New edit mode `sloppy`.** `EditMode` is now
+   `replace | patch | hashline | apply_patch | sloppy`
+   (`packages/tui/src/tools/edit.ts:51`, `crates/pi-edit/src/modes/sloppy`).
+3. **Browser and computer folded into eval.** They are no longer builtin
+   tools; eval reaches them instead. Commit `64508e1259`. `inspect_image` was
+   replaced by `read` image questions (`ecc97e9c66`); `hub` was deprecated for
+   `wait` (`f89a6db15e`).
+4. **Codex Code Mode.** For `code_mode_only` models, the direct tool surface
+   collapses to a keep-set and every other tool is reached through the eval
+   bridge (`packages/coding-agent/src/session/code-mode.ts`, `1087ad09c1`).
+5. **Eval re-engineered; Ruby/Julia removed.** Kernels are now `py` and `js`
+   only, with a `WorkPool` bridge (`05bb0c1989`).
+6. **In-process VCS.** `crates/pi-vcs` unifies git (gitoxide) and Jujutsu
+   (jj-lib) behind N-API, replacing CLI wrappers (`2a7db5855d`).
+7. **Virtual filesystem for the embedded shell.** `crates/pi-vfs` lets shell
+   coreutils see `scheme://` paths without host materialization (`8b984d7a5a`).
+8. **Catalog moved to a KDL policy engine.** Provider data is authored in
+   92 `packages/catalog/src/compat/rules/providers/*.kdl` files; `descriptors.ts`
+   keeps only factories (`dd57045396`).
+9. **Notes-backed context windows (experimental).** `context_notes` +
+   `new_context` tools roll the window over without a summarizer
+   (`docs/compaction.md`, `54cae2c717`).
+10. **`AgentSession` grew 44%:** 9,428 → **13,598** lines.
 
 ---
 
@@ -34,7 +67,8 @@
 oh-my-pi keeps pi-mono's *layer names* and replaces the *platform*.
 
 The README's claim is product, not architecture: **60+ providers, 31 built-in
-tools, 14 LSP ops, 28 DAP ops, ~80k lines of Rust core.** The architectural
+tools, 14 LSP ops, 28 DAP ops, ~80k lines of Rust core** (`README.md:27`,
+unchanged at 18.8.9; the Rust figure is now ~4× stale). The architectural
 claim underneath: a coding agent should expose **IDE-grade tools** (LSP rename
 that hits barrel files, a real debugger, grep that does not shell out) and
 **model-tuned contracts** (edit format selected per weights, not one
@@ -77,25 +111,33 @@ pi, not a drop-in upgrade.
 
 ## Package and Crate Layout
 
-**TypeScript workspaces** (17 under `packages/`): `ai`, `agent`, `coding-agent`,
-`tui`, plus omp-only `catalog`, `hashline`, `snapcompact`, `mnemopi`, `omptype`,
+**TypeScript workspaces** (16 under `packages/`): `ai`, `agent`, `coding-agent`,
+`tui`, plus omp-only `catalog`, `snapcompact`, `mnemopi`, `omptype`,
 `wire`, `natives`, `stats`, `collab-web`, `browser-relay`, `metaharness`,
-`typescript-edit-benchmark`, `utils`.
+`typescript-edit-benchmark`, `utils`. (`hashline` was removed in `c478e41a04`.)
 
-**Rust crates** (8 under `crates/`):
+**Rust crates** (12 under `crates/`, excluding `vendor/`; line counts measured
+at `fd27203d27`):
 
-| Crate | Role (README claims) |
-|-------|----------------------|
-| `pi-shell` | Embedded bash (vendored `brush-core`), PTY, in-process coreutils (~38k) |
-| `pi-natives` | N-API cdylib aggregating hot paths (~25k) |
-| `pi-walker` | Ignore-aware parallel walker + scan cache |
-| `pi-iso` | Worktree isolation (APFS/btrfs/zfs/overlay) |
-| `pi-ast` | tree-sitter + ast-grep summaries |
-| `pi-voice` | Audio / WebRTC |
-| `pi-builtins` | In-process CLI utilities |
+| Crate | Role | Lines |
+|-------|------|------:|
+| `pi-builtins` | In-process CLI utilities | ~98k |
+| `pi-natives` | N-API cdylib aggregating hot paths | ~82k |
+| `pi-shell` | Embedded bash (vendored `brush-core`), PTY | ~42k |
+| `pi-edit` | Edit engine for all modes, streaming sessions (new) | ~30k |
+| `pi-vcs` | git (gitoxide) + jj (jj-lib), in-process (new) | ~13k |
+| `pi-predict` | Prompt-composer word completion (new) | ~8k |
+| `pi-walker` | Ignore-aware parallel walker + scan cache | ~8k |
+| `pi-vfs` | Injectable async FS for shell coreutils (new) | ~6k |
+| `pi-ast` | tree-sitter + ast-grep summaries | ~5k |
+| `pi-iso` | Worktree isolation (APFS/btrfs/zfs/overlay) | ~5k |
+| `pi-voice` | Audio / WebRTC | ~4k |
+| `pi-diff` | jsdiff-compatible Myers diff, no FFI (new) | ~1k |
 
-`crates/pi-natives/src/lib.rs` registers grep, glob, fd, workspace, ast,
-snapcompact, shell, pty, desktop, highlight, diff, tokens, html/pdf, etc.
+Non-vendor Rust grew from ~171k to ~302k lines since `316c11868`.
+`crates/pi-natives/src/lib.rs` now registers ~45 modules, including grep,
+glob, fd, workspace, ast, edit, vcs, predict, snapcompact, shell, pty, iso,
+desktop, highlight, diff, tokens, html/pdf, spelling, and `tty_writer`.
 
 ---
 
@@ -112,6 +154,10 @@ JS (packages/natives) → N-API → Rust modules
 - Compiled bun binary: addon gzip-embedded, extracted to `~/.omp/natives/<version>/`
 - Post-load: `__ompInstallTokioRuntime()` on the libuv pool
 
+Since 17.3.5 the in-process surface has *widened*: edit application
+(`pi-edit`), git/jj (`pi-vcs`), and text prediction (`pi-predict`, served by a
+machine-global Bun-worker daemon over a unix socket) all bind through N-API.
+
 This is **not** swe-term's intended shape. swe-term wants heavy engines as
 **sidecar binaries behind thin Go adapters**. omp wants grep/walk/PTY in the
 same address space as the agent loop for latency.
@@ -124,13 +170,18 @@ N-API; long-lived protocol servers = child processes.**
 
 ## Tool Surface
 
-Registry (`packages/coding-agent/src/tools/index.ts:416–446`):
+Registry (`packages/coding-agent/src/tools/index.ts:552–589`):
 
 `read`, `security_scan`, `bash`, `edit`, `ast_grep`, `ast_edit`, `ask`,
-`debug`, `eval`, `github`, `glob`, `grep`, `lsp`, `inspect_image`, `browser`,
-`computer`, `checkpoint`, `rewind`, `task`, `hub`, `todo`, `web_search`,
-`write`, plus memory/skill tools (`memory_edit`, `retain`, `recall`, `reflect`,
-`learn`, `manage_skill`). Hidden: `think`, `yield`, `goal`.
+`debug`, `ida`, `eval`, `github`, `glob`, `grep`, `find`, `lsp`,
+`checkpoint`, `rewind`, `context_notes`, `new_context`, `task`, `wait`,
+`todo`, `web_search`, `write`, plus memory/skill tools (`memory_edit`,
+`retain`, `recall`, `reflect`, `learn`, `manage_skill`). Hidden: `think`,
+`yield`, `goal`.
+
+Removed from the builtin map since 17.3.5: `browser` and `computer` (folded
+into eval, `64508e1259`), `inspect_image` (`ecc97e9c66`), `hub`
+(`f89a6db15e`).
 
 Factories take a **`ToolSession`**, not a cwd string. Activation/gating lives
 on the session (`createIf` for optional tools). That is a cleaner tool
@@ -149,28 +200,37 @@ literal recovery); hashline anchors on matches (`docs/tools/grep.md`).
 **debug:** 28 DAP actions — launch, attach, breakpoints, stepping, memory
 (`docs/tools/debug.md`). Most agents still print-debug. omp drives lldb/dlv/debugpy.
 
-coding-agent `tools/` alone is on the order of **~42k lines**. That is product
+coding-agent `tools/` alone is **~72.5k lines** (non-test `.ts`; was ~42k). That is product
 mass, not loop mass.
 
 ---
 
 ## Hashline and Per-Model Edit Formats
 
-Default edit mode is **`hashline`** (`packages/coding-agent/src/utils/edit-mode.ts:3–5`):
-content-hash anchors instead of brittle line numbers. Stale anchors reject
-instead of silently applying in the wrong place.
+Default edit mode is **`hashline`** (`cfgEditMode`, resolved in
+`packages/coding-agent/src/utils/edit-mode.ts`): content-hash anchors instead
+of brittle line numbers. Stale anchors reject instead of silently applying in
+the wrong place.
 
-Modes: `hashline` | `apply_patch` | `patch` | `replace`.
+Modes: `hashline` | `apply_patch` | `patch` | `replace` | `sloppy`
+(`packages/tui/src/tools/edit.ts:51`).
 
-Selection is **data-driven**:
+Selection is **data-driven** (`resolveEditMode`):
 
-1. `settings.getEditVariantForModel(activeModel)` (`edit.modelVariants`)
-2. Hardcoded exclusions (Kimi, Mimo, DeepSeek V4 Flash, Step 3.7 Flash →
-   `replace`) at `edit-mode.ts:16–21`
-3. Default `hashline`
+1. `editVariantForModel()` — first `edit.modelVariants` pattern that occurs in
+   the model id
+2. `PI_EDIT_VARIANT` env pins the mode exactly
+3. Hardcoded exclusions when the setting is `hashline` and
+   `PI_STRICT_EDIT_MODE` is off: model classes kimi, mimo, minimax, deepseek,
+   stepfun, plus codex-spark and GLM flash 5.3 → `replace`
+4. Default `hashline`
 
-Each mode swaps grammar, prompt file, and schema
-(`packages/coding-agent/src/edit/index.ts`). This is the harness-problem thesis
+The **engine** is now Rust: `crates/pi-edit` implements every mode's parse,
+match, preview, and stage, with a streaming `Session` that turns tool-call
+argument deltas into progressive previews and a final atomic apply through a
+host-owned writer (`crates/pi-edit/src/lib.rs`). The TS side
+(`packages/coding-agent/src/edit/`, ~1.7k lines) keeps schemas, prompts, LSP
+writethrough, and auto-repair. This is the harness-problem thesis
 in code: **the tool contract is part of the model adapter**, not a universal
 XML.
 
@@ -178,9 +238,11 @@ XML.
 
 ## Eval Kernels and the Tool Bridge
 
-`eval` is a first-class tool (`py` / `js` / `rb` / `jl`), exclusive per
-session. Persistent kernels. Either kernel can call back into the agent's
-tools.
+`eval` is a first-class tool (`py` / `js`; Ruby and Julia were removed in
+`05bb0c1989`), exclusive per session. Persistent kernels. Either kernel can
+call back into the agent's tools. The bridge set grew: agent, completion,
+judgment, budget, handle, and `WorkPool` bridges
+(`packages/coding-agent/src/eval/*-bridge.ts`).
 
 Python path (`packages/coding-agent/src/eval/py/tool-bridge.ts:1–8`):
 
@@ -192,6 +254,15 @@ JS path: Bun worker re-enters `cli.ts` via `__omp_worker_js_eval`, then
 `eval/js/tool-bridge.ts` calls `session.getToolByName()`.
 
 Prelude helpers: `tool.read(...)`, `agent()`, `completion()`, `parallel()`.
+
+Eval is now also a **gateway**, not only a tool:
+
+- `browser` and `computer` are reached through eval, not the builtin map
+  (`64508e1259`).
+- **Code Mode** (`packages/coding-agent/src/session/code-mode.ts`) collapses
+  the direct surface for `code_mode_only` models to `eval`, `ask`, `todo`,
+  `yield`, `think`, checkpoint/rewind, and routes every other session tool
+  through the eval bridge, mirroring codex-rs `ToolMode::CodeModeOnly`.
 Bridge calls inherit parent **approval** semantics. Python env is allowlisted
 and API keys denylisted before spawn — mitigations, not a sandbox.
 
@@ -218,20 +289,32 @@ Still a god object:
 
 | File | Lines |
 |------|------:|
-| `agent-session.ts` | **9,428** |
-| `agent-loop.ts` | 2,935 |
-| `agent.ts` | 1,748 |
+| File | 17.3.5 | 18.8.9 |
+|------|------:|------:|
+| `agent-session.ts` | 9,428 | **13,598** |
+| `agent-loop.ts` | 2,935 | 4,028 |
+| `agent.ts` | 1,748 | 2,242 |
 
 The loop is more extracted than Prime's (Prime's `agent-loop.ts` is still
-~986 of *pi-core*; omp grew the core loop to 2.9k). Orchestration still
-concentrates in `AgentSession`.
+~986 of *pi-core*; omp grew the core loop to 4k). Orchestration still
+concentrates in `AgentSession`, and the `session/` directory has fanned out to
+~100 sibling modules (speculation, prewalk, TTSR, retry chains, advisors)
+around it.
 
 **Sessions:** append-only JSONL at
-`~/.omp/agent/sessions/<encoded-cwd>/<timestamp>_<id>.jsonl`.
+`~/.omp/agent/sessions/<encoded-cwd>/<timestamp>_<id>.jsonl` by default
+(`FileSessionStorage`). The transcript sits behind a `SessionStorage`
+interface with file, memory, SQL, and Redis backends
+(`session/session-storage.ts`, `sql-session-storage.ts`,
+`redis-session-storage.ts`). The SQL and Redis backends predate 17.3.5
+(`cacf996f90`, `47bd4fd766`, 2026-05-28); the earlier version of this doc
+omitted them.
 
-**SQLite (`bun:sqlite`):** `~/.omp/agent/agent.db` (settings, auth, usage);
-`~/.omp/stats.db` (omp-stats). Transcripts stay JSONL. This is the Codex-like
-split (JSONL + SQLite metadata) pi lacked.
+**SQLite (`bun:sqlite`):** `agent.db` (settings, auth, usage);
+`stats.db` (omp-stats); `history.db`, which now also holds per-session
+`session_titles` and an idle-recap journal so listings stop content-scanning
+JSONL (`session/session-index.ts`). Transcripts stay JSONL. This is the
+Codex-like split (JSONL + SQLite metadata) pi lacked.
 
 **Compaction** (`docs/compaction.md`):
 
@@ -242,14 +325,26 @@ split (JSONL + SQLite metadata) pi lacked.
 
 Plus cheap wins: useless-result elision, superseded-read pruning. snapcompact
 is a research strategy (vision billing, provider-specific); shake + elision
-are the portable bits.
+are the portable bits. snapcompact is still opt-in via `compaction.strategy`
+(`packages/agent/CHANGELOG.md`).
+
+New since 17.3.5: **notes-backed context windows** (experimental,
+`compaction.experimentalContextManagement`). The model keeps a ≤16 KiB
+notebook via `context_notes`; `new_context` rolls the window at a safe tool
+boundary, keeping recent complete tool units plus the notebook, with **no
+summarization call**. Originals stay reachable via `history://current/full`
+(`docs/compaction.md` § Experimental notes-backed context windows,
+`54cae2c717`).
 
 ---
 
 ## Catalog, Dialects, Prompts
 
-**68 providers** in `packages/catalog/src/provider-models/descriptors.ts`
-(README says 60+; code is ahead). Roles: `default`, `smol`, `slow`, `plan`,
+**92 provider rule files** in
+`packages/catalog/src/compat/rules/providers/*.kdl` (README says 60+; was 68
+TS descriptors at 17.3.5). Provider data moved from TS into a KDL policy
+engine (`dd57045396`); `provider-models/descriptors.ts` keeps only the
+runtime model-manager factories. Roles: `default`, `smol`, `slow`, `plan`,
 `commit`, `vision`, `designer`, `task`, `advisor`, `tiny`. Custom models in
 `~/.omp/agent/models.yml`.
 
@@ -315,18 +410,18 @@ regression benches, not as core-loop complexity.
 
 ## Summary Statistics
 
-| Metric | Value (local 17.3.5) |
+| Metric | Value (local 18.8.9) |
 |--------|----------------------|
-| TS packages | 17 |
-| Rust crates | 8 |
-| `agent-session.ts` | **9,428** lines |
-| `agent-loop.ts` | 2,935 lines |
-| Builtin tool factories | 29 + hidden 3 |
-| LSP actions | 14 |
-| DAP actions | 28 |
-| Catalog providers | 68 |
-| Default edit mode | hashline |
-| Session transcript | JSONL |
-| Auth/settings | `bun:sqlite` `agent.db` |
-| Native coupling | in-process N-API |
-| Runtime | Bun ≥ 1.3.14 |
+| TS packages | 16 |
+| Rust crates (non-vendor) | 12, ~302k lines |
+| `agent-session.ts` | **13,598** lines |
+| `agent-loop.ts` | 4,028 lines |
+| Builtin tool factories | 30 + hidden 3 |
+| LSP / DAP actions | 14 / 28 (README; not recounted) |
+| Catalog provider rules | 92 KDL files |
+| Edit modes | 5; default hashline; engine in Rust `pi-edit` |
+| Eval kernels | py, js |
+| Session transcript | JSONL default; SQL/Redis/memory backends |
+| Auth/settings/index | `bun:sqlite` `agent.db`, `history.db`, `stats.db` |
+| Native coupling | in-process N-API (wider: edit, vcs, predict) |
+| Runtime | Bun (`engines.bun >=1.3.14`; root `packageManager bun@>=1.4`) |

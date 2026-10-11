@@ -9,7 +9,7 @@ compiled counterpart to `docs/research/papers/<topic>/synthesis.md` and
 the detailed, per-topic and per-experiment record; this is the one place that
 answers "what do we actually know so far, across everything."
 
-Last compiled: 2026-10-06.
+Last compiled: 2026-10-10.
 
 ## 1. Fleet CPG Engine — completed benchmark experiments
 
@@ -543,6 +543,33 @@ token-reconstruction helper (zero dependencies); Stage 1 a pass-through
 gated on the loop landing.
 
 ---
+
+### 3.3 Competitive harness refresh (2026-10-10)
+
+All eight harness deep-dive/critique pairs were revalidated against current
+upstream, and opencode was added. Each deep dive now carries a "Changes since"
+section with commit or path citations; the compressed verdicts live in
+`docs/core/FRAMEWORKS.md`.
+
+| Harness | Validated at | Headline change | Verdict movement |
+|---|---|---|---|
+| pi | `earendil-works/pi` 1.1.0, `ea448f454` | Real `Provider` interface, injected `streamFn`, tool-call hooks, built-in MCP; `AgentSession` 3,060 → 4,398 ln | Old docs were already stale (0.65.2 vs upstream 0.78.1 at write time); token-count critique corrected |
+| Codex | `cc7ba3360` (version `0.0.0` on main) | `mcp-server` removed, code mode moved out of process, Guardian split, 8 SQLite DBs | Protocol-seam port strengthened; out-of-process code runtime supports swe-term's subprocess plan |
+| Claude Code | v2.1.296 (public docs only) | Auto mode (classifier) is default; sandbox credential/egress settings | Lesson: deterministic policy enforces, classifier triages; snapshot-era claims tagged unverifiable |
+| DeepSeek Harness | 0.2.1-alpha.2, `d743267388` | Runtime invariant deleted; session format 0 → 4 with migrations; 226 → 340 packages | swe-term keeps the pre-`Provider.Stream` reconstruction check dsh dropped |
+| Prime Agent | 0.10.0, `2ee7e62` | Full TS → Rust rewrite; IPython → minimal NDJSON REPL; RLM depth 1 → 2 | God-object resolved only by rewrite; dual writers now locked |
+| oh-my-pi | 18.8.9, `fd27203d27` | Edit engine in Rust (`pi-edit`); eval as tool gateway; session 9,428 → 13,598 ln | No flips; N-API and eval re-entry concerns strengthened |
+| Flue | 2.2.2, `6583259` | 2.0 hook-based `'use agent'` redesign; uniform durability contract | Cloudflare-coupling concern largely withdrawn; API churn added |
+| Deep Agents | core 0.7.23, `9f0e39d` | Lean prompts, `TodoListMiddleware` out of defaults, Harbor wrapper deleted | LangSmith coupling strengthened (now a core dependency) |
+| opencode (new) | 2.0.26, `823ac87f58` | Protocol-first, event-sourced V2 core with durable inbox | Closest production match to swe-term's shape; no OS sandbox |
+
+Cross-cutting: every pi-family descendant kept growing its session class
+(pi 4.4k, omp 13.6k, Prime 15.1k before rewrite), while log-driven loops
+stayed small (dsh 705 ln, opencode 375 ln). The "do not grow another
+`AgentSession`" rule in `FRAMEWORKS.md` is now better supported.
+
+Sources: `docs/research/*_DEEP_DIVE.md` and `*_CRITIQUE.md` (each cites its
+upstream commits and paths).
 
 ## Full citation list
 

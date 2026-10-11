@@ -1,17 +1,55 @@
 # Flue Deep Dive — Architecture & Feature Analysis
 
 > Analysis of [`withastro/flue`](https://github.com/withastro/flue) — Fred K. Schott's
-> ("the Astro creator") **agent harness framework**. Positioned as "Claude Code, but 100%
-> headless and programmable. No TUI. No GUI. Just TypeScript."
-> Runtime targets: Node.js and Cloudflare Workers. Language: TypeScript.
-> Built on **`@earendil-works/pi-agent-core` + `@earendil-works/pi-ai`** (the renamed pi-mono
-> lower layers).
+> ("the Astro creator") **agent harness framework**. Positioned as "The Agent Harness Framework.
+> Not another SDK." (`README.md`). Runtime targets: Node.js and Cloudflare Workers. Language:
+> TypeScript. Still built on **`@earendil-works/pi-agent-core` + `@earendil-works/pi-ai`**
+> (`^0.87.1`, `packages/runtime/package.json`).
 >
-> **Validated against a local source checkout** at `/home/rohit/sandbox/swe-term/flue`
-> (version `0.7.0`, license Apache-2.0, marked *Experimental*). A real consumer app —
-> `/home/rohit/sandbox/gvision` — is also used to confirm the public API surface. An earlier
-> draft of this doc was sourced from DeepWiki and got several specifics wrong; those are
-> corrected here against the actual code.
+> **Validated against a local source checkout** at `/Users/rohit/sandbox/swe-term/flue`
+> (HEAD `6583259`, "Version Packages (#794)", 2026-09-28; all packages `2.2.2`, license
+> Apache-2.0) on **2026-10-10**. Previous validation: `0.7.0` at upstream `bb9245f01`
+> (2026-06-06). 588 commits and a breaking 2.0 redesign separate the two; the earlier
+> gvision consumer-app section is now historical (see [A Real App: gvision](#a-real-app-gvision-historical)).
+
+---
+
+## Changes since 2026-06-06 (0.7.0)
+
+1. **2.0 redesign: the agent *is* a function composed from hooks.** `'use agent'` modules export
+   a capitalized function that calls `useModel`, `useSandbox`, `useTool`, `useSkill`,
+   `useSubagent`, `useMcpConnection`, `usePersistentState`, … and returns its instructions
+   (`packages/runtime/src/hooks/`, `README.md`). `FlueContext`/`ctx.init()`/`defineAgent` are gone
+   (`apps/docs/src/content/docs/guide/migration.md`). Released as `v2.0.0` in `5485efe2`
+   (2026-07-31); the hooks + Vite rewrite landed via `b814b82b` (nightly, 2026-07-24).
+2. **Vite owns build and dev.** `flue build`/`flue dev` removed; new `@flue/vite` plugin, so it is
+   `vite dev` / `vite build` (`migration.md` §"Build and dev commands", `packages/vite/`).
+   `defineConfig` moved to `@flue/runtime/config`.
+3. **Durability became a uniform submission contract.** Every input is a durably admitted
+   *submission* that reaches exactly one terminal outcome, with lease-based recovery on Node and
+   wake-driven recovery on Cloudflare (`apps/docs/src/content/docs/guide/durability.md`). Landed
+   in `ea351cad` "durable execution, pluggable persistence" (2026-06-08).
+4. **Pluggable persistence on Node.** `src/db.ts` selects a store: built-in `sqlite()` on
+   `node:sqlite` (`@flue/runtime/node`), or adapter packages `@flue/postgres`, `libsql`, `mysql`,
+   `mongodb`, `redis` (`packages/`, `guide/database.md`). Contract test suites ship in
+   `@flue/runtime/test-utils`.
+5. **Runs and workflows removed; canonical conversation streams replace them.** `RunStore`,
+   `RunRegistry`, `defineWorkflow`, `invoke()` and run events are gone (`migration.md`
+   §"Workflows are removed", §"Database"). Events stream over the Durable Streams protocol;
+   named sessions were removed (`f5f2928a`, 2026-06-09).
+6. **Durable tools.** `defineTool({ durable: true })` with `step.do(name, fn)` checkpoints
+   (`guide/durability.md` §"Durable tools and `step.do`").
+7. **No implicit sandbox.** An agent without `useSandbox()` has no filesystem or file/bash tools;
+   `just-bash` is opt-in via `bash(...)`. Remote sandboxes (E2B, Daytona, Modal, Vercel, Cloudflare,
+   …) arrive as `flue add sandbox <name>` blueprints (`migration.md` §"Sandboxes", `blueprints/`).
+8. **Channels.** ~18 connector packages (`@flue/slack`, `teams`, `discord`, `github`, …) mounted
+   via `createChannelRouter` (`packages/runtime/src/runtime/channel-routes.ts`, `guide/channels.md`).
+9. **Client SDK is conversation-scoped**, and **`@flue/react`** adds React hooks (`d82f5d39`).
+   `createFlueClient()` now returns `send`/`read`/`wait`/`abort`/`history`/`observe` for one
+   conversation (`packages/sdk/src/client.ts`).
+10. **Tool schemas unified on valibot.** `defineTool({ input: v.object(...) })`; pi-ai's `Type` is no
+    longer re-exported from `@flue/runtime` (`packages/runtime/src/tool-types.ts`,
+    `packages/runtime/src/index.ts`).
 
 ---
 
@@ -22,19 +60,19 @@
 3. [Package Layout](#package-layout)
 4. [Engine: It Wraps pi, It Doesn't Rebuild It](#engine-it-wraps-pi-it-doesnt-rebuild-it)
 5. [Core Primitives](#core-primitives)
-6. [The Agent Handler & `FlueContext`](#the-agent-handler--fluecontext)
-7. [Harness & Sessions](#harness--sessions)
-8. [Tools & Typed Results (the dual schema stack)](#tools--typed-results-the-dual-schema-stack)
-9. [Subagents: Roles and Tasks](#subagents-roles-and-tasks)
+6. [The Agent Function & Hooks](#the-agent-function--hooks)
+7. [Conversations, Submissions & Dispatch](#conversations-submissions--dispatch)
+8. [Tools & Typed Results](#tools--typed-results)
+9. [Subagents](#subagents)
 10. [Sandboxes](#sandboxes)
 11. [Skills](#skills)
 12. [MCP Integration](#mcp-integration)
-13. [Runs vs Sessions: the durability model](#runs-vs-sessions-the-durability-model)
+13. [The Durability Model](#the-durability-model)
 14. [The Build System (Agent-as-Artifact)](#the-build-system-agent-as-artifact)
 15. [Deployment Targets](#deployment-targets)
 16. [Providers & Models](#providers--models)
 17. [The Client SDK (`@flue/sdk`)](#the-client-sdk-fluesdk)
-18. [A Real App: gvision](#a-real-app-gvision)
+18. [A Real App: gvision (historical)](#a-real-app-gvision-historical)
 19. [Relationship to pi-mono](#relationship-to-pi-mono)
 20. [Key Design Patterns](#key-design-patterns)
 21. [Summary Statistics](#summary-statistics)
@@ -44,104 +82,87 @@
 ## System Overview
 
 Flue is a serious attempt to make **"the agent harness" a deployable framework** rather than a
-library you wire up yourself. Its pitch borrows the web-framework playbook (think Astro or
-Next.js, applied to agents): you write agents as source files under a `.flue/` directory, run
-`flue build`, and get a self-contained server artifact you can deploy to Node or Cloudflare
-Workers.
+library you wire up yourself. Its pitch borrows the web-framework playbook — in 2.x quite
+literally: an agent is a React-style **function component** built from hooks, and the app is a
+**Vite** project. `vite build` produces a server artifact for Node or Cloudflare Workers.
 
-It is explicitly **headless**. There is no TUI, no human-operator assumption. An agent is a handler
-function plus an initialized runtime, exposed as an HTTP service (built on **Hono**). This is a
-deliberate inversion of Claude Code / Codex / pi (all of which center a human at a terminal).
+It is explicitly **headless**. There is no TUI. An agent is a function exposed as an HTTP service
+(**Hono**), reachable through explicit routes in `app.ts`, channels (Slack, GitHub, …), schedules,
+or `dispatch()` (`guide/routing.md`, `guide/channels.md`, `guide/schedules.md`).
 
 **Tech Stack (from `packages/runtime/package.json`):**
 
 | Layer | Technology |
 |-------|-----------|
-| Language | TypeScript (Node ≥ 22.18) |
+| Language | TypeScript (Node ≥ 22.19.0) |
 | Runtime targets | Node.js, Cloudflare Workers |
-| Agent engine | `@earendil-works/pi-agent-core` (pi's `Agent`, loop, `ThinkingLevel`) |
-| Provider/model layer | `@earendil-works/pi-ai` (model registry, providers, `Type`, usage) |
-| HTTP | `hono` + `hono-openapi` (`@hono/node-server` on Node) |
-| Tool schema | pi-ai `Type` (TypeBox lineage) for tool params |
-| Typed results | `valibot` + `@valibot/to-json-schema` |
-| MCP | `@modelcontextprotocol/sdk` (client) |
-| Default sandbox | `just-bash` (in-process emulated shell) |
-| Cloudflare | `@cloudflare/sandbox`, `@cloudflare/shell`, `@cloudflare/codemode`, Durable Objects |
-| Package build | `tsdown` (publishing); `esbuild` / `wrangler` (user-agent builds) |
-| Config | `flue.config.ts` (`defineConfig` from `@flue/cli/config`) |
+| Agent engine | `@earendil-works/pi-agent-core` `^0.87.1` (pi's `Agent`, loop, steering) |
+| Provider/model layer | `@earendil-works/pi-ai` `^0.87.1` |
+| HTTP | `hono` |
+| Tool + result schema | `valibot` |
+| MCP | `@modelcontextprotocol/client` `2.0.0` |
+| Event streaming | Durable Streams protocol (`@durable-streams/client` in `@flue/sdk`) |
+| Virtual sandbox | `just-bash` (opt-in, wrapped by `bash(...)`) |
+| Build/dev | Vite + `@flue/vite` (`@cloudflare/vite-plugin` on Cloudflare) |
+| Config | optional `flue.config.ts` (`defineConfig` from `@flue/runtime/config`) |
 
 ---
 
 ## The Framework-vs-SDK Thesis
 
-Flue's central claim is that existing agent tooling ships as **SDKs** (libraries you assemble) and
-that the missing layer is a **framework** (opinionated structure + build + deploy). Concretely:
+Flue's central claim is unchanged: existing agent tooling ships as **SDKs**, and the missing layer
+is a **framework** (opinionated structure + build + deploy). In 2.x:
 
-- **Convention over wiring.** Agents, roles, skills, and `app.ts` live in a known `.flue/`
-  directory.
-- **A build step.** `flue build` compiles the project into a deployable artifact — agents are
-  *compiled*, not just imported.
-- **Web-framework DX.** `flue dev` (watch mode), `flue run` (one-shot), `flue build` (artifact)
-  mirror `next dev` / `next build`.
-
-The tagline "if you know Claude Code / Codex / OpenCode / Pi, you know how to build agents with
-Flue" reframes harness engineering as a teachable discipline with a standard framework.
+- **The agent is the function.** Hooks compose capabilities; the return value is the instructions.
+- **A build step.** `vite build` compiles the project into a deployable artifact.
+- **Web-framework DX.** `vite dev` / `vite build`, plus `flue run <module>` for one-shot local runs.
 
 ---
 
 ## Package Layout
 
-The monorepo (pnpm + turbo) ships **four** packages under `packages/*/` (all version `0.7.0`
-except the deprecated stub):
+The monorepo (pnpm + turbo) now ships **~28 packages** under `packages/*/`, all `2.2.2`:
 
-| Package | Version | Role |
-|---------|---------|------|
-| **`@flue/runtime`** | `0.7.0` | The runtime a built Flue app depends on: agent harness, sessions, tools, sandbox plumbing, the Hono HTTP runtime, MCP client, compaction, providers. Subpath exports: `./app`, `./node`, `./cloudflare`, `./client`, `./sandbox`, `./internal`. |
-| **`@flue/cli`** | `0.7.0` | The `flue` binary + build/dev tooling. Bundles user agents (esbuild on Node), merges `wrangler` config on Cloudflare, parses agent files, loads env files. Exports `defineConfig` from `@flue/cli/config`. |
-| **`@flue/sdk`** | `0.7.0` | A **client SDK** for calling *deployed* Flue servers over HTTP (`createFlueClient()`). **Not** the old runtime — legacy `@flue/sdk/*` subpaths now throw migration errors. |
-| **`@flue/connectors`** | `0.3.7` | **Deprecated private stub.** Connectors are no longer an npm package; install them with `flue add <name>` (which fetches Markdown from `flueframework.com`). |
+| Package | Role |
+|---------|------|
+| **`@flue/runtime`** | Harness, sessions, hooks, tools, sandbox plumbing, Hono runtime, MCP client, compaction, durability coordinators. Subpaths include `./config`, `./routing`, `./tool`, `./telemetry`, `./node`, `./cloudflare`, `./cloudflare/workers-ai`, `./test-utils`. |
+| **`@flue/vite`** | Vite plugin: dev server and production build for both targets. |
+| **`@flue/cli`** | `flue` binary: `init`, `run`, `add`/`update` (blueprints), `docs` (`packages/cli/src/commands/`). No longer builds. |
+| **`@flue/sdk`** | Conversation-scoped client for deployed agents. |
+| **`@flue/react`** | React hooks over the SDK's `observe()` layer (`guide/react.md`). |
+| **`@flue/opentelemetry`** | OTel tracing adapter (present at `bb9245f01`; missed by the 0.7.0 doc). |
+| **Database adapters** | `@flue/postgres`, `@flue/libsql`, `@flue/mysql`, `@flue/mongodb`, `@flue/redis`. |
+| **Channel connectors** | `@flue/slack`, `teams`, `discord`, `github`, `google-chat`, `linear`, `notion`, `telegram`, `whatsapp`, `twilio`, `stripe`, `shopify`, `zendesk`, `intercom`, `messenger`, `resend`, `salesforce-marketing-cloud`. |
 
-> **Correction vs the earlier draft:** there are four packages, not two. The old draft also called
-> `@flue/sdk` "a migration placeholder for `@flue/runtime`" — backwards. `@flue/sdk` is the
-> *client*; the *runtime* used to be published under the `@flue/sdk` name and moved to
-> `@flue/runtime` + `@flue/cli`.
+The deprecated `@flue/connectors` stub is gone. Sandbox providers are **not** packages: they are
+Markdown blueprints in `blueprints/` that `flue add sandbox <name>` hands to your coding agent.
 
 ---
 
 ## Engine: It Wraps pi, It Doesn't Rebuild It
 
-The single most important architectural fact: **Flue does not implement an agent loop.** It
-constructs pi's `Agent` and delegates each turn to it.
-
-`packages/runtime/src/session.ts`:
+Still true in 2.2.2: **Flue does not implement an agent loop.** `packages/runtime/src/session.ts`
+(now ~6,100 lines) imports `Agent` from `@earendil-works/pi-agent-core` and constructs it:
 
 ```ts
-import { Agent } from '@earendil-works/pi-agent-core';
-// ...
-this.harness = new Agent({
-  initialState: {
-    systemPrompt,
-    model: this.config.model,
-    tools,
-    messages: previousMessages,
-    thinkingLevel: this.config.thinkingLevel ?? 'medium',
-  },
-  getApiKey: (provider) => this.getProviderApiKey(provider),
-  onPayload: (payload, model) => this.applyProviderPayloadOverrides(payload, model),
+this.agentLoop = new Agent({
+  initialState: { systemPrompt, model: this.config.model, tools, messages: previousMessages,
+                  thinkingLevel: this.config.thinkingLevel ?? 'medium' },
+  streamFn: this.emitTurnRequestAndStream,
   toolExecution: 'parallel',
-  sessionId: options.affinityKey,
+  steeringMode: 'all',
+  followUpMode: 'all',
+  sessionId: this.affinityKey,
+  ...(options.rerender ? { prepareNextTurnWithContext: (turn) => this.prepareRerenderTurn(turn) } : {}),
 });
-// a turn is just:
-await this.harness.prompt(args.promptText, args.images);
+// turns: this.agentLoop.prompt(...), this.agentLoop.continue(), this.agentLoop.steer(...)
 ```
 
-So pi-agent-core owns the stream → tools → loop cycle (with `toolExecution: 'parallel'`), and pi-ai
-owns providers, model metadata, the `Type` schema export, and usage accounting. **Everything Flue
-adds is *around* that core**: session/run persistence, compaction, an event/SSE layer, skills and
-roles, sandbox adapters, typed-result tools, the build system, and the HTTP runtime.
-
-This is the same `pi-agent-core` + `pi-ai` pair that swe-term ports — which makes Flue a direct
-study in *what a harness needs beyond the loop*.
+What changed is how much Flue drives *through* pi's hooks: it supplies its own `streamFn` (to
+record each turn request), uses pi's steering queue to join mid-turn deliveries, uses
+`continue()` for crash recovery, and uses `prepareNextTurnWithContext` to **re-render the agent
+function between turns** so tools and prompt reflect committed state. The loop is still pi's; the
+surrounding machinery (submissions, recovery, canonical conversation records) is much larger.
 
 ---
 
@@ -149,419 +170,267 @@ study in *what a harness needs beyond the loop*.
 
 | Primitive | What it is |
 |-----------|-----------|
-| **Agent** | A handler function (`agents/<name>.ts`, default export) plus a model + harness, deployed as an HTTP endpoint. |
-| **`FlueContext`** | The argument every agent handler receives: `{ id, runId, payload, env, req, log, init }`. |
-| **Harness** | The `FlueHarness` returned by `ctx.init()` — owns the sandbox and named sessions. (Impl class `Harness`.) |
-| **Session** | A stateful conversation (`FlueSession`) with message history, tool outputs, and compaction. (Impl class `Session`, wraps pi's `Agent`.) |
-| **Run** | A single HTTP invocation of an agent, with its own event stream and result — distinct from a session (see [Runs vs Sessions](#runs-vs-sessions-the-durability-model)). |
-| **Sandbox** | The execution environment: default in-process `just-bash` + `InMemoryFs`, `local()` (Node host), or Cloudflare containers. |
-| **Tools** | Typed actions (`ToolDef`); params via pi-ai `Type`; implementation runs host-side, the agent sees only the schema. |
-| **Skills** | Reusable Markdown "sub-programs" invoked via `session.skill()`. |
-| **Roles** | Markdown personas (`roles/<name>.md`, frontmatter + body) applied as system-prompt overlays. |
-| **MCP** | `connectMcpServer()` — a client adapter to remote MCP servers. |
-| **Typed result** | `prompt(..., { result: schema })` returns validated output via a valibot `finish`/`give_up` tool pair. |
+| **Agent** | An exported capitalized function in a `'use agent'` module; hooks declare capabilities, return value is instructions. Statics such as `durability` and `initialData` configure it. |
+| **Hooks** | `useModel`, `useSandbox`, `useTool`, `useSkill`, `useSubagent`, `useMcpConnection`, `useInstruction`, `usePersistentState`, `useInitialData`, `useDelivery`, `useDataWriter`, lifecycle hooks (`useAgentStart/Finish`, `useResponseStart/Finish`) (`packages/runtime/src/index.ts`). |
+| **Conversation / instance** | One agent instance per id; an append-only canonical record stream is its source of truth (`guide/database.md`). |
+| **Submission** | One durably admitted input with exactly one terminal outcome (`guide/durability.md`). |
+| **Sandbox** | Explicit via `useSandbox`: `bash(...)` virtual, `local()` host, or remote adapter. |
+| **Tools** | `defineTool` with valibot `input`/`output`; optional `durable: true` + `step.do`. |
+| **Skills** | Agent-Skills-format Markdown, imported as modules and mounted with `useSkill` / `defineSkill`. |
+| **Subagents** | `useSubagent` / `defineSubagent` / built-in `GeneralSubagent`, invoked by a framework `task` tool. |
+| **MCP** | `useMcpConnection` / `defineMcpConnection` / `createMcpConnection`. |
+| **Channels** | Verified inbound webhooks routed with `createChannelRouter`. |
+
+`roles/<name>.md` personas no longer appear in source (no `roles/` references under
+`packages/runtime/src` or `packages/vite/src`); instructions come from the agent's return value
+and `useInstruction`, and specialization comes from subagents.
 
 ---
 
-## The Agent Handler & `FlueContext`
+## The Agent Function & Hooks
 
-An agent is a module under `.flue/agents/<name>.ts` whose **default export** is an async handler.
-The handler receives a `FlueContext` (`packages/runtime/src/types.ts`):
+From `README.md`:
 
 ```ts
-export interface FlueContext<TPayload = any, TEnv = Record<string, any>> {
-  readonly id: string;        // agent instance id (also the durable-object key on CF)
-  readonly runId: string;     // this specific HTTP invocation
-  readonly payload: TPayload; // parsed request body
-  readonly env: TEnv;         // secrets / bindings (host-side only)
-  readonly req: Request | undefined; // the raw Fetch Request
-  readonly log: FlueLogger;   // structured log → emitted as run events
-  init(options: AgentInit): Promise<FlueHarness>;
+'use agent';
+import { useModel, useSandbox, useSkill, useTool } from '@flue/runtime';
+import { local } from '@flue/runtime/node';
+import triage from '../skills/triage/SKILL.md';
+
+export function Triage() {
+  useModel('anthropic/claude-sonnet-4-6');
+  useSandbox(local());
+  useSkill(triage);
+  useTool(openIssue);
+  return `Triage a bug report end-to-end ...`;
 }
 ```
 
-> **Correction vs the earlier draft:** `init()` is **not** a top-level export — it's a method on
-> `FlueContext`. The context also carries `runId`, `req`, and a structured `log`, not just
-> `{ init, payload, env, log, id }`.
-
-An agent may also export `export const triggers = { webhook: true }` to expose itself as a public
-HTTP webhook in production (the build statically parses this; `FLUE_MODE=local` / `flue run`
-bypasses the gate for local testing).
+Hooks may be conditional: an agent can gain or lose a tool, MCP server, or sandbox based on
+persistent state, and the model is told about the change (`guide/mcp.md`, `guide/sandboxes.md`
+§"Conditional attachment"). The re-render between turns is what makes this work.
 
 ---
 
-## Harness & Sessions
+## Conversations, Submissions & Dispatch
 
-`ctx.init(options: AgentInit)` configures the runtime and returns a **`FlueHarness`**. `AgentInit`
-(real fields, `types.ts`):
+- **`dispatch(Agent, { id, message, initialData?, uid? })`** — fire-and-forget at durable
+  admission; resolves with a `DispatchReceipt` carrying `submissionId`.
+- **`init(Agent, { id })`** — an awaited handle with `dispatch`, `read(receipt)`, `abort()`.
+- **`uid` send conditions** — continue-or-create, continue-only, or create-only.
+- One submission runs at a time per conversation; arrivals during a turn join at a turn boundary
+  or queue (`guide/durability.md` §"Submissions").
+- Standalone scripts boot the runtime with `start()` from `@flue/runtime/node`.
 
-```ts
-export interface AgentInit {
-  name?: string;
-  cwd?: string;
-  sandbox?: false | SandboxFactory | BashFactory; // omit/false ⇒ default in-memory sandbox
-  persist?: SessionStore;
-  model: ModelConfig;        // REQUIRED, e.g. 'anthropic/claude-sonnet-4-6'
-  role?: string;             // a roles/<name>.md persona
-  thinkingLevel?: ThinkingLevel;
-  tools?: ToolDef[];
-  compaction?: /* compaction config */;
-}
-```
-
-`FlueHarness` and `FlueSession` are the **public interfaces** (impl classes `Harness` / `Session`):
-
-```ts
-export interface FlueHarness {
-  readonly name: string;
-  session(name?: string, options?: SessionOptions): Promise<FlueSession>;
-  readonly sessions: FlueSessions;
-  shell(command: string, options?: ShellOptions): CallHandle<ShellResult>;
-  readonly fs: FlueFs;
-}
-
-export interface FlueSession {
-  readonly name: string;
-  prompt(message, options?): CallHandle<PromptResponse | PromptResultResponse>;
-  shell(command, options?): CallHandle<ShellResult>;
-  readonly fs: FlueFs;
-  skill(name, options?): CallHandle<...>;
-  task(prompt, options?): CallHandle<...>;
-  compact(): Promise<void>;
-  delete(): Promise<void>;
-}
-```
-
-Two things worth noting:
-
-- **`CallHandle`** — `prompt`/`skill`/`task`/`shell` return an *abortable* handle (`abort.ts`), not
-  a bare promise. Long operations can be cancelled.
-- **Harness-level `shell` and `fs`** exist alongside the session-level ones, so an orchestrator can
-  touch the sandbox without a conversation.
-
-Multiple harnesses can share **one sandbox** (e.g. a control harness and a project harness over the
-same filesystem) — a clean separation of "the agent that orchestrates" from "the agent that works
-in the repo."
-
-### Session persistence
-
-- **Node:** `InMemorySessionStore` — *"Sessions persist for the lifetime of the process."* Pass a
-  custom `SessionStore` via `persist` for real durability.
-- **Cloudflare:** the generated entry defaults to a **Durable-Object SQLite** store
-  (`CREATE TABLE IF NOT EXISTS flue_sessions (id TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at INTEGER NOT NULL)`),
-  so history survives across requests. (A simpler DO `setState`-map store exists in
-  `cloudflare/session-store.ts` but is described as "usually not needed".)
+(All from `migration.md` §"Dispatch and conditional sends" and §"Workflows are removed".)
 
 ---
 
-## Tools & Typed Results (the dual schema stack)
+## Tools & Typed Results
 
-Flue uses **two** schema systems, which the earlier draft conflated into "valibot":
+The 0.7.0 "dual schema stack" (pi-ai `Type` for params, valibot for results) is gone. Tools are
+`defineTool({ name, description, input: v.object(...), run })` with valibot schemas
+(`packages/runtime/src/tool-types.ts` imports `valibot`; `index.ts` no longer exports `Type`).
 
-| Use | Library | How you get it |
-|-----|---------|----------------|
-| **Tool parameters** | pi-ai **`Type`** (TypeBox lineage; `TSchema`) | `import { Type } from '@flue/runtime'` (re-exported: `export { Type } from '@earendil-works/pi-ai'`) |
-| **Typed `result` output** | **valibot** | `import * as v from 'valibot'`; pass as `prompt(msg, { result: schema })` |
+The host-side boundary is unchanged: `run` executes in the host process with access to secrets;
+the model sees only the schema.
 
-A `ToolDef` carries a `name`, `description`, `parameters` (a `Type.Object({...})`), and an
-`execute(args, signal)` function. Crucially, the **tool implementation runs in the host process**
-(it can read `ctx.env` / `process.env`), while the **agent only ever sees the schema** — secrets
-stay host-side and never enter the prompt or filesystem context. This host-side-execution model is
-a clean security boundary a headless framework can enforce more strictly than a terminal agent.
+Typed results still inject a **`finish`/`give_up`** tool pair (`packages/runtime/src/result.ts`,
+`FINISH_TOOL_NAME`, `GIVE_UP_TOOL_NAME`) with a follow-up prompt if the model ends a turn without
+calling either.
 
-Typed results work by injecting a valibot-backed **`finish`/`give_up` tool pair** (`result.ts`):
-the model "returns" by calling `finish` with arguments matching the schema, and Flue runs
-`valibot.safeParse` to enforce refinements before resolving the typed value. Agents become
-functions with typed return values, not just chat.
+Sandbox-backed tools are now composable factories — `createReadTool`, `createWriteTool`,
+`createEditTool`, `createBashTool`, `createGrepTool`, `createGlobTool` (`index.ts`) — that a
+`SandboxFactory` can add, drop, or swap.
 
-Built-in tools (`createTools`, `BUILTIN_TOOL_NAMES` in `agent.ts`): `bash` and the file tools
-(`read`, `write`, `edit`, `grep`, `glob`) operating against the active sandbox.
+**Durable tools:** `durable: true` gives `run` a `step` object; each `step.do(name, fn)` records its
+result, so recovery replays completed steps and resumes from the first unfinished one
+(exactly-once recorded, at-least-once executed; `guide/durability.md`).
 
 ---
 
-## Subagents: Roles and Tasks
+## Subagents
 
-- **Roles** — Markdown personas at `roles/<name>.md` with YAML frontmatter (`description`, and may
-  override model / `thinkingLevel`) and a system-prompt body. Selected per call via
-  `init({ role })` or per session, applied as a **system-prompt overlay** without forking state.
-- **Tasks** — `session.task(prompt)` runs a focused, one-shot **child agent in a detached
-  session**: it shares the parent's sandbox/filesystem but keeps its own message history. This is
-  the delegation primitive: spin up a specialist, let it work in the same workspace, collect its
-  result (optionally typed via `result`).
+Declared with `useSubagent({ name, description, agent })`. Delegation is model-driven: every agent
+has a framework `task` tool, and declared delegates appear in an "Available Agents" system-prompt
+section (`guide/subagents.md`). A delegate runs in its own fresh context and its own durable
+conversation stream; only its final answer returns. On recovery, an interrupted `task` call
+reattaches to the child transcript and resumes it, recursively (`guide/durability.md`
+§"Delegated tasks").
 
 ---
 
 ## Sandboxes
 
-Sandboxes are where Flue's "agents take real action safely" promise lives. Three real flavors:
-
 | Sandbox | Mechanism | Isolation |
 |---------|-----------|-----------|
-| **Default (in-memory)** | `createDefaultEnv()` wires the **`just-bash`** `Bash` emulator over an **`InMemoryFs`**. Selected by omitting `sandbox` (or `sandbox: false`). | **Emulation, not isolation** — runs in-process; no real filesystem, no container. Lightweight, fast, cheap. |
-| **`local()`** (Node) | `local()` from `@flue/runtime/node` → real `fs` + `child_process`, env **allowlist** (only explicitly-listed vars passed through to avoid secret leakage). | **None** — intended for environments where the runner itself is the jail (a CI job). |
-| **Cloudflare** | `getShellSandbox()` (Workspace + codemode) and `cfSandboxToSessionEnv()` over `@cloudflare/sandbox` containers. | Real container isolation. |
+| **None (default)** | No `useSandbox()` → no filesystem, no file/bash tools. | N/A |
+| **Virtual** | `bash(() => new Bash({ fs: new InMemoryFs() }))` — `just-bash` emulation, rebuilt fresh per initialization. | Emulation, not isolation. |
+| **`local()`** (Node) | Real fs + host shell; process-group kill; env allowlist (`PATH`, `HOME`, …) with per-variable opt-in. | None by design. |
+| **Remote adapters** | Blueprints for E2B, Daytona, Modal, Vercel, Cloudflare Sandbox/Computer, boxd, islo, mirage, exe.dev (`blueprints/sandbox--*.md`); `createSandbox({ id })` keyed on instance id gives durable workspaces. | Provider isolation. |
 
-> **Corrections vs the earlier draft:** there is **no Flue export literally named `just-bash()`** —
-> `just-bash` is the npm package that powers the *default* sandbox. And **`getVirtualSandbox()` was
-> removed** — it now throws, telling you the default in-memory sandbox is already what you wanted.
+(`guide/sandboxes.md`, `migration.md` §"Sandboxes".) Workspace durability is explicitly separate
+from conversation durability.
 
 ---
 
 ## Skills
 
-Skills are reusable "sub-programs" defined as **Markdown files**, invoked via
-`session.skill('name', { args })`. Their bodies are read at call time, so editing a skill between
-invocations takes effect immediately. This mirrors the Claude-Code/Codex skill model (Markdown +
-frontmatter) but fits Flue's "agent is a directory" philosophy: skills are just files the build
-packages into the artifact.
+Skills follow the Agent Skills format (frontmatter + `instructions`, optional supporting files
+loaded only when read), are imported as `.md` modules, and mounted with `useSkill`
+(`guide/skills.md`). Progressive disclosure: only name/description are listed until activation.
 
 ---
 
 ## MCP Integration
 
-MCP is a **runtime tool adapter** built on `@modelcontextprotocol/sdk`: `connectMcpServer(name,
-options)` connects an agent to a remote MCP server and exposes its tools. It defaults to modern
-**streamable HTTP**, with an opt-in for legacy **SSE** (`transport: 'sse'`).
+`useMcpConnection({ name, url, auth, optional? })` connects to a **remote** server, namespaces tools
+as `mcp__<server>__<tool>`, reuses the connection while the instance is live, and may be
+conditional (`guide/mcp.md`). Built on `@modelcontextprotocol/client` `2.0.0`.
 
-Per the project's own docs: Flue does **not** auto-detect transports, does **not** spawn local
-stdio MCP servers, and does **not** handle OAuth callbacks. So it is an MCP *client* for remote HTTP
-servers, not a full MCP host. The value proposition is secret hygiene — connect to authenticated
-services via MCP so credentials live in env vars, not in prompts.
+Still client-only for remote servers: no stdio spawning is documented, and *"Flue never stores or
+manages your tokens. It is your responsibility to own any OAuth flow, token storage, and refresh
+token logic."* (`guide/mcp.md`). `auth` accepts a bearer token or a provider you supply.
 
 ---
 
-## Runs vs Sessions: the durability model
+## The Durability Model
 
-A subtlety the earlier draft missed: Flue tracks **runs** (HTTP invocations) separately from
-**sessions** (conversations).
+The 0.7.0 run/session split is gone. 2.x has one model (`guide/durability.md`):
 
-- **`RunStore`** holds per-run events + result.
-  - Node: `InMemoryRunStore`.
-  - Cloudflare: `createDurableRunStore` → Durable-Object **SQLite**.
-- **`RunRegistry`** is a cross-deployment **pointer index** that maps a `runId` to the instance
-  serving it.
-  - Node: `InMemoryRunRegistry`.
-  - Cloudflare: the auto-injected **`FlueRegistry` Durable Object** (`extends DurableObject`) plus a
-    client.
+- **Submission contract:** admitted before model work; exactly one terminal outcome (`completed`,
+  `failed`, `aborted`) written as `submission_settled` in the canonical stream.
+- **Recovery classifies durable evidence:** requeue un-persisted input, settle finished work,
+  continue from partial text, repair tool batches (unresolved ordinary calls get an explicit
+  unknown-outcome error, not a re-run), retry transient provider errors, compact on overflow.
+- **Budgets:** default 10 attempts and 1 hour per submission, set per agent with a `durability`
+  static; deadlines enforced preemptively.
+- **Not durable by design:** sandbox files, local promises, code outside the agent, external side
+  effects.
 
-Runs expose a `RunRecord` (`runId`, `instanceId`, `agentName`, `status`, …), an SSE stream
-(`/runs/:runId/stream`), and `flue logs` tailing. On Cloudflare, webhook handlers keep running via
-a `runFiber` so work survives the request lifecycle. This is **run/event durability** (resume the
-*stream and result* of an invocation), distinct from **session continuity** (resume the
-*conversation*). swe-term needs both, and Flue's split is a useful reference.
+| Target | Owner of a conversation | Recovery trigger | Storage |
+|--------|------------------------|------------------|---------|
+| **Node** | In-process coordinator with heartbeated leases | Startup reconciliation + periodic lease scans | `src/db.ts`: in-memory default, `sqlite()` file, or Postgres/libSQL/MySQL/MongoDB/Redis adapters |
+| **Cloudflare** | One Durable Object per conversation (structural) | Wake-on-start + self-renewing alarm | DO SQLite; `db.ts` rejected |
+
+Node caveat in the docs: one live owner per conversation; multi-replica deployments must route each
+conversation to one owner.
 
 ---
 
 ## The Build System (Agent-as-Artifact)
 
-The defining idea: **an agent is a directory compiled into a deployable server artifact.**
+- **`vite.config.ts`** with `flue()` from `@flue/vite` (before `cloudflare()` on that target).
+- **`app.ts` is required** and mounts routes explicitly; the old auto-router is gone (`guide/routing.md`).
+- **`vite dev` / `vite build`** replace `flue dev` / `flue build`. Node output runs as
+  `node dist/server.mjs`; Cloudflare uses generated `.flue-vite/` + `.flue-vite.wrangler.jsonc`.
+- **`flue run <module> -m "<message>" [--id] [--data] [--json]`** executes one agent module
+  in-process (no server, never loads `app.ts`).
+- **`flue init`** (interactive scaffold), **`flue add` / `flue update`** (blueprints for sandboxes,
+  databases, channels, tooling), **`flue docs`** (offline docs). `flue logs` is gone.
 
-- **`flue.config.ts`** — project config via `defineConfig` (from **`@flue/cli/config`**, not the
-  runtime). Fields: `target` (`'node' | 'cloudflare'`), optional `root`, optional `output`.
-- **Agent files** — `.flue/agents/<name>.ts`, with `.flue/roles/`, `.flue/app.ts`, skills, etc.
-- **`flue build`** — compiles `.flue/` into an artifact in `./dist` for production deploys.
-- **`flue dev`** — long-running watch-mode dev server; edits trigger rebuild + reload.
-- **`flue run <agent>`** — one-shot: build, start a temporary server, invoke once, stream output,
-  shut down (designed for CI; sets `FLUE_MODE=local`).
-- **`flue init` / `flue add` / `flue logs`** — scaffold a project, install a connector (Markdown
-  fetched from `flueframework.com`), tail run logs.
-
-> **Correction vs the earlier draft:** there is **no `flue deploy` command**. The CLI verbs are
-> `dev`, `run`, `build`, `init`, `add`, `logs`. You deploy by running `wrangler deploy` after
-> `flue build` (Cloudflare) or by running the `dist/server.mjs` (Node).
-
-### What actually bundles the agent
-
-- The **packages themselves** (`@flue/runtime`, `@flue/cli`, `@flue/sdk`) build with **`tsdown`**.
-- **User agents on the Node target** are bundled by **`esbuild`** into a single self-contained
-  `dist/server.mjs` (`build-plugin-node.ts`: *"Node has no platform-provided bundler — esbuild is
-  our final-output step"*).
-- **User agents on the Cloudflare target** are **not** esbuild-bundled by Flue: the CLI writes an
-  `_entry.ts` and **`wrangler` bundles it** (`build-plugin-cloudflare.ts`: `bundle = 'none'`).
-
-> **Correction vs the earlier draft:** user-agent builds use esbuild/wrangler, not tsdown (tsdown
-> only builds the published packages).
+(`migration.md` §"Build and dev commands", §"CLI"; `packages/cli/src/commands/`.) There is still
+no `flue deploy`; you deploy the Vite output.
 
 ---
 
 ## Deployment Targets
 
-| Target | Build output | Session state | Run state | Notes |
-|--------|-------------|---------------|-----------|-------|
-| **Node.js** | bundled `dist/server.mjs` (esbuild) | `InMemorySessionStore` (process lifetime; custom store optional) | `InMemoryRunStore` / `InMemoryRunRegistry` | run `node dist/server.mjs` |
-| **Cloudflare** | `_entry.ts` bundled by `wrangler` | DO SQLite `flue_sessions` | DO SQLite run store + `FlueRegistry` DO | `wrangler deploy` after `flue build` |
+| Target | Build | Durable state | Notes |
+|--------|-------|---------------|-------|
+| **Node.js** | `vite build` → `dist/server.mjs` | `db.ts` adapter (in-memory default) | Also documented: GitHub Actions, GitLab CI, Render (`README.md`) |
+| **Cloudflare** | `vite build` with `@cloudflare/vite-plugin` | DO SQLite per conversation | `wrangler deploy` |
 
-**Durable execution** is strongest on Cloudflare: Durable Objects persist session and run state
-across requests, and each agent **instance** is keyed by the URL `<id>` to its own DO. On Node,
-durability is opt-in (bring a `SessionStore`).
+Durability is no longer "strongest on Cloudflare" in contract terms: the recovery decisions are
+identical on both targets (`guide/durability.md` §"Recovery by target"). Node durability still
+depends on choosing a durable `db.ts`.
 
 ---
 
 ## Providers & Models
 
-Flue leans on **`pi-ai`** for the provider/model layer and adds a thin registration surface
-(`runtime/src/runtime/providers.ts`):
-
-- Models are `provider/model-id` strings (e.g. `anthropic/claude-sonnet-4-6`, `openai/gpt-5.5`).
-- **`registerProvider(name, registration)`** — a URL-prefix provider registry.
-- **`configureProvider(provider, settings)`** — transport overrides (baseUrl, apiKey, headers) keyed
-  by pi provider slug.
-- **`registerApiProvider`** — a re-export of pi-ai's own registration.
-- API keys come from env vars (`ANTHROPIC_API_KEY`, …) or from an optional **`app.ts`** at the
-  source root.
-- **Cloudflare Workers AI:** models route through **`env.AI.run()`** instead of HTTP, via a pi-ai
-  provider registered under the `cloudflare-ai-binding` API (`workers-ai-provider.ts`). The AI
-  binding is captured at registration; model metadata is hydrated from pi-ai's catalog.
-
-### Usage accounting
-
-`response.usage` is a `PromptUsage` that **structurally mirrors pi-ai's `Usage`**
-(`fromProviderUsage` normalizes it):
-
-```ts
-export interface PromptUsage {
-  input: number; output: number; cacheRead: number; cacheWrite: number; totalTokens: number;
-  cost: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number };
-}
-```
+- Models are `provider/model-id` strings set with `useModel(...)` or per call.
+- `setProvider(provider)` registers a provider; built-in providers load via
+  `registerBuiltinProviderModule` (`packages/runtime/src/runtime/providers.ts`).
+  `registerProvider`/`configureProvider` from 0.7.0 are not in the current file.
+- Cloudflare Workers AI and an Anthropic binding path live under `packages/runtime/src/cloudflare/`
+  (`workers-ai-provider.ts`, `anthropic-binding-request.ts`).
+- pi bumped to `0.87.1` for new models (`89032c55`, 2026-09-24).
 
 ### Compaction
 
-Flue has its **own** `compaction.ts` (it does not import pi's compaction). It detects overflow with
-pi-ai's `isContextOverflow` and summarizes with pi-ai's `completeSimple`. Token counting uses
-`calculateContextTokens(usage)` from real provider usage when available, falling back to an
-`estimateTokens` **chars/4** heuristic; the threshold is ~96% of the context window minus a reserve.
+Still Flue's own `compaction.ts`: `isContextOverflow` from pi-ai, summarization through
+`getRuntimeModels().completeSimple(...)`, chars/4 fallback estimator. Recovery also compacts and
+retries on a context-overflow response (`guide/durability.md`).
+
+### Observability
+
+`observe()` event subscribers, `instrument()`, and the `@flue/opentelemetry` adapter; Braintrust and
+Sentry via blueprints (`README.md`, `index.ts`).
 
 ---
 
 ## The Client SDK (`@flue/sdk`)
 
-`@flue/sdk` is the **caller-side** library for talking to a *deployed* Flue server —
-`createFlueClient({ ... })` returns:
+`createFlueClient(options)` is now **one client per conversation URL** (`packages/sdk/src/client.ts`):
 
-- `agents.invoke(...)` — call an agent **sync**, as a **webhook**, or as a **stream**.
-- `runs.{ get, events, stream }` — fetch a run, its events, or an SSE stream.
-- `admin.{ agents, instances, runs }` — inspect a deployment.
+- `send(...)` — admit a message; `read(target)` — wait for and return the reply; `wait(admission)`.
+- `abort()` — durable abort of unsettled submissions.
+- `history()` — point-in-time snapshot; `observe()` — snapshot then live updates (SSE, falling back
+  to Durable Streams long-poll).
 
-(The runtime also exposes a read-only **`admin()`** Hono sub-app with an OpenAPI surface for the
-same inspection.) Legacy `@flue/sdk/app`, `/client`, `/sandbox`, `/node`, `/cloudflare`, `/config`
-subpaths now throw migration errors pointing to `@flue/runtime` / `@flue/cli`.
+The 0.7.0 deployment-wide `agents.invoke` / `runs` / `admin` surface is gone (`migration.md`
+§"Agent SDK").
 
 ---
 
-## A Real App: gvision
+## A Real App: gvision (historical)
 
-`/home/rohit/sandbox/gvision` is a real Flue app (an agentic backend for Meta RayBans driven by
-Gemini Live) that confirms the public API in practice.
-
-**`.flue/app.ts`** — the Cloudflare Workers entry uses `@flue/runtime/app`'s `flue()` and routes
-the OpenAI-Responses-shaped request to an agent instance keyed by session id:
-
-```ts
-import { flue } from '@flue/runtime/app';
-// ...maps POST /v1/responses → /agents/gvision/<sessionId>...
-return flue().fetch(forwarded, env, ctx);
-```
-
-**`.flue/agents/gvision.ts`** — the handler shows the real `FlueContext` destructuring and the
-`init → session → prompt` flow:
-
-```ts
-export const triggers = { webhook: true };
-
-export default async function ({ init, payload, env, log, id }: FlueContext<ResponsesPayload, Env>) {
-  const harness = await init({
-    model: 'anthropic/claude-sonnet-4-6',
-    role: 'companion',
-    tools: buildTools(env),
-  });
-  const session = await harness.session();
-  const response = await session.prompt(promptText);
-  log.info('gvision.complete', {
-    inputTokens: response.usage.input,
-    outputTokens: response.usage.output,
-    cost: response.usage.cost.total,   // ← pi-ai Usage shape, surfaced verbatim
-  });
-  return responsesShape({ /* ... */ text: response.text, model: response.model.id });
-}
-```
-
-**`.flue/tools/save-note.ts`** — a custom tool, params via `Type` re-exported from `@flue/runtime`,
-`execute(args, signal)` runs host-side with a `GITHUB_TOKEN` from `env`:
-
-```ts
-import { Type, type ToolDef } from '@flue/runtime';
-export function createSaveNoteTool(opts): ToolDef {
-  return {
-    name: 'save_note',
-    description: '...',
-    parameters: Type.Object({ title: Type.String(), content: Type.String(), /* ... */ }),
-    execute: async (args, signal) => { /* GitHub API calls; secret never reaches the model */ },
-  };
-}
-```
-
-**`.flue/roles/companion.md`** — a role file: YAML frontmatter (`description:`) + a system-prompt
-body that documents the available tools and even references the default sandbox by name (*"Real
-Linux is not available here by default; this is just-bash."*).
-
-This one app independently confirms: the four-package split, the `@flue/runtime` import surface,
-`FlueContext`, `init`/`session`/`prompt`, the `Type`-based `ToolDef` with `execute(args, signal)`,
-the pi-ai `Usage` shape on `response.usage`, the `provider/model` id format, Markdown roles, and the
-Cloudflare `wrangler deploy` workflow.
+The 0.7.0 doc confirmed the public API against `/home/rohit/sandbox/gvision`. That app is not
+present on this machine (`/Users/rohit/sandbox/gvision` does not exist), and its API
+(`FlueContext`, `ctx.init`, `roles/companion.md`, `Type`-based `ToolDef`, `flue()` from
+`@flue/runtime/app`) is entirely superseded by 2.x. Treat that evidence as describing 0.7.0 only.
 
 ---
 
 ## Relationship to pi-mono
 
-Flue is **not** a from-scratch agent — it is a **framework wrapper around pi-mono's lower layers**:
+Unchanged in substance: **Flue is a framework wrapper around pi-mono's lower layers.**
 
-- The agent loop, `Agent`, and `ThinkingLevel` come from **`@earendil-works/pi-agent-core`**
-  (Flue's `Session` constructs the `Agent` and calls `.prompt()`; it does not reimplement the loop).
-- The provider/model registry, the `Type` schema, and the `Usage` accounting come from
-  **`@earendil-works/pi-ai`**.
+- `Agent`, the loop, steering, and `ThinkingLevel` come from `@earendil-works/pi-agent-core`.
+- Models, `isContextOverflow`, `completeSimple`, and usage shapes come from
+  `@earendil-works/pi-ai` (imported across ~19 runtime files, e.g. `session.ts`, `compaction.ts`,
+  `usage.ts`, `runtime/providers.ts`).
 
-So the lineage is: **pi-mono** (badlogic) provides the engine; **Flue** (Schott/Astro) provides the
-framework, build system, sandbox abstraction, run/session durability, HTTP runtime, client SDK, and
-deployment targets on top. This makes Flue a precise study in *what a harness needs beyond the agent
-loop* — exactly the surface area swe-term must also provide (sessions, runs, sandboxes, deployment,
-frontends) around its ported pi-core.
-
-> Note the scope detail: the **local pi-mono checkout** publishes `@mariozechner/*` (v0.65.2), while
-> **Flue depends on the renamed `@earendil-works/*`** packages. Same code lineage, two scopes.
+What grew is Flue's own share: a durable submission/recovery engine, canonical conversation records,
+hook-based composition, and re-render-per-turn — all wrapped around pi's loop rather than replacing it.
 
 ---
 
 ## Key Design Patterns
 
-### 1. Agent = compiled directory → server artifact
-Convention-based `.flue/` layout compiled (esbuild on Node, wrangler on Cloudflare) into a
-deployable server. Web-framework DX (`dev`/`run`/`build`).
+### 1. Agent = function component → server artifact
+Hooks declare capabilities; Vite compiles the project to a deployable server.
 
 ### 2. Headless-first
-No TUI, no human-in-the-loop assumption. An agent is a handler you call from a server, a cron, or a
-CI job. The opposite of terminal-centric agents.
+No TUI. Inputs come from HTTP, channels, schedules, or `dispatch()`.
 
 ### 3. Build on pi, don't rebuild
-Reuse `pi-agent-core` (`Agent`, loop) + `pi-ai` (providers, `Type`, usage); spend effort on
-framework concerns. A pragmatic "stand on the shoulders" choice — and the clearest evidence that the
-pi-core is reusable.
+pi owns the loop; Flue drives it via `streamFn`, steering, `continue()`, and `prepareNextTurnWithContext`.
 
-### 4. Sandbox as a first-class, swappable primitive
-Default in-process `just-bash` emulation → `local()` (host, CI-jailed) → Cloudflare containers (real
-isolation). The same agent code runs against different isolation guarantees by swapping the sandbox.
+### 4. Explicit, swappable sandbox
+No implicit workspace. Virtual → `local()` → remote adapters, with workspace durability separate
+from conversation durability.
 
-### 5. Runs and sessions are different durable objects
-Run/event durability (resume an invocation's stream + result) is separate from session continuity
-(resume a conversation). Both are backed by Durable-Object SQLite on Cloudflare.
+### 5. Accepted-work contract
+Durable admission, exactly-one terminal outcome, evidence-based recovery, conservative tool-batch
+repair, `step.do` checkpoints. Uniform across targets.
 
 ### 6. Host-side tool execution, schema-only to the agent
-Tools run in the host process with `env` access; the model sees only the `Type` schema. Secrets
-never enter the context.
+Tools run in the host; the model sees only the valibot schema. `local()` withholds host env by default.
 
-### 7. Two schemas for two jobs
-pi-ai `Type` (TypeBox lineage) for tool params; valibot for typed `result` output (via an injected
-`finish`/`give_up` tool pair).
+### 7. Integrations as blueprints, not packages
+Sandboxes and some tooling ship as Markdown instructions for a coding agent (`flue add`).
 
 ---
 
@@ -569,31 +438,28 @@ pi-ai `Type` (TypeBox lineage) for tool params; valibot for typed `result` outpu
 
 | Metric | Value |
 |--------|-------|
-| Language | TypeScript (Node ≥ 22.18) |
-| Version / stage | `0.7.0`, Apache-2.0, *Experimental* |
-| Packages | 4: `@flue/runtime`, `@flue/cli`, `@flue/sdk` (client) + deprecated `@flue/connectors` |
-| Engine | `@earendil-works/pi-agent-core` (`Agent`, loop) + `@earendil-works/pi-ai` (providers, `Type`, usage) |
-| Agent loop | **delegated to pi's `Agent`** (`toolExecution: 'parallel'`); Flue does not reimplement it |
-| HTTP runtime | Hono (`@hono/node-server` on Node) |
-| Entry point | `ctx.init(options)` (method on `FlueContext`) → `FlueHarness` |
-| Context | `{ id, runId, payload, env, req, log, init }` |
-| Session API | `prompt`, `skill`, `task`, `shell`, `compact`, `delete`, `fs` (all `CallHandle`/abortable) |
-| Tool schema | pi-ai `Type` (re-exported from `@flue/runtime`) |
-| Typed results | valibot (`prompt(..., { result })` → `finish`/`give_up` pair) |
-| Sandboxes | default in-process `just-bash` + `InMemoryFs`; `local()` (Node host); Cloudflare containers; `getVirtualSandbox()` removed |
-| Session store | Node `InMemorySessionStore`; Cloudflare DO SQLite (`flue_sessions`) |
-| Run model | `RunStore` + `RunRegistry`; Cloudflare `FlueRegistry` Durable Object; SSE `/runs/:id/stream` |
-| MCP | client only: `connectMcpServer()`, streamable HTTP (default) / SSE; no stdio, no OAuth |
-| Build | packages via `tsdown`; user agents via `esbuild` (Node) / `wrangler` (Cloudflare) |
-| CLI | `dev`, `run`, `build`, `init`, `add`, `logs` (no `deploy`) |
-| Config | `flue.config.ts` via `defineConfig` from `@flue/cli/config`; `target: 'node' \| 'cloudflare'` |
-| Compaction | Flue's own `compaction.ts` (pi `completeSimple` + `isContextOverflow`; chars/4 fallback) |
-| Providers | `registerProvider` / `configureProvider`; Cloudflare Workers AI via `env.AI.run()` |
-| Client SDK | `@flue/sdk` `createFlueClient()` — `agents.invoke`, `runs`, `admin` |
-| Headless | Yes — no TUI/GUI by design |
+| Language | TypeScript (Node ≥ 22.19.0) |
+| Version | `2.2.2` (HEAD `6583259`, 2026-09-28), Apache-2.0 |
+| Packages | ~28: runtime, vite, cli, sdk, react, opentelemetry, 5 DB adapters, 17 channel connectors |
+| Engine | `@earendil-works/pi-agent-core` + `pi-ai` `^0.87.1` |
+| Agent loop | delegated to pi's `Agent` (`toolExecution: 'parallel'`, steering `'all'`) |
+| HTTP runtime | Hono; explicit routes in required `app.ts` |
+| Agent API | `'use agent'` function + hooks; `durability` / `initialData` statics |
+| Invocation | `dispatch()`, `init()` handle, channels, schedules, HTTP |
+| Tool + result schema | valibot (`defineTool`, `finish`/`give_up`) |
+| Durable tools | `durable: true` + `step.do` |
+| Sandboxes | none by default; `bash(...)` virtual; `local()`; remote adapters via blueprints |
+| Persistence | Node `db.ts` (memory, `sqlite()`, Postgres/libSQL/MySQL/MongoDB/Redis); Cloudflare DO SQLite |
+| Durability | submission contract; Node leases, Cloudflare DO wakes |
+| Streaming | Durable Streams protocol + SSE |
+| MCP | remote client only (`useMcpConnection`); app owns OAuth |
+| Build | Vite + `@flue/vite`; packages built with `tsdown` |
+| CLI | `init`, `run`, `add`, `update`, `docs` (no `dev`/`build`/`logs`/`deploy`) |
+| Client SDK | conversation-scoped `createFlueClient()`; `@flue/react` |
+| Headless | Yes |
 
 ---
 
-*Validated against the local Flue source checkout at `/home/rohit/sandbox/swe-term/flue` (`0.7.0`)
-and the real consumer app at `/home/rohit/sandbox/gvision`. File and symbol references are from that
-checkout; Flue is Experimental and specifics change frequently.*
+*Validated 2026-10-10 against `/Users/rohit/sandbox/swe-term/flue` at `6583259` (`2.2.2`). File and
+symbol references are from that checkout; claims sourced from `apps/docs/` guides are Flue's own
+documentation, not independently exercised.*

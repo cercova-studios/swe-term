@@ -4,7 +4,9 @@
 > zero-dependency core, interface-driven plugins, immutable state,
 > goroutine-native concurrency, content-addressable caching, single binary.
 >
-> **Validated against the local omp source** at `oh-my-pi/` (`17.3.5`).
+> **Validated against the local omp source** at `oh-my-pi/` version `18.8.9`,
+> HEAD `fd27203d27` (2026-10-10). Previously validated at `17.3.5`
+> (2026-08-16). See "Verdict changes since 17.3.5" below.
 > omp is a pi-mono fork. Loop/god-object critiques of pi still apply; this
 > document focuses on what the fork *added* and which of those additions
 > swe-term should take as sidecars vs refuse as core.
@@ -21,16 +23,42 @@ The Rust natives are serious. The catalog/dialect split is cleaner than
 upstream. JSONL + SQLite metadata is the session design swe-term already
 chose.
 
-It is also a **kitchen sink with a 9,428-line `AgentSession`**, an in-process
+It is also a **kitchen sink with a 13,598-line `AgentSession`**, an in-process
 N-API ABI that is the opposite of swe-term's sidecar rule, eval kernels that
 can invoke the full tool registry (including bash and subagents), and a
 Bun-locked platform. snapcompact is clever research, not a default compaction
-strategy. 68 providers and 23 web-search backends are product, not harness.
+strategy. 92 provider rule files and 23 web-search backends are product, not
+harness.
 
 **Steal hashline, per-model tool contracts, summarized reads, ToolSession,
 JSONL+SQLite, prompt-as-files, and the idea of Rust engines. Implement those
 engines as sidecars. Do not steal N-API-as-plugin-surface, the god object, or
 the IDE-complete core repo.**
+
+---
+
+## Verdict changes since 17.3.5
+
+No verdict flipped. Four got stronger evidence, and one port item was added.
+
+- **God object — strengthened.** `AgentSession` grew 9,428 → 13,598 lines
+  (`packages/coding-agent/src/session/agent-session.ts`).
+- **Eval → full tool registry — severity raised.** `browser` and `computer`
+  are now reachable *only* through eval (`64508e1259`), and Codex Code Mode
+  routes every non-keep-set tool through the eval bridge
+  (`session/code-mode.ts`). Eval is now the tool gateway, not an escape hatch.
+- **N-API as native ABI — strengthened.** The in-process surface widened to
+  edit apply (`crates/pi-edit`), git/jj (`crates/pi-vcs`), and text prediction
+  (`crates/pi-predict`). Non-vendor Rust grew ~171k → ~302k lines.
+- **Hashline in Rust — confirmed by omp itself.** omp moved its edit engine
+  out of TS into `crates/pi-edit` (`c478e41a04`). That supports "edit engine in
+  Rust"; the sidecar-vs-in-process disagreement is unchanged.
+- **Added port item: notes-backed context windows.** A summarizer-free
+  rollover (`docs/compaction.md`, `54cae2c717`) is a new mechanical
+  compaction strategy worth taking.
+- **Session-index gap narrowed.** Titles and recaps are now indexed in
+  `history.db` (`session/session-index.ts`); transcript replay is still a
+  JSONL scan.
 
 ---
 
@@ -51,7 +79,10 @@ pass rate. pi-mono and Claude Code under-invest here.
 **Hashline is the right edit primitive.** Content-hash anchors fail closed on
 staleness. Line-number `str_replace` fails open. For a harness that wants
 first-attempt edits, this belongs in the edit sidecar (Rust) with a thin Go
-adapter — exactly swe-term's extension story.
+adapter — exactly swe-term's extension story. omp reached the same engine
+placement in 18.x: `crates/pi-edit` now owns parse/match/preview/apply for all
+five modes, with streaming previews from partial tool-call arguments
+(`crates/pi-edit/src/lib.rs`) — but loads it via N-API.
 
 > **Lesson for Harness:** Put hashline (or equivalent snapshot-verified apply)
 > in `extensions/`, with a golden edit-format bench. Do not bake it into the
@@ -114,17 +145,18 @@ the coupling we refused.
 is delightful and is the lethal trifecta with a welcome mat. Prime's
 `host_request` enumerates privileged ops. omp re-exports the whole surface
 and inherits approvals — better than nothing, still a confused-deputy
-highway.
+highway. Since 17.3.5 it is the *main* road: browser/computer exist only
+behind eval, and Code Mode hides most tools behind it for some models.
 
 > **Harness fix:** If code-exec exists, it gets a closed host RPC (Prime) or
 > no host tools at all. Default deny re-entry.
 
-**9,428-line AgentSession.** Smaller than Prime's 11k, larger than pi's 3k,
-same disease. LSP writethrough, eval tracking, compaction triggers, bash,
-branching — one type.
+**13,598-line AgentSession.** Now larger than Prime's 11k and over 4× pi's
+3k; it grew 44% in eight weeks. LSP writethrough, eval tracking, compaction
+triggers, bash, branching — one type.
 
 **Product kitchen sink in the core repo.** Collab/relay, computer/browser,
-23 web-search backends, advisor, vibe, memory backends, GitHub-as-FS,
+in-process git/jj, ghost-text prediction, IDA, 23 web-search backends, advisor, vibe, memory backends, GitHub-as-FS,
 security_scan, metaharness. Each is a reasonable *extension*. Together they
 make the fork unmergeable with upstream and unportable as an architecture.
 
@@ -151,7 +183,7 @@ that matters for LLM cost. Native grep is the efficiency that matters for
 UX. Do not conflate them: the first is a tool contract, the second is an
 engine placement.
 
-68 providers in core is **catalog mass**. Generated catalogs (pi, Prime,
+92 provider rules in core is **catalog mass** (now KDL data, which helps). Generated catalogs (pi, Prime,
 omp) all suffer this. Keep the registry data-driven and out of the loop
 package.
 
@@ -165,7 +197,8 @@ a small core. The honest module plan for swe-term:
 
 - Core: loop, tools interface, session, policy
 - Extensions: hashline edit, grep sidecar, LSP adapter, eval sidecar
-- Not in v1: browser, computer, collab, 23 search backends, snapcompact
+- Not in v1: browser, computer, collab, 23 search backends, snapcompact,
+  in-process VCS
 
 ---
 
@@ -174,8 +207,8 @@ a small core. The honest module plan for swe-term:
 | Gap | omp | Harness |
 |-----|-----|---------|
 | Native engines | In-process N-API | Sidecar binaries |
-| Session index | SQLite for auth/stats; JSONL scan for transcripts | SQLite for topology + metadata |
-| God object | 9.4k `AgentSession` | Split types |
+| Session index | SQLite for auth/stats/titles; JSONL scan for transcripts | SQLite for topology + metadata |
+| God object | 13.6k `AgentSession` | Split types |
 | Sandbox | Approvals; eval is not confined | Policy + sandbox adapter |
 | Dynamic extensions | Bun `import()` | Starlark + compiled Go |
 | Analyzer | LSP/ast tools at request time | Pre-LLM enrichment interface |
@@ -195,7 +228,7 @@ Powerful, unbounded. Closed host RPC or nothing.
 
 ### ❌ "The coding-agent package is where features go"
 
-That is how you get 42k lines of tools/ and a dead upstream.
+That is how you get 72k lines of tools/ (42k at 17.3.5) and a dead upstream.
 
 ### ❌ "Vision-model compaction is a general strategy"
 
@@ -203,7 +236,8 @@ Keep mechanical elision. Leave snapcompact as a paper.
 
 ### ❌ "One edit format for all models" *or* "hashline for all models"
 
-omp's own exclusions (Kimi/Mimo/DeepSeek flash → replace) prove the table
+omp's own exclusions (kimi/mimo/minimax/deepseek/stepfun classes →
+replace, `utils/edit-mode.ts`) and a fifth mode (`sloppy`) prove the table
 must be data. Do not pick a single grammar and pray.
 
 ---
@@ -219,6 +253,7 @@ must be data. Do not pick a single grammar and pray.
 | JSONL transcript + SQLite metadata | Already in PLAN | Confirm; do it |
 | Prompts as files, stable prefix | Prompt templates on disk | Cache + reviewability |
 | Mechanical compaction (shake, elision) | `compact.go` strategies | Cheap context wins |
+| Notes-backed rollover (`context_notes`/`new_context`) | Compaction strategy | Summarizer-free; agent-owned bounded notebook |
 | Worker/subcommand re-entry | `st worker <engine>` | One user-facing binary |
 | Harness metrics (tool retry, edit fail) | Event schema | You cannot improve what you do not log |
 | LSP as an adapter, not the loop | Optional sidecar | IDE knowledge without core mass |
@@ -233,13 +268,13 @@ oh-my-pi                                 Harness (swe-term)
 ────────────────────────────────────     ─────────────────────────────────
 Bun + in-process N-API Rust              Go core + Rust sidecar binaries
 pi layers + IDE product mass             pi layers, features as extensions
-AgentSession 9,428 ln                    Split Session/Compaction/Registry
+AgentSession 13,598 ln                   Split Session/Compaction/Registry
 31 tools in coding-agent                 Few core tools; rest extensions
 Hashline default, per-model table        Same idea, sidecar + registry
-Eval kernel → full ToolSession           Closed host RPC or no re-entry
+Eval kernel → full ToolSession (gateway) Closed host RPC or no re-entry
 JSONL + agent.db + stats.db              SQLite SSOT + optional JSONL export
 snapcompact vision compaction            Mechanical elision first
-68-provider catalog in-tree              Generated/registry, not loop
+92-provider KDL catalog in-tree          Generated/registry, not loop
 Single bun compile + worker argv         Single st binary + worker subcmd
 ```
 

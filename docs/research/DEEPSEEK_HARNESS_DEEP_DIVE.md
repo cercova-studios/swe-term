@@ -4,10 +4,51 @@
 > (`dsh`) — DeepSeek's **plugin-based agent harness**. Runtime: Node.js.
 > Language: TypeScript (plus a Python SDK and a C11 Landlock launcher).
 > Framework: vendored [Cordis](https://github.com/cordiverse/cordis). License: MIT.
-> Status: **developer preview** (`0.1.0-rc.5`); breaking changes expected.
+> Status: **developer preview** (`0.2.1-alpha.2`); breaking changes expected
+> (`README.md` "Developer preview").
 >
 > **Validated against a local source checkout** at `deepseek-harness/`, HEAD
-> `47f9438` (2026-08-13). Package count and line counts below are from that tree.
+> `d743267388` (committed 2026-10-09; refreshed 2026-10-10). Package count and
+> line counts below are from that tree. Previous validation: `c15f2f4d2`
+> (2026-08-16).
+
+---
+
+## Changes since 2026-08-16 (c15f2f4d2)
+
+~9,000 commits; package manifests 226 → **340**, TS/TSX lines ~529k → ~1.10M.
+
+1. **Runtime invariant plugins deleted.** `@deepseek-ai/dsh-invariants`, every
+   `./invariant` companion, and `packages/core/agent-loop/src/invariant.ts` are
+   gone (`f028f25667`, `docs/upgrade-guide/v0.2.0-rc.2/remove-runtime-invariants/`).
+   Request reconstructability is now enforced by construction plus tests (see
+   [Session Log](#session-log-as-source-of-truth)).
+2. **Session format left 0 and shipped.** `SESSION_FORMAT_VERSION = 4`
+   (`packages/core/session/src/types.ts:89`) with an adjacent migration chain;
+   V4 is recorded as released in `dsh-v0.2.0-rc.2` (`docs/session-format-status.md`).
+   "Old logs are rejected" no longer holds.
+3. **Five profiles, not two.** `acp`, `web`, `headless`, `sdk`, `sdk-minimal`
+   (`packages/boot/app-boot/src/profile.ts:179`); new bundles `acp-app`,
+   `sdk-app`, `sdk-minimal` under `packages/bundle/`.
+4. **ACP became a standard v1 server with forwarded permissions.**
+   `session/request_permission` goes to the client instead of auto-approval
+   (`511181684c`, `packages/acp/acp/README.md`).
+5. **Remote execution retired.** E2B and the `code-runtime` group were removed
+   (`c49db8bc8c`); a new `ptc-runtime/` group runs model-written programs that
+   call host functions (`packages/ptc-runtime/README.md`, `dsh-ptc-runtime-node`
+   mounted by `packages/bundle/base/cordis.patch.yml`).
+6. **Self-modification split and gated.** `dsh-tool-cordis` now only exposes
+   `cordis_inspect_list` / `cordis_inspect_query`; `cordis_define` moved to
+   `dsh-cordis-host-runner` with human-approved client activation
+   (`packages/extensions/cordis-host-runner/src/index.ts:1–5`), mounted only by
+   the web-app bundle.
+7. **New package groups:** `browser-use`, `computer-use`, `ssh`, `deliverables`,
+   `document`, `telemetry`, and a 44-package `experimental/` tree (agent teams,
+   Claude Code / Codex hook compatibility, Python PTC). Removed: `hooks`,
+   `e2b`, `code-runtime`, `examples`, `runtime-diagnostics`.
+8. **Landlock launcher folded into `@deepseek-ai/node-addon-system`**
+   (`native/system/packages/entry/src/main.c`), replacing
+   `node-addon-landlock-run`.
 
 ---
 
@@ -44,11 +85,11 @@ plus the packages they mount. The user can replace any row by id.
 That is a different bet from pi-mono (layered packages, concrete classes) and
 from Claude Code (a product monolith). dsh bets that **replaceability at
 boot** is the harness feature, and that mechanical invariants can keep a
-226-package tree honest.
+340-package tree honest.
 
-It is currently unreleased in the compatibility sense:
-`SESSION_FORMAT_VERSION = 0` means old logs are rejected, not migrated
-(`packages/core/session/src/types.ts:56`).
+It now carries compatibility obligations: `SESSION_FORMAT_VERSION = 4`
+(`packages/core/session/src/types.ts:89`) with a migration chain for historical
+formats, and V4 is recorded as published (`docs/session-format-status.md`).
 
 ---
 
@@ -77,12 +118,16 @@ the loader.
 
 ## Profiles, Bundles, and Boot
 
-```114:117:deepseek-harness/packages/boot/app-boot/src/profile.ts
-export const PROFILE_TEMPLATES: Record<string, readonly string[]> = {
-  web: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'],
-  headless: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'],
+```179:195:deepseek-harness/packages/boot/app-boot/src/profile.ts
+export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
+  acp: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-acp-app'] },
+  web: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] },
+  headless: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'] },
+  sdk: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-sdk-app'] },
+  'sdk-minimal': { bundles: ['@deepseek-ai/dsh-sdk-minimal'] },
 }
 ```
+(condensed; each entry spans three lines in source)
 
 Layer order onto an empty entry list:
 
@@ -93,7 +138,9 @@ Layer order onto an empty entry list:
 
 `dsh-base` is the product spine: model adapters, tools, persistence, sandbox,
 approvals, settings, credentials, telemetry. `dsh-web-app` adds the browser
-app; `dsh-headless` adds a one-shot runner and disables HMR.
+app; `dsh-headless` adds a one-shot runner and disables HMR; `dsh-acp-app` and
+`dsh-sdk-app` front the same spine. `sdk-minimal` is the only profile that does
+not stack on `dsh-base`.
 
 Boot (`packages/boot/app-boot/src/index.ts` `boot()`): construct `Context`,
 install `Loader`, mount root include, await activation, **fail loud** on
@@ -116,15 +163,18 @@ From `docs/architecture.md`:
 | `core/tools` | Scoped registry + guarded execute | `ctx.tools` |
 | `core/agent` | `Agent` interface, live registry | `ctx.agents` |
 | `core/agent-loop` | Default driver (`ReactLoopAgent`) | `ctx.agentLoop` |
+| `core/scope` | Per-agent scoped-registration primitive | library, no key |
 | `llm/llm` | Stream vocabulary + adapter seam | `ctx.llm` |
 
 `dsh-agent` exposes `AgentFactory` so ACP/UI call `ctx.agents.create()` without
-importing the loop package (`packages/core/agent/src/index.ts:183–214`). Only
+importing the loop package (`packages/core/agent/src/index.ts:171`,
+`setFactory` at `:358`). Only
 one factory may register. The loop is structurally replaceable; the **durable
 event vocabulary is not**.
 
-The default driver is small by this survey's standards: `agent.ts` is **496
-lines**. That is the dividend of pushing everything else into plugins.
+The default driver is still small by this survey's standards: `agent.ts` is
+**705 lines** (was 496 at the previous validation). That is the dividend of
+pushing everything else into plugins.
 
 ---
 
@@ -136,7 +186,7 @@ nothing is owed.
 
 Inbox (same names Prime uses, cleaner implementation):
 
-```122:132:deepseek-harness/packages/core/agent-loop/src/agent.ts
+```163:173:deepseek-harness/packages/core/agent-loop/src/agent.ts
   followup(input: UserMessage): void {
     this.send(input, 'next-turn', true)
   }
@@ -181,30 +231,43 @@ This is dsh's load-bearing correctness claim.
 
 **Model-visible means logged.** Anything that reaches a model request must be
 reconstructable from the session log. A new model-visible input requires a new
-`SessionEventMap` member. Runtime invariant on `llm/stream`:
+`SessionEventMap` member.
 
-```21:42:deepseek-harness/packages/core/agent-loop/src/invariant.ts
-  ctx.on('llm/stream', (options: GenerateOptions, next) => {
-    // ...
-    const expected = session.deriveMessages()
-    if (JSON.stringify(options.messages) !== JSON.stringify(expected)) {
-      fail(`llm request for session "${String(session.id)}" diverges from the dispatch-time durable derivation (log-reconstruction desync)`)
-    }
+The previous dispatch-time runtime check (`agent-loop/src/invariant.ts`, a
+`JSON.stringify` compare on `llm/stream`) was **deleted** with all runtime
+invariant plugins in `f028f25667`. The property is now enforced by
+construction: the loop builds each request from `session.deriveMessages()` at
+the step boundary, deep-freezes it, and brands it with `markAgentLoopRequest`:
+
+```688:700:deepseek-harness/packages/core/agent-loop/src/agent.ts
+    const boundaryMessages = session.deriveMessages()
+    // ... deepFreeze each message ...
+    const request = markAgentLoopRequest(Object.freeze({
+      ...header.config,
+      messages: boundaryMessages,
+      toolHistory: session.toolHistory(),
+      ...
 ```
 
-Loop-built requests are frozen and branded. The check also folds
-`request/header` and compares model/system/tools. Ghost context is a failed
-invariant, not a late-night heisenbug.
+`llm/stream` listeners receive the frozen request and must read, never
+rewrite, it (`packages/llm/llm/src/index.ts:62–74`). Hand-built calls carry no
+brand. The equality check survives only as a test
+(`packages/core/agent-loop/tests/request-reconstruction.spec.ts`). Ghost
+context is now a failed test or a mutation throw, not a failed runtime
+assertion.
 
 `deriveMessages()` projects history from the **ordered surface** (compaction
 uses `replace` to shadow old nodes without deleting durable bytes)
-(`packages/core/session/src/index.ts:708+`). Fork, resume, transcripts,
+(`packages/core/session/src/index.ts:984`). Fork, resume, transcripts,
 telemetry, and UI all derive from this stream.
 
-`SESSION_FORMAT_VERSION = 0` (structural compatibility). SQLite backends have a
-separate `STORAGE_SQLITE_SCHEMA_VERSION = 1` (`PRAGMA user_version`). Event
-vocabulary growth uses `ignorable: true` on unknown types rather than bumping
-the format for every new event.
+`SESSION_FORMAT_VERSION = 4`: a single monotonic integer, bumped only when a
+discriminator cannot prevent unsafe interpretation; readers translate older
+headers through an adjacent migration chain (`packages/core/session/src/types.ts:70–89`).
+SQLite backends keep a separate `STORAGE_SQLITE_SCHEMA_VERSION = 1`
+(`packages/storage/storage-sqlite/src/schema.ts:20`). Event vocabulary growth
+uses `ignorable: true` on unknown types rather than bumping the format for
+every new event.
 
 Opaque ids are branded (`SessionId`, `CallId`) via `dsh-brand`.
 
@@ -219,9 +282,8 @@ A **seam** is three roles, always:
 3. **Consumer** — usually a model-facing tool
 
 One role is not a seam. The payoff: pointing `fs` + `subprocess` + `shell` at
-the same sandbox backend moves Bash, PTY, and LSP together. E2B is a different
-*execution world* (shared SDK handle); local Landlock is the same-world
-argv-wrapper. Subagent providers range from in-process child to ACP delegation
+the same sandbox backend moves Bash, PTY, and LSP together. Local Landlock is the same-world argv-wrapper; the E2B remote world that
+illustrated the other case was retired in `c49db8bc8c`. Subagent providers range from in-process child to ACP delegation
 behind one interface (`docs/architecture.md` capability table).
 
 Key seams: `fs`, `subprocess`, `sandbox`, `shell`, `llm`, `tools`, `session`,
@@ -246,13 +308,13 @@ tool.
 
 | Platform | Runner |
 |----------|--------|
-| Linux | bwrap, then Landlock (`@deepseek-ai/node-addon-landlock-run`, ~300 ln C11, musl-static, self-restrict-then-exec) |
+| Linux | bwrap, then Landlock (`landlock-run` in `@deepseek-ai/node-addon-system`, `native/system/`, ~540 ln C total, self-restrict-then-exec) |
 | macOS | Seatbelt |
-| Windows | ACL restricted-token runner |
+| Windows | ACL restricted-token runner (`packages/sandbox/sandbox-windows-acl`) |
 
 Policy plugins interpret `read-only` / `workspace-write` / `danger-full-access`.
-Escalation goes through approval markers. E2B is a POC remote world, not the
-default.
+Escalation goes through approval markers. There is no remote execution world
+in tree since E2B was retired (`c49db8bc8c`).
 
 This is the strongest local sandbox story in the survey after Codex's
 execution policy — and it is behind an interface, which Codex's is not in the
@@ -262,12 +324,15 @@ same "swap the world" sense.
 
 ## ACP, JSON-RPC, Web, Headless
 
-- **ACP** (`packages/acp/acp`) — automation-only Agent Client Protocol over
-  stdio JSON-RPC (`@agentclientprotocol/sdk`). Creates agents via `ctx.agents`,
-  auto-approves permission waterfalls for trusted programmatic clients.
+- **ACP** (`packages/acp/acp`, own `acp` profile) — automation-only Agent
+  Client Protocol over stdio JSON-RPC. Exposes only the standard ACP v1
+  surface; permission prompts go to the client as `session/request_permission`
+  with one-shot allow/reject choices (`packages/acp/acp/README.md`,
+  `511181684c`). Creates agents via `ctx.agents`.
 - **JSON-RPC SDK** — streams `session.event` notifications (full log
   envelopes). Python SDK launches bundled `dsh-jsonrpc-agent`.
 - **Headless profile** — one-shot task, no HTTP, no browser.
+- **SDK profiles** — `sdk` (on `dsh-base`) and `sdk-minimal` (standalone).
 - **Web profile** — host transport + browser Cordis tree (large
   `cordis.patch.yml`).
 
@@ -280,13 +345,17 @@ interactive-mode.ts.
 ## Self-Modification
 
 Not a separate `self-modification/` package in this checkout. The surface is
-`dsh-tool-cordis`: inspect the live plugin catalog, `cordis_define` immutable
-JS function-body packages (no TS transform), `cordis_run` / `stop` / `undefine`
-to mount per session. A pre-step waterfall can inject `@pluginId` context.
+now split:
 
-This is a research demo (`pnpm run demo:cordis`), not a hardened loader.
-Dynamic JS eval in-process with Cordis fiber lifecycle. Interesting as a
-"harness that can see itself"; dangerous as a default.
+- `dsh-tool-cordis` — read-only: `cordis_inspect_list`, `cordis_inspect_query`.
+- `dsh-cordis-host-runner` — "immutable package definitions, one active run per
+  Plugin, human-approved Client activation" (`packages/extensions/cordis-host-runner/src/index.ts:1–5`);
+  `cordis_define` validation lives there (`:172–175`).
+
+Both are mounted only by `packages/bundle/web-app/cordis.patch.yml`, not by
+`dsh-base`, and `pnpm run demo:cordis` no longer exists. It is still dynamic
+JS in-process with Cordis fiber lifecycle; the human activation gate narrows,
+but does not remove, the risk.
 
 ---
 
@@ -294,25 +363,29 @@ Dynamic JS eval in-process with Cordis fiber lifecycle. Interesting as a
 
 | Mechanism | Scale |
 |-----------|-------|
-| npm workspaces under `packages/` | **226** |
-| Package groups | ~49 |
-| Approx TS/TSX lines (`packages/` + `vendor/` + `native/` + `apps/`) | ~527k |
+| `package.json` manifests under `packages/` | **340** (226 at `c15f2f4d2`) |
+| Package groups | 52 (49) |
+| `experimental/` packages | 44 |
+| Approx TS/TSX lines (`packages/` + `vendor/` + `native/` + `apps/`, tracked) | ~1.10M (~529k) |
 | Generated catalogs | tools, config, persistence, Cordis API, module graph, scoped events, … |
 | Coverage gate | **per-file 100%** on `packages/*/*/src` |
 | Docs | word budgets, bilingual pairing, `doc-sync`, export JSDoc verification |
-| Invariants | every package owns `./invariant` |
+| Invariants | per-package `./invariant` companions **removed** (`f028f25667`) |
+| Upgrade guides | per-release migration notes (`docs/upgrade-guide/`) |
 | Vendored Cordis | pinned SHAs + logged local modifications |
 
-Pre-release stance (root `AGENTS.md`): prefer the correct foundation over
-compatibility shims; no external consumers yet. That is a luxury swe-term will
-not have once it ships, and a cost it should not copy *before* it ships.
+The pre-release stance has shifted: `docs/session-format-status.md` states that
+an alpha/beta/RC publication "establishes released Session-format
+obligations", and each release now ships upgrade guides. dsh is paying the
+migration cost the previous version of this document predicted.
 
 ---
 
 ## Key Design Patterns
 
 1. **Log is the model history.** Derive, don't shadow.
-2. **Invariant at the LLM boundary.** Check reconstruction on every stream.
+2. **Reconstruction by construction.** Build the request from the log, freeze
+   and brand it; prove equality in tests (the runtime check was removed).
 3. **Waterfalls, not subclasses.** Extension points are named phases.
 4. **Seam = definition + provider + consumer.** Swap worlds, not tools.
 5. **Profile = ordered patches.** Headless vs web is composition.
@@ -329,26 +402,27 @@ dsh is the most explicit **harness architecture** in the survey — more so than
 pi-mono, which is a layered product, and more so than Claude Code, which is a
 monolith with extension points. The ideas that change agent *correctness*
 (log-derived requests, named extension phases, capability seams, fail-closed
-sandbox) fit a small Go core. The ideas that change *org process* (226
+sandbox) fit a small Go core. The ideas that change *org process* (340
 packages, 100% coverage, Typert, bilingual doc gates) do not.
 
 If swe-term takes one sentence from dsh, it should be: **the bytes that hit
-the provider are a pure function of the session log, and we assert that at
-dispatch time.**
+the provider are a pure function of the session log.** dsh itself now
+guarantees that by construction and tests rather than a dispatch-time
+assertion; in Go the dispatch-time check is cheap enough to keep.
 
 ---
 
 ## Summary Statistics
 
-| Metric | Value (local 0.1.0-rc.5) |
-|--------|--------------------------|
-| Package manifests under `packages/` | 226 |
-| Default loop (`agent.ts`) | **496** lines |
-| Session store (`session/src/index.ts`) | 1,157 lines |
-| Loop invariant | 63 lines, load-bearing |
-| Session format version | 0 (no migration) |
+| Metric | Value (local 0.2.1-alpha.2) |
+|--------|-----------------------------|
+| Package manifests under `packages/` | 340 |
+| Default loop (`agent.ts`) | **705** lines |
+| Session store (`session/src/index.ts`) | 1,452 lines |
+| Loop invariant | removed (`f028f25667`); test-only |
+| Session format version | 4 (released; migration chain) |
 | SQLite schema version | 1 |
-| Profiles | `web`, `headless` |
-| Sandbox default | fail-closed local chain |
-| ACP | first-class automation server |
+| Profiles | `acp`, `web`, `headless`, `sdk`, `sdk-minimal` |
+| Sandbox default | fail-closed local chain; no remote world |
+| ACP | standard v1 automation server |
 | Status | developer preview, breaking OK |

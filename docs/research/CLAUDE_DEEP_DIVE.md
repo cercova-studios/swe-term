@@ -1,7 +1,32 @@
 # Claude Code Deep Dive — Architecture & Feature Analysis
 
-> Analysis of the Claude Code source snapshot (`src/`, ~1,900 files, 512K+ LoC).
-> Runtime: Bun. Language: TypeScript (strict). UI: React + Ink (terminal).
+> **Provenance (refreshed 2026-10-10, against Claude Code v2.1.296).**
+> Original analysis: static reading of a Claude Code source snapshot dated 2026-03-31
+> (`src/`, ~1,900 files, 512K+ LoC; npm v2.1.89 published that day), committed here 2026-06-06.
+> Claude Code is closed source; this refresh re-validated behavior against public sources only:
+> the official changelog (https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md),
+> the docs at https://code.claude.com/docs, and npm release metadata
+> (https://registry.npmjs.org/@anthropic-ai/claude-code; `latest` = 2.1.296, `stable` = 2.1.287).
+> **Marker:** `[source-snapshot, unverifiable]` tags file paths, internal function names, LoC counts,
+> and feature-flag names that came from the 2026-03-31 snapshot. Public docs neither confirm nor
+> refute them; treat them as historical, not current.
+> Runtime: Bun. Language: TypeScript (strict). UI: React + Ink (terminal). `[source-snapshot, unverifiable]`
+
+---
+
+## Changes since 2026-06-06
+
+Window: npm v2.1.168 (2026-06-06) to v2.1.296 (2026-10-09). Changelog: https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md
+
+1. **Auto mode is the default starting permission mode** for interactive terminal and VS Code sessions from v2.1.283. A second model (a classifier) reviews actions; the review-every-action mode is now labelled **Manual** (config value still `default`). https://code.claude.com/docs/en/permission-modes
+2. **Auto mode got policy surface:** an Auto mode tab in `/permissions` for classifier rules (v2.1.246), a server-side classifier row in `/status` (v2.1.278), a Containment Escape rule (v2.1.257), and a transcript-tampering rule (v2.1.205). Changelog, same URL.
+3. **Sandbox hardening:** `sandbox.credentials` (v2.1.187), `sandbox.network.strictAllowlist` (v2.1.219), `sandbox.filesystem.disabled` (v2.1.216), credential-file `mode: "mask"` on Linux/WSL (v2.1.221), per-command `allowed_domains` in auto mode with sandboxing (v2.1.271). Sandbox uses Seatbelt on macOS, bubblewrap + socat on Linux/WSL2. https://code.claude.com/docs/en/sandboxing
+4. **Headless/unattended controls:** `--permission-prompts none` denies anything that would prompt (v2.1.259); `--restricted` / `CLAUDE_CODE_RESTRICTED=1` removes built-in command/code-running tools and `WebFetch` (v2.1.248). Changelog.
+5. **Hook surface grew** to include `DirectoryAdded` (v2.1.219) alongside `PostToolBatch`, `PermissionDenied`, `PreModelSwitch`/`PostModelSwitch`, `UserPromptExpansion`, `MessageDisplay`, `TaskCreated`/`TaskCompleted`, `TeammateIdle`, `WorktreeCreate`/`WorktreeRemove`, and `mcp_tool` hook handlers. https://code.claude.com/docs/en/hooks
+6. **Background sessions and remote surfaces:** `claude agents` view with background-agent notifications (v2.1.198); `attach`/`logs`/`stop`/`respawn`/`rm` (v2.1.251); `claude self-hosted-runner` for running Claude Code web sessions on your own machines (v2.1.224); `claude --desktop` (v2.1.285); forking Remote Control sessions (v2.1.273). Changelog.
+7. **Subagent and skill governance:** concurrent subagent cap of 20 (`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, v2.1.217); `/skill-doctor` reports unused skills and their context cost (v2.1.261); claude.ai account skill/plugin sync (v2.1.275). Changelog.
+8. **Agent teams remain experimental** and off by default (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`). https://code.claude.com/docs/en/agent-teams
+9. **Plugin marketplaces:** GitLab sources (v2.1.232), `command` sources (v2.1.229), `claude plugin install --marketplace <source>` (v2.1.292). Changelog.
 
 ---
 
@@ -255,12 +280,14 @@ Every tool invocation passes through the permission system. This is the security
 
 ### Permission Modes
 
+Current public modes (https://code.claude.com/docs/en/permission-modes, 2026-10-10): `default` (shown as **Manual**), `acceptEdits`, `plan`, `auto`, `dontAsk`, `bypassPermissions`. Since v2.1.283, `auto` is the built-in starting mode for interactive terminal and VS Code sessions. The original snapshot table below listed four modes:
+
 | Mode | Behavior |
 |------|----------|
-| `default` | Prompt user for approval on each destructive action |
+| `default` | Prompt user for approval on each destructive action (now labelled Manual) |
 | `plan` | Approve reads, require approval for writes |
 | `bypassPermissions` | Auto-approve everything (requires explicit opt-in) |
-| `auto` | AI-classified approval (bash classifier) |
+| `auto` | AI-classified approval. **Correction:** public docs describe a second model (a classifier), which may run server-side (`/status` "Auto mode server" row, v2.1.278), not only local pattern matching |
 
 ### Permission Flow
 
@@ -276,7 +303,7 @@ Tool invocation
 
 ### Bash Classifier (`src/utils/permissions/bashClassifier.ts`)
 
-In auto-mode, shell commands are classified as safe/unsafe using pattern matching:
+`[source-snapshot, unverifiable]` In the 2026-03-31 snapshot, shell commands were classified as safe/unsafe using pattern matching. Whether these local validators still gate auto mode, or only pre-filter before the model classifier, is not public:
 - `readOnlyValidation.ts` — detect read-only commands
 - `dangerousPatterns.ts` — detect destructive patterns
 - `commandSemantics.ts` — understand command intent
@@ -332,6 +359,8 @@ When `CLAUDE_CODE_COORDINATOR_MODE=true`, the main agent becomes a **coordinator
 - Delegates all file/shell work to spawned worker agents
 - Workers get `Bash`, `FileRead`, `FileEdit` and other execution tools
 - The coordinator orchestrates via task assignment and message passing
+
+**Public status (2026-10-10):** coordinator mode is not documented publicly `[source-snapshot, unverifiable]`. Public docs ship agent teams as an experimental, opt-in feature (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, https://code.claude.com/docs/en/agent-teams), with `teammateMode: "iterm2"` added in v2.1.186 and a 20-subagent concurrency cap in v2.1.217 (https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md).
 
 ### Team Swarms (`src/utils/swarm/`)
 
@@ -774,7 +803,9 @@ Real-time token usage and cost estimation per session.
 
 ### Sandbox Runtime
 
-`@anthropic-ai/sandbox-runtime` — container-based sandboxing for untrusted code execution (stubbed in open source).
+`@anthropic-ai/sandbox-runtime` — container-based sandboxing for untrusted code execution (stubbed in open source). `[source-snapshot, unverifiable]` for the "container-based" description.
+
+**Public status (2026-10-10):** the shipped sandbox is OS-level, not container-based: Seatbelt on macOS, bubblewrap + socat on Linux/WSL2, configured via `/sandbox` and `sandbox.*` settings (https://code.claude.com/docs/en/sandboxing). Settings added since 2026-06-06 include `sandbox.credentials`, `sandbox.network.strictAllowlist`, `sandbox.filesystem.disabled`, and `sandbox.allowAppleEvents` (https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md).
 
 ---
 
@@ -825,7 +856,7 @@ The query loop (`src/query/transitions.ts`) is modeled as a state machine with e
 
 ## Feature Flag Inventory (Unreleased)
 
-Based on feature flag analysis, these capabilities are in development:
+`[source-snapshot, unverifiable]` Based on feature flag analysis of the 2026-03-31 snapshot. Public status at 2026-10-10: a Monitor tool (v2.1.271) and Remote Control (v2.1.251, v2.1.273) ship publicly per the changelog; agent teams are public but experimental; the remaining rows were not re-checked in this refresh. Status column reflects the snapshot only:
 
 | Feature | Status | Evidence |
 |---------|--------|----------|
@@ -862,11 +893,11 @@ Based on feature flag analysis, these capabilities are in development:
 | React hooks | ~80+ |
 | Services | ~15 major subsystems |
 | MCP transports | stdio, WebSocket, HTTP, in-process |
-| Permission modes | 4 (default, plan, bypass, auto) |
+| Permission modes | 6 public as of 2026-10-10 (default/Manual, acceptEdits, plan, auto, dontAsk, bypassPermissions); snapshot listed 4 |
 | Agent backends | tmux, in-process |
 | Memory types | user, project, team, session |
 | Compaction strategies | 4 (auto, micro, API, session-memory) |
 
 ---
 
-*Generated from static analysis of the Claude Code source snapshot (2026-03-31).*
+*Generated from static analysis of the Claude Code source snapshot (2026-03-31). Refreshed 2026-10-10 against public docs and changelog for v2.1.296; snapshot-only claims are marked `[source-snapshot, unverifiable]` where they bear on current behavior. Other path/LoC claims in this document carry the same caveat.*

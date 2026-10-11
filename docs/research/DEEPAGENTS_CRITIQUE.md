@@ -4,11 +4,33 @@
 > zero-dependency core, interface-driven plugins, immutable state,
 > goroutine-native concurrency, content-addressable caching, single binary.
 >
-> **Validated against the local Deep Agents source** at `/home/rohit/sandbox/swe-term/deepagents`
-> (core `0.6.7`, `deepagents-acp 0.0.6`, `deepagents-evals` on `harbor>=0.6.4`). Per the user's
+> **Validated against the local Deep Agents source** at `/Users/rohit/sandbox/swe-term/deepagents`
+> (commit `9f0e39d`, 2026-10-10; core `0.7.23`, `deepagents-acp 0.0.12`, `deepagents-code 0.1.83`,
+> `deepagents-evals` on `harbor[langsmith]>=0.20.0`). Previously validated against core `0.6.7`
+> (2026-06-06); see "Verdict changes since 0.6.7" below. Per the user's
 > focus, the **ACP integration** (`libs/acp`) and the **Harbor eval suite** (`libs/evals`) get
 > dedicated scrutiny below. External references:
 > [ACP](https://agentclientprotocol.com/protocol/overview), [Harbor](https://www.harborframework.com/docs).
+
+---
+
+## Verdict changes since 0.6.7 (2026-06-06)
+
+Evidence is in [`DEEPAGENTS_DEEP_DIVE.md`](DEEPAGENTS_DEEP_DIVE.md#changes-since-067-2026-06-06).
+Only these verdicts moved; everything else stands as written.
+
+| Verdict | Was | Now | Why |
+|---|---|---|---|
+| Harbor adapter pattern (§5, §8.6) | Steal `DeepAgentsWrapper(BaseAgent)` + `HarborSandbox`; agent on orchestrator, tool I/O in container | **Revised.** Steal "ship the agent as a standard graph artifact that the eval host runs in the container" | Both classes are gone; Harbor's built-in `langgraph` agent hosts `bare`/`dcode`/`tau3` graphs with `LocalShellBackend` in the container (`libs/evals/deepagents_harbor/langgraph_project/`, `.github/workflows/_harbor_run.yml:962-968`) |
+| Benchmarks reflect the SDK, not the product (§5) | CLI-agent mode in Harbor disabled | **Withdrawn.** | `harbor.yml` defaults `agent_impl` to `dcode`; unified evals run `bare` and `dcode` (`.github/workflows/harbor.yml:117`, `libs/evals/UNIFIED_EVALS.md`) |
+| Benchmark coverage "sampled" (§5) | Terminal-Bench 2.0 the only full sandboxed benchmark | **Softened.** | Unified battery adds harbor-index, τ³-bench, Context-Bench, DRBench with pass@K/avg@K. SWE-bench still not wired |
+| ACP completeness (§4) | No session/load, no reasoning stream, status `pending → completed` only | **Softened.** Core gap (no client `fs/*`/`terminal/*`, MCP unused) unchanged | Opt-in `session/load`, `agent_thought_chunk`, and `failed` status landed in `deepagents-acp` 0.0.10–0.0.11 (`libs/acp/CHANGELOG.md`) |
+| Observability coupling (§3, §7) | LangSmith-shaped evals | **Strengthened.** | `langsmith>=0.14.4` is now a *core* runtime dependency of `deepagents` (`libs/deepagents/pyproject.toml`), and runs carry `ls_integration` metadata (`graph.py:1004`) |
+| Local-shell safety (§1, §7) | Default local backend has no isolation | **Softened, not reversed.** | `FilesystemBackend`/`LocalShellBackend` default to path-anchored `virtual_mode=True` and permissions can raise HITL interrupts (0.7.0, commit `540a0fa`; 0.6.8, `a090162`). Shell commands are still not process-isolated |
+
+Unchanged after re-check: middleware-composition verdict, backend protocol, filesystem-as-overflow,
+isolated sub-agents, two-tier scoring, approximate tokens, MCP-not-in-core, HITL untested, and the
+dependency-depth verdict.
 
 ---
 
@@ -19,11 +41,11 @@ single most useful one to learn *organizing principles* from — while being alm
 swe-term's deployment philosophy at the substrate level.
 
 Its thesis is sharp and correct: **a harness is a curated bundle of middleware over a generic agent
-loop.** It does not write an agent loop at all. `create_deep_agent` assembles ~11 `AgentMiddleware`
-(todos, filesystem, sub-agents, summarization, skills, HITL, …) and hands them to LangChain's
+loop.** It does not write an agent loop at all. `create_deep_agent` assembles ~12 `AgentMiddleware`
+(filesystem, sub-agents, summarization, skills, memory, HITL, …; `write_todos` became opt-in in 0.7.0) and hands them to LangChain's
 `create_agent`, which compiles a LangGraph `CompiledStateGraph`. Capabilities are *layers*, not
 forks. That is exactly the modularity swe-term wants — and Deep Agents demonstrates it works at the
-118-eval, multi-provider, ACP-and-Harbor-integrated scale.
+~136-eval, multi-provider, ACP-and-Harbor-integrated scale.
 
 But as an *architectural template for a single Go binary*, Deep Agents is a cautionary tale of
 **dependency depth**. The "core" is three frameworks deep (LangGraph → `create_agent` → deepagents)
@@ -33,7 +55,8 @@ checkpoints, pluggable stores, interrupt-based HITL) are **LangGraph features De
 not invents. You cannot port Deep Agents; you can only port LangGraph's ideas, re-expressed.
 
 **Steal the middleware-composition model, the pluggable-backend protocol, the two-tier eval scoring,
-and the "agent-as-Harbor-BaseAgent / agent-as-acp.Agent" adapter pattern. Do not adopt the
+the "agent-as-acp.Agent" adapter pattern, and the "agent as a standard artifact the eval host runs"
+Harbor pattern.** Do not adopt the
 three-framework dependency stack, the Python/asyncio concurrency model, or the LangSmith-coupled
 observability as your core.**
 
@@ -45,7 +68,8 @@ observability as your core.**
 
 **It correctly identifies that "harness" is a composition problem.** Where Claude Code, Codex, and
 pi-mono each *own* a loop and bolt features onto it, Deep Agents declares the loop a commodity and
-competes purely on what middleware you stack. `create_deep_agent` is ~600 lines of *assembly* — pick
+competes purely on what middleware you stack. `create_deep_agent` is ~700 lines of *assembly*
+(`graph.py:277-1011`) — pick
 model, resolve a per-model profile, order the middleware, call `create_agent`. This is the most
 honest expression of "the harness is the configuration" of any agent here.
 
@@ -94,8 +118,10 @@ Agents offers the *taxonomy* of features but not an *implementation* you can rea
 
 **"Trust the LLM" security pushes the entire safety burden to the tool/sandbox layer.** That's a
 defensible stance for a hosted Python framework with cloud sandboxes — but the in-tree default
-(`LocalShellBackend`) runs commands on the host with **no isolation**. Real isolation requires a
-paid partner (Runloop/Modal/Daytona). swe-term's threat model (a layered, in-process execution
+(`LocalShellBackend`) runs commands on the host with **no process isolation**. Since 0.7.0 its file
+paths are anchored under `root_dir` by default, and permission rules can raise HITL interrupts, but
+shell commands are not confined. Real isolation requires `LangSmithSandbox` or a partner
+(Runloop/Modal/Daytona/Vercel). swe-term's threat model (a layered, in-process execution
 guard *before* you reach a sandbox) is stronger by default.
 
 ---
@@ -126,7 +152,7 @@ built. Worth knowing the pattern exists; not portable code.
 
 ### Cost and determinism of the eval suite
 
-The behavioral suite runs real LLMs against ~118 evals across up to 29 models, plus an LLM-as-judge
+The behavioral suite runs real LLMs against ~136 evals across up to 25 models (`set0`), plus an LLM-as-judge
 (`claude-sonnet-4-6`) that adds its own cost and variance. The multi-trial workflow exists precisely
 because results are non-deterministic; it measures stdev rather than asserting reproducibility.
 Harbor/Terminal-Bench 2.0 at full concurrency (Daytona default 40) is expensive. This is honest, but
@@ -140,7 +166,8 @@ deterministic `go test`.
 ### The dependency stack is deep and wide
 
 The core package pulls `langchain-core`, `langchain`, `langchain-anthropic`,
-`langchain-google-genai`, `wcmatch`, and transitively the entire LangGraph stack. The full
+`langchain-google-genai`, `langsmith` (new since 0.6.7), `wcmatch`, and transitively the entire
+LangGraph stack. The full
 experience (code TUI, MCP, sandboxes, evals, ACP) pulls Textual, `langchain-mcp-adapters`, partner
 SDKs, `harbor`, `langsmith`, `openevals`, `modal`, and `agent-client-protocol`. This is the
 **maximal-dependency** end of the spectrum — the exact opposite of swe-term's "zero-dependency core,
@@ -150,14 +177,15 @@ dependency tree; deploying swe-term should mean copying one binary.
 ### Observability is LangSmith-shaped
 
 Tracing, datasets, experiments, and eval feedback assume LangSmith. The behavioral eval suite
-*requires* `LANGSMITH_TRACING=true` and exits otherwise. That's a great product story for LangChain
+*requires* `LANGSMITH_TRACING=true` and skips otherwise (`libs/evals/tests/evals/conftest.py:34`).
+Since 0.7.x, `langsmith` is also a hard dependency of the core SDK itself. That's a great product story for LangChain
 and a vendor coupling for everyone else. swe-term should keep observability behind an interface
 (structured logs / OTel) rather than baking a SaaS into the test harness.
 
 ### MCP isn't in the core (and that's underadvertised)
 
 The README lists "any MCP server" as a feature, but `libs/deepagents` has **no MCP dependency** —
-MCP lives in `deepagents-code` and the CLI. So "Deep Agents supports MCP" is true at the *product*
+MCP lives in `deepagents-code` and `deepagents-talon` (`libs/cli` has been removed). So "Deep Agents supports MCP" is true at the *product*
 layer, not the *SDK* layer. A reader evaluating the core SDK for MCP will be surprised.
 
 ---
@@ -168,7 +196,7 @@ layer, not the *SDK* layer. A reader evaluating the core SDK for MCP will be sur
 > and [protocol overview](https://agentclientprotocol.com/protocol/overview).
 
 **What's genuinely good.** `deepagents-acp` is the right *shape*: a thin adapter
-(`AgentServerACP(acp.Agent)`, ~993 ln) that implements the protocol's agent side by translating
+(`AgentServerACP(acp.Agent)`, `server.py` 1,354 ln) that implements the protocol's agent side by translating
 LangGraph stream events into `session/update` notifications, and maps Deep Agents' HITL interrupts
 onto `session/request_permission`. It does not reimplement JSON-RPC or stdio — it leans on the
 upstream `agent-client-protocol` SDK. The **model-switching-via-`session/set_config_option`** trick
@@ -190,14 +218,15 @@ the integration covers only the prompt-turn-with-tools core and skips a lot:
   capabilities. The agent edits files in *its* view of disk, not Zed's. For an editor integration,
   that's a meaningful semantic gap (no shared diff/permission surface for file writes via the
   client).
-- **No `session/load`, `authenticate`, `session/list`, fork/resume/close.** Session management is
-  uuid-in-memory; resuming relies on the caller keeping a shared persistent checkpointer. The spec's
-  optional-but-expected session lifecycle is absent.
-- **No reasoning stream** (`agent_thought_chunk` unused), so thinking models show nothing during
-  deliberation.
-- **Tool status is `pending → completed` only** — no `in_progress`/`failed`, and `edit_file`
-  completion updates are skipped. The spec explicitly models `in_progress` and failure; clients that
-  render live tool progress get less than ACP allows.
+- **No `authenticate`, `session/list`, fork/resume/close.** `session/load` now exists but is opt-in
+  (`load_sessions=True`) and needs a checkpointer that survives restarts (`server.py:229-252`).
+  *(Softened since 0.6.7: load was absent.)*
+- **`mcp_servers` are stored but never used** — written to `_session_mcp_servers` and never read
+  (`server.py:273,375,419`), so editor-configured MCP servers do not reach the agent.
+- ~~No reasoning stream~~ — **fixed in 0.0.11**: visible reasoning streams as `agent_thought_chunk`.
+- **Tool status is `pending → completed | failed`** — `failed` was added (`server.py:915`), but
+  `in_progress` is still never emitted for tool calls and `edit_file` completion updates are still
+  skipped (`server.py:901`). Clients that render live tool progress still get less than ACP allows.
 - **Free-form `interrupt()` raises a `RequestError`**, and **audio prompts raise
   `NotImplementedError`.** These are honest failures, but they're failures.
 
@@ -219,33 +248,42 @@ is excellent and largely substrate-independent:
 - **Two-tier scoring** (`.success()` hard-fails correctness; `.expect()` logs efficiency but never
   fails) is a *great* idea. It separates "did it get the right answer" from "did it take an
   efficient path," and refuses to let trajectory-shape churn break CI.
-- **The Harbor adapter is a model of the right pattern.** `DeepAgentsWrapper(BaseAgent)` implements
-  *Harbor's* interface, and `HarborSandbox(SandboxBackendProtocol)` implements *Deep Agents'*
-  interface — the two systems meet at two thin adapters. The architectural decision to run **the
-  agent on the orchestrator and only tool I/O in the container** (shell `exec` for read/grep/glob,
-  native `upload`/`download` for write/edit to dodge `ARG_MAX`) is clean and correct.
-- **Verification is delegated to Harbor.** The agent writes an ATIF `trajectory.json`; Harbor's
-  in-container verifier produces the reward. Deep Agents doesn't grade itself.
+- **The Harbor seam got *thinner*, not thicker.** *(Verdict revised since 0.6.7.)* The old pair
+  of adapters (`DeepAgentsWrapper(BaseAgent)` + `HarborSandbox(SandboxBackendProtocol)`, agent on
+  the orchestrator, tool I/O proxied into the container) was deleted. Now the agent is packaged as a
+  plain LangGraph project (`deepagents_harbor/langgraph_project/langgraph.json` → `bare`, `dcode`,
+  `tau3` graphs) and Harbor's generic `langgraph` agent runs it *inside* the task container with an
+  ordinary `LocalShellBackend` (`langgraph_agent.py:440-446`). Deep Agents no longer implements any
+  Harbor interface; it ships a standard artifact. The cost is that the container is now the only
+  isolation boundary, which the code states outright and mitigates with an env-var denylist for
+  provider and LangSmith keys (`_SHELL_ENV_DENYLIST`).
+- **Verification is delegated to Harbor.** Harbor's in-container verifier produces the reward, which
+  is mirrored to LangSmith as `harbor_reward` (`deepagents_harbor/langsmith.py:603-622`). Deep Agents
+  doesn't grade itself.
+- **A cross-model scorecard now exists.** `unified_evals.yml` reports pass@K / avg@K across
+  autonomous / conversation / context / research axes, with the harness (`bare` vs `dcode`) as an
+  explicit input (`libs/evals/UNIFIED_EVALS.md`).
 
 > **Lesson for Harness:** Adopt the two-tier scoring split verbatim for swe-term's eval story
-> (correctness gates merges; efficiency is observed, not gated). And adopt the adapter shape: a Go
-> `BaseAgent`-equivalent that wraps the harness, and a sandbox backend that satisfies Harbor's
-> environment contract, lets swe-term run Terminal-Bench 2.0 without entangling the core with the
-> eval framework. This is the cleanest "eval as an external interface" example in the survey.
+> (correctness gates merges; efficiency is observed, not gated). For Harbor, Deep Agents' own
+> evolution points to the simpler shape: make swe-term runnable as a self-contained agent *inside*
+> the task container through a generic Harbor agent entry point, rather than maintaining a
+> custom `BaseAgent` plus a remote-proxy sandbox backend. A single static binary fits that shape
+> better than a Python graph does. Keep "eval as an external interface"; drop the bespoke proxy.
 
 **What's limited.**
 
-- **Coverage is sampled, not comprehensive.** External benchmarks are a *hard-set of 15 cases*
-  (FRAMES/Nexus/BFCL v3); `tau2_airline` is 15 tasks; **SWE-bench is not wired**. Terminal-Bench 2.0
-  is the only full sandboxed benchmark. The headline "we run benchmarks" is real but narrower than it
-  sounds.
+- **Coverage is broader but still not SWE-bench.** *(Softened since 0.6.7.)* The pytest side still
+  samples FRAMES/Nexus/BFCL v3 and `tau2_airline`; the Harbor side now runs Terminal-Bench 2/2.1,
+  harbor-index, τ³-bench, Context-Bench, and DRBench. **SWE-bench is still not wired.**
 - **LangSmith coupling again.** Behavioral evals can't run without it; Harbor rewards are posted as
   LangSmith feedback. The eval suite is not portable to a team that doesn't use LangSmith.
-- **HITL is untested.** `CONTRIBUTING.md` references a `test_hitl.py` that isn't in the tree, and the
-  Harbor wrapper sets `auto_approve=True` — so the human-in-the-loop path, a headline feature, has no
-  eval coverage.
-- **CLI-agent mode in Harbor is disabled** (`# - cli # need to support properly first`), so the
-  benchmark numbers reflect the SDK agent, not the shipped `deepagents-code` TUI agent.
+- **HITL is still untested in evals.** `libs/evals/CONTRIBUTING.md:81` still lists a `test_hitl.py`
+  that is not in `tests/evals/`, so the human-in-the-loop path, a headline feature, has no eval
+  coverage.
+- ~~CLI-agent mode in Harbor is disabled~~ — **withdrawn.** `harbor.yml` now defaults to the `dcode`
+  product agent (`.github/workflows/harbor.yml:117`), so benchmark numbers can reflect the shipped
+  agent as well as the bare SDK.
 
 ---
 
@@ -278,11 +316,12 @@ True for a framework standing on LangGraph; false for swe-term, whose *reason to
 readable, zero-dependency loop. Borrowing a loop means inheriting a dependency tree.
 
 ### ❌ "Trust the LLM; enforce only at the sandbox"
-The default local backend has no isolation. swe-term wants a layered guard *before* the sandbox, on
-by default.
+The default local shell backend has no process isolation (path anchoring arrived in 0.7.0, but
+commands are unconfined). swe-term wants a layered guard *before* the sandbox, on by default.
 
 ### ❌ "Observability = LangSmith"
 Don't bake a SaaS into the harness or the test suite. Keep it behind a logging/tracing interface.
+Deep Agents moved the other way: `langsmith` became a core SDK dependency after 0.6.7.
 
 ### ❌ "Approximate tokens are good enough for budget decisions"
 Acceptable for a heuristic ceiling; risky as the basis for eviction. Prefer a real tokenizer or at
@@ -303,7 +342,8 @@ plugin).
 The highest-value lessons in the survey for swe-term's *organization* (less for its substrate):
 
 1. **Middleware composition over a generic loop** — capabilities are plugins, never forks. Deep
-   Agents proves this scales to ~11 layers + profiles.
+   Agents proves this scales to ~12 layers + profiles, and 0.7.0 lets a same-named user middleware
+   replace a default instead of forking the stack.
 2. **One backend protocol, many implementations** — state / disk / store / composite / sandbox all
    behind `read_file`/`write_file`. Route by path prefix (`CompositeBackend`).
 3. **Filesystem as context-overflow substrate** — offload summarized history and oversized tool
@@ -311,9 +351,10 @@ The highest-value lessons in the survey for swe-term's *organization* (less for 
 4. **Isolated-context sub-agents; any agent is a valid sub-agent** — delegation and composition share
    one seam.
 5. **Two-tier eval scoring** — correctness hard-fails, efficiency is logged. Copy this exactly.
-6. **Adapter-implements-the-other-interface** — `acp.Agent` adapter and Harbor `BaseAgent`/
-   `BaseEnvironment` adapters keep the protocol and eval frameworks *out* of the core. swe-term's
-   ACP frontend and Harbor harness should be equally thin and external.
+6. **Keep protocol and eval frameworks out of the core** — the `acp.Agent` adapter still implements
+   the other system's interface; the Harbor side now ships a standard graph artifact that Harbor's
+   generic agent hosts. swe-term's ACP frontend and Harbor entry point should be equally thin and
+   external.
 7. **Delta-reduced, channel-based state** — the O(N) checkpoint idea is worth re-implementing in Go's
    state model.
 
@@ -336,9 +377,9 @@ The highest-value lessons in the survey for swe-term's *organization* (less for 
 | Caching | prompt-cache + checkpoints | content-addressable artifact store |
 | Observability | LangSmith (required for evals) | logs/OTel behind an interface |
 | Protocol | `deepagents-acp` (partial ACP) | first-class `Frontend` incl. full ACP |
-| Evals | pytest + LangSmith + Harbor (two-tier) | port two-tier scoring + Harbor adapter |
+| Evals | pytest + LangSmith + Harbor (two-tier; unified pass@K battery) | port two-tier scoring + in-container Harbor entry point |
 | Deployment | Python env / LangGraph Platform | one static binary |
-| Dependencies | deep & wide (LangChain++) | near-zero |
+| Dependencies | deep & wide (LangChain++, `langsmith` in core) | near-zero |
 
 ---
 
@@ -363,6 +404,6 @@ compose*, not the *substrate*.
 ---
 
 *Companion to [`DEEPAGENTS_DEEP_DIVE.md`](DEEPAGENTS_DEEP_DIVE.md). Validated against the local Deep
-Agents monorepo at `/home/rohit/sandbox/swe-term/deepagents` (core `0.6.7`, `deepagents-acp 0.0.6`,
-`deepagents-evals` on `harbor>=0.6.4`). External references:
+Agents monorepo at `/Users/rohit/sandbox/swe-term/deepagents` on 2026-10-10 (commit `9f0e39d`; core
+`0.7.23`, `deepagents-acp 0.0.12`, `deepagents-evals` on `harbor[langsmith]>=0.20.0`). External references:
 [ACP](https://agentclientprotocol.com/protocol/overview), [Harbor](https://www.harborframework.com/docs).*

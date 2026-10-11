@@ -4,10 +4,25 @@
 > zero-dependency core, interface-driven plugins, immutable state,
 > goroutine-native concurrency, content-addressable caching, single binary.
 >
-> **Validated against the local Flue source** at `/home/rohit/sandbox/swe-term/flue` (`0.7.0`,
-> *Experimental*) and the real consumer app at `/home/rohit/sandbox/gvision`. The central claim
-> below — that Flue's core is pi's — is now **code-confirmed**: `packages/runtime/src/session.ts`
-> constructs pi-agent-core's `Agent` and delegates each turn to `agent.prompt()`.
+> **Validated 2026-10-10 against the local Flue source** at `/Users/rohit/sandbox/swe-term/flue`
+> (HEAD `6583259`, all packages `2.2.2`). Previous validation: `0.7.0` at `bb9245f01`
+> (2026-06-06), plus the gvision consumer app (no longer present; its API is superseded). The
+> central claim — that Flue's core is pi's — still holds: `packages/runtime/src/session.ts`
+> constructs pi-agent-core's `Agent` and drives it with `prompt()` / `continue()` / `steer()`.
+>
+> **Verdicts changed in the 2026-10-10 refresh** (details inline, marked *Updated*):
+> 1. *Ephemeral sessions on Node* — softened. Node now has a durable `sqlite()` store and
+>    Postgres/libSQL/MySQL/MongoDB/Redis adapters; the default is still in-memory.
+> 2. *Durability is Cloudflare-coupled* — largely withdrawn. 2.x defines one submission
+>    contract with identical recovery decisions on both targets; Cloudflare keeps an operational
+>    edge (structural single owner vs Node leases).
+> 3. *`just-bash` sandbox* — narrowed. It is no longer the default; there is no implicit sandbox.
+> 4. *Pre-1.0 instability* — restated. Flue is `2.x`, but 2.0 was a breaking redesign with a
+>    reset-only persisted schema, so the instability verdict stands on new evidence.
+> 5. *What to port* — roles row replaced (roles are gone); accepted-work contract and durable
+>    tools added.
+> Unchanged: borrowed core, MCP client-only, build-step overhead, no CAS/analyzer, inherited
+> provider layer.
 
 ---
 
@@ -19,11 +34,12 @@ Flue asks *"what if the agent harness were a deployable framework, like Next.js 
 reframing — **agent = a directory compiled into a server artifact, headless by default, deployable
 to Node or the edge** — is genuinely novel and worth taking seriously.
 
-But as an *architectural template for swe-term*, Flue is the weakest fit of the four. It is
-**Experimental and pre-1.0** (`0.7.0`, frequent breaking changes), it is a **thin framework over
+But as an *architectural template for swe-term*, Flue is the weakest fit of the four. It
+**churns hard** (0.7.0 → 1.0 betas → a breaking 2.0 redesign in under two months; now `2.2.2`), it is a **thin framework over
 pi-mono's engine** (so its agent-loop ideas are really pi's — Flue's `Session` literally wraps pi's
-`Agent`), its flagship durability story is **tightly coupled to Cloudflare Durable Objects**, and
-its default sandbox (`just-bash`) is an **in-process emulation with no real isolation**. Flue is a
+`Agent`), its best durability ergonomics are still **Cloudflare-shaped** (one Durable Object per
+conversation), and its built-in sandboxes are **emulation (`just-bash`) or none (`local()`)** —
+real isolation means a remote provider. Flue is a
 deployment-and-packaging layer, not an agent core.
 
 **Steal the framework framing and the headless/deployment model. Do not look to Flue for the core —
@@ -63,7 +79,7 @@ or filesystem context. A headless framework can enforce this more strictly than 
 > credentials from the environment/config at execution time, never receive them through the model.
 
 **First-classing sessions / subagents / sandboxes as framework primitives is the right taxonomy.**
-Flue's primitive list (harness, session, role, task, sandbox, tool, skill, MCP) is almost exactly
+Flue's primitive list (agent function, conversation, submission, subagent, sandbox, tool, skill, MCP, channel) is almost exactly
 the surface area swe-term must also provide *around* its ported pi-core. Flue is a useful checklist
 of "what a harness needs beyond the loop."
 
@@ -79,11 +95,12 @@ framing but no engine lessons that pi-mono doesn't already provide more directly
 > **Implication:** Read Flue for the *framework* layer; read pi-mono for the *engine*. Don't conflate
 > them. Flue's agent-loop critiques are pi-mono's critiques.
 
-**Pre-1.0 instability.** Marked *Experimental* (`0.7.0`) with frequent breaking changes; APIs are
-visibly in flux — the runtime moved out from under the `@flue/sdk` name to `@flue/runtime` +
-`@flue/cli` (old `@flue/sdk/*` subpaths now throw migration errors), `defineConfig` moved to
-`@flue/cli/config`, `getVirtualSandbox()` was removed, and the pi deps were renamed
-`@mariozechner/*` → `@earendil-works/*`. It is not yet a stable foundation to design against.
+**API instability.** *Updated 2026-10-10:* the version number crossed 1.0, the instability did
+not. Since 0.7.0: `FlueContext`/`ctx.init`/`defineAgent` were replaced by hook-composed agent
+functions, `flue build`/`flue dev` by Vite, runs and workflows were deleted, the client SDK became
+conversation-scoped, `defineConfig` moved again (`@flue/runtime/config`), and pre-1.0 persisted
+state is **reset-only** — no in-place migration (`apps/docs/src/content/docs/guide/migration.md`).
+It is still not a stable foundation to design against; read it for ideas, not interfaces.
 
 ---
 
@@ -91,7 +108,9 @@ visibly in flux — the runtime moved out from under the `@flue/sdk` name to `@f
 
 ### `just-bash` is emulation, not a sandbox
 
-The default sandbox is an **in-process emulated bash with a virtual filesystem** — it runs in the
+*Updated 2026-10-10:* `just-bash` is no longer the default — an agent without `useSandbox()` gets
+no filesystem and no file/bash tools (`migration.md` §"Sandboxes"). The verdict on the virtual
+sandbox itself is unchanged. It is an **in-process emulated bash with a virtual filesystem** — it runs in the
 *same process* as the agent. It's fast and cheap, but it provides **no isolation boundary**. Calling
 it a "sandbox" is generous; it's a convenience layer. Real isolation requires the remote/Cloudflare
 container path.
@@ -112,13 +131,17 @@ but heavyweight and CF-flavored).
 > machine), which neither `just-bash` nor `local()` provides. The OS-sandbox-helper model (Codex) is
 > the right target.
 
-### Ephemeral sessions on Node
+### Ephemeral-by-default on Node
 
-On the Node target, sessions are **in-memory by default and lost on restart** unless you supply a
-custom `SessionStore`. For a framework that markets "continuity" and "durable execution," the default
-non-Cloudflare experience is *non-durable*. Durability is effectively a Cloudflare feature.
+*Updated 2026-10-10 (verdict softened):* Node now ships a built-in `sqlite()` store on
+`node:sqlite` (`@flue/runtime/node`) and adapter packages for Postgres, libSQL, MySQL, MongoDB, and
+Redis, selected in `src/db.ts` (`guide/database.md`), plus lease-based crash recovery
+(`guide/durability.md` §"Node.js recovery"). The remaining gap is the **default**: without a
+`db.ts`, state is in-memory and *"a restart loses everything."* Durability is opt-in on Node, but
+no longer a Cloudflare-only feature.
 
-> **Contrast with Harness:** swe-term's PLAN makes persistence a *core* concern (SQLite via
+> **Contrast with Harness:** Flue's `sqlite()` file adapter is now close to swe-term's model. The
+> difference is the default: swe-term's PLAN makes persistence a *core* concern (SQLite via
 > `modernc.org/sqlite`, branchable tree, resume) on every platform — not a property of the deploy
 > target. Durability should not depend on where you deploy.
 
@@ -126,24 +149,29 @@ non-Cloudflare experience is *non-durable*. Durability is effectively a Cloudfla
 
 ## 3. Simplicity
 
-### Durability is Cloudflare-coupled
+### Durability: contract uniform, operations still Cloudflare-shaped
 
-Flue's strongest durable-execution story — Durable Objects + SQLite, `FlueRegistry` DO auto-injection,
-cross-request resumption "for years" — is **tightly coupled to Cloudflare Workers**. The framework
-aspires to be runtime-agnostic, but its best features light up on one vendor's platform. The Node
-target is the lowest-common-denominator fallback.
+*Updated 2026-10-10 (verdict largely withdrawn):* the 0.7.0 run store / `FlueRegistry` design is
+gone. 2.x defines one **accepted-work contract** — durable admission, exactly one terminal outcome,
+evidence-based recovery, conservative tool-batch repair, `step.do` checkpoints — and states that
+"the durable records and the recovery decisions are identical on both targets"
+(`guide/durability.md`). This is now the most port-worthy part of Flue.
 
-> **Do not port:** Platform-coupled durability. swe-term is a local single binary; its durability is
+What remains Cloudflare-favored is *operations*: on Cloudflare, single ownership is structural (one
+Durable Object per conversation); on Node, ownership is a lease protocol and multi-replica
+deployments "must route each conversation to one owner."
+
+> **Do not port:** Platform-coupled ownership. swe-term is a local single binary; its durability is
 > a local SQLite file, available identically everywhere. "Runtime-agnostic in principle,
 > Cloudflare-best in practice" is the exact lock-in the Harness philosophy rejects (cf. the Claude
 > Code critique's "avoid unnecessary environment lock-in").
 
 ### A build step for an agent
 
-Flue's "agent = directory compiled into a server artifact" (esbuild on the Node target, `wrangler`
-on the Cloudflare target) is elegant for a deploy-to-edge framework but is *overhead* for a local
-CLI. swe-term's equivalent — compile Go to a single static binary — needs no esbuild, no `wrangler`,
-no `flue.config.ts`, no artifact directory. The build *is* `go build`.
+Flue's "agent = project compiled into a server artifact" (since 2.0, `vite build` with `@flue/vite`,
+plus `@cloudflare/vite-plugin` on Cloudflare; verdict unchanged) is elegant for a deploy-to-edge framework but is *overhead* for a local
+CLI. swe-term's equivalent — compile Go to a single static binary — needs no Vite, no `wrangler`,
+no `vite.config.ts`, no artifact directory. The build *is* `go build`.
 
 > **Contrast:** Flue's build system solves a problem (bundle TS for multiple JS runtimes) that a Go
 > single-binary simply doesn't have. swe-term's Phase 7 recursive self-build is the relevant analog,
@@ -192,10 +220,10 @@ different wire protocols (Anthropic Messages vs OpenAI Chat vs Responses) — wo
 `just-bash` is a convenience, not a security boundary. Real isolation needs OS mechanisms (Codex's
 model) or remote containers. Don't conflate emulation with isolation.
 
-### ❌ "Durability is a property of the deploy target"
+### ❌ "Durability is opt-in per deployment"
 
-Cloudflare gets Durable Objects; Node gets ephemeral memory. swe-term's persistence must be uniform
-(local SQLite) regardless of environment.
+*Updated 2026-10-10:* Flue fixed the contract but kept an in-memory default on Node. swe-term's
+persistence must be on by default (local SQLite) regardless of environment.
 
 ### ❌ "Agents need a bundler/build pipeline"
 
@@ -224,8 +252,10 @@ pi's loop wholesale would defeat the learning purpose and the "without its gaps"
 | Headless-first framing | `Frontend` interface design | Print/RPC frontends are first-class, not afterthoughts |
 | "Agent as a deployable artifact" | Phase 7 recursive self-build | swe-term compiles to *itself* instead of a server |
 | Primitive taxonomy (session/role/task/sandbox/skill/tool/MCP) | feature checklist | Confirms the surface area a harness needs beyond the loop |
-| Roles as call-scoped persona overlays | system-prompt overlay per call | Swap persona without forking state |
-| Tasks as detached child agents sharing a sandbox | `AgentTool` semantics | Subagent works in the same workspace, own history |
+| Subagents via a framework `task` tool + catalog in the system prompt | `AgentTool` semantics | Delegate runs in fresh context, own durable transcript; only final answer returns |
+| Accepted-work contract: durable admission → exactly one terminal outcome | session/turn state machine | Crash recovery from durable evidence, not in-memory state |
+| Tool-batch repair: unresolved calls → explicit unknown-outcome error | tool execution recovery | Never silently re-run a side effect after a crash |
+| Durable tools with `step.do` checkpoints | long-running tool contract | Exactly-once recorded, at-least-once executed |
 | Host-side tool execution, schema-only to model | tool secret hygiene | Credentials never enter the context |
 | Typed results via schema (`prompt({ result })`) | structured-output tool | Agents as typed functions, not just chat |
 | `dev` / `run` watch-and-reload DX | dev ergonomics | Fast iteration loop for tool/skill authoring |
@@ -239,15 +269,15 @@ Flue                                   Harness (swe-term)
 ─────────────────────────────────     ─────────────────────────────────
 TypeScript, runtime-agnostic           Go single static binary
 Framework over pi-agent-core+pi-ai     Builds its own core (ports pi)
-Agent = dir → esbuild/wrangler → server  Agent = `go build` → one binary
+Agent = hook fn → Vite → server        Agent = `go build` → one binary
 Headless only (no TUI)                 Headless core + TUI/RPC/print frontends
-just-bash (in-process emulation)       OS sandbox helper (seccomp/landlock)
+no sandbox / just-bash (opt-in)        OS sandbox helper (seccomp/landlock)
 local() = direct host (no isolation)   In-process safety as the default
-Sessions in-memory on Node (ephemeral) SQLite persistence everywhere
-Durable execution = Cloudflare DOs     Durable = local SQLite (uniform)
+Node durable only with a db.ts adapter SQLite persistence on by default
+Uniform contract; CF owns, Node leases Durable = local SQLite (uniform)
 MCP client only (HTTP, no stdio/OAuth) MCP client + server, multi-transport
 Provider layer inherited from pi-ai    Provider interface designed in-house
-Experimental 0.7.0, breaking changes   Versioned, learning-oriented, stable target
+2.2.2 after a breaking 2.0 redesign    Versioned, learning-oriented, stable target
 Cloudflare-favored "agnostic"          Zero platform lock-in
 ```
 
@@ -261,8 +291,9 @@ deploy story — "Next.js for agents." That framing is valuable and swe-term sho
 in two places: the `Frontend` interface (headless core, frontends as first-class clients) and Phase 7
 (agent as a compiled artifact — but compiled to *itself*, not to a Cloudflare Worker).
 
-For everything else, Flue points the *opposite* way from the Harness philosophy. Its durability is
-platform-coupled where swe-term wants it uniform and local. Its default "sandbox" is emulation where
+For everything else, Flue points the *opposite* way from the Harness philosophy. Its durability
+contract is now uniform and worth studying, but it is opt-in on Node where swe-term wants it on by
+default. Its default "sandbox" is emulation where
 swe-term needs real OS isolation. Its build pipeline solves a TypeScript-multi-runtime problem that a
 Go single binary doesn't have. And its core is borrowed from pi-mono — so the deep engineering
 lessons swe-term needs live in pi, not Flue.
@@ -271,7 +302,7 @@ The clean summary of the lineage that ties this whole doc set together:
 
 - **pi-mono** is the **engine** swe-term ports (and the source of its 12-gap to-do list).
 - **Flue** is a **framework** that wraps that engine for headless edge deployment — useful for its
-  framing and its primitive taxonomy, not its core.
+  framing, its primitive taxonomy, and (since 2.x) its accepted-work durability contract — not its core.
 - **Codex** is the **protocol-and-safety reference** — steal the SQ/EQ seam and the layered exec
   sandboxing.
 - **Claude Code** is the **anti-template** — proof you can ship a feature-complete monolith, and
