@@ -171,7 +171,11 @@ may refine their representation without weakening Sections 6 or 10.
   configured, so a default local run opens no connection. Design evidence:
   [`docs/plans/2026-10-06-openinference-openllmetry-integration-research.md`](docs/plans/2026-10-06-openinference-openllmetry-integration-research.md).
 - **Tool adapters — target.** Add bounded actions with the same manifest, effect,
-  journal, and receipt contracts in every implementation language.
+  journal, and receipt contracts in every implementation language. The
+  manifest declares a replay policy: the journal records a call's intent
+  before its effect, and on resume a call cut off mid-run reruns only if it
+  is declared replay-safe; otherwise it ends with an explicit `interrupted`
+  result, never a silent rerun (invariant 9).
 - **Analyzer/enrichment adapters — target.** Add pre-model context with explicit
   source, version, scope completeness, and freshness. The Fleet CPG engine is
   the first such adapter (target; not yet implemented): a code property graph
@@ -198,7 +202,9 @@ may refine their representation without weakening Sections 6 or 10.
   same effect, approval, journal, and receipt contracts as any tool adapter;
   it never loads client code in process. A client may supply a JSON Schema for
   the session result; the core validates it, providers declare support, and a
-  violation is a failure. Go programs may import the core packages directly.
+  violation is a failure. Submissions carry a caller request ID, and a
+  repeated ID returns the existing submission. Go programs may import the
+  core packages directly.
   The client-over-protocol shape keeps one implementation of the core across
   languages. obsidian-agent's requests OA-001 to OA-003
   ([ledger](docs/cross-project/obsidian-agent.md)) are its first contract.

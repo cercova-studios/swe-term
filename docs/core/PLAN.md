@@ -50,6 +50,13 @@ Deliver:
 - SQLite-backed session persistence.
 - Minimal Python SDK client: open a session, stream events, and register
   client-hosted tools that the loop calls back over the protocol (OA-001).
+  `submit` takes a caller request ID; resubmitting the same ID returns the
+  existing submission, so a client retry after reconnect never runs twice.
+- Per-tool replay policy in the tool manifest: the journal records a call's
+  intent before the effect; on resume a call cut off mid-run reruns only if
+  declared replay-safe, otherwise it ends with an explicit `interrupted`
+  result. Reference: pi-durable
+  ([`HARNESS_VERDICTS.md` → pi-durable](HARNESS_VERDICTS.md#pi-durable)).
 
 Done when:
 
@@ -57,6 +64,9 @@ Done when:
 - Integration tests pass with mock provider + real tool wiring.
 - obsidian-agent gate C1 passes: read-only vault Q&A runs through the loop
   from the Python client with a mock provider.
+- Crash fixtures pass: killing the process mid-tool yields a rerun for a
+  replay-safe tool and an `interrupted` result otherwise; a duplicate request
+  ID creates no second submission.
 
 ### Phase 2: Safety, Hooks, and Context Budget
 
