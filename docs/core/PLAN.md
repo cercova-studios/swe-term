@@ -133,6 +133,47 @@ Done when:
 
 ---
 
+## Competitive Bar: opencode V2
+
+opencode V2 (v2.0.32, `501b15af26`) is the closest production harness to
+swe-term's shape. Matching it is the floor; the roadmap wins only where
+opencode has structurally declined. Evidence and checks:
+[`HARNESS_VERDICTS.md` → opencode](HARNESS_VERDICTS.md#where-swe-term-must-beat-opencode-v2).
+
+Parity (port, do not reinvent), by phase:
+
+- **Phase 1:** history-only `Drain`; durable inbox (steer vs next-turn);
+  incomplete tool input fails and never runs; shell tool reports exit only
+  after output is captured; edit tool matches the LF view and preserves line
+  endings.
+- **Phase 2:** last-match permission rules (empty = deny) with typed
+  `once|always|reject|corrected` replies; `opaque` shell scan ⇒ ask;
+  checkpoint compaction with a verbatim recent tail; `OutputLimit` as a
+  distinct outcome with bounded continuation.
+- **Phase 4:** typed protocol with bounded subscribers that fail loudly on
+  overflow.
+- **Phase 5:** bounded provider retry with a capped `retry-after` and a
+  separate timeout budget.
+
+Differentiators (each needs its check before it is claimed):
+
+1. **Confinement** (Phase 2): OS sandbox and default-deny egress under the
+   permission layer. opencode has prompts only.
+2. **Effect-scheduled tools** (Phase 1–2): `EffectDeclaration` decides
+   parallel reads vs serial writes. opencode forks every call.
+3. **Verifiable done** (Phase 2): obligations, receipts, and the V&V rung
+   gate block exit. opencode ends when the model stops.
+4. **Structural context** (Phase 3): the analyzer `ContextPacket` arrives
+   before the model decides.
+5. **Out-of-process third-party extensions** (Phase 3).
+6. **Footprint** (Phase 5): single static binary with RSS and cold-start
+   budgets, and a loop that stays under opencode's 363 lines.
+
+Non-goals versus opencode: voice, mobile/desktop apps, hosted console, and a
+second provider SDK.
+
+---
+
 ## Cross-Cutting Requirements
 
 - **Single source of truth:** architecture decisions live in the root
