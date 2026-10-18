@@ -1,8 +1,8 @@
-# Service Docs
+# Sidecar documentation
 
-Documentation for sidecar and supporting services.
+Read [root architecture](../../ARCHITECTURE.md) for current sidecar boundaries
+and implementation status.
 
-## Documents
-
-- [`AST_SERVICE_ARCHITECTURE.md`](AST_SERVICE_ARCHITECTURE.md) — AST/code-intelligence service architecture
-- Joern / CPG-lite decision: [`../core/HARNESS_VERDICTS.md#joern`](../core/HARNESS_VERDICTS.md#joern)
+The [AST/code-intelligence design](AST_SERVICE_ARCHITECTURE.md) and
+[Joern/CPG verdict](../core/HARNESS_VERDICTS.md#joern) are development records in
+[the project archive](../README.md#designated-development-archive).

@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "experiment_id": "distiller-reading-fidelity",
+  "status": "preregistered",
+  "kind": "benchmark",
+  "papers": [],
+  "design_references": [
+    {
+      "title": "Deterministic distiller extension",
+      "url": "https://github.com/cercova-studios/swe-term/blob/dev/ARCHITECTURE.md",
+      "claim": "Section 9 URL extraction extension: deterministic source fidelity and process cost."
+    }
+  ],
+  "hypothesis": "Distiller produces valid readable EPUBs retaining the selected source text, chapter structure and raster figures more completely than xberg extraction plus Pandoc.",
+  "null_hypothesis": "Distiller loses a declared component or cannot produce a readable EPUB, preventing a superiority claim.",
+  "independent_variable": "Conversion pipeline on the same frozen HTML/PDF bytes.",
+  "source": {
+    "kind": "directory",
+    "locator": "fixtures",
+    "revision": "",
+    "content_digest": "sha256:e75da5a2f15a27523b2bfb1328a52ff40feb35438b91eec2cdcd7edcbc494a42"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "inherit",
+    "network_justification": "Shared acquisition of public HTML assets before pipeline execution; variants use identical offline HTML and local PDF. No credentials or model calls.",
+    "allowed_env": [
+      "PATH",
+      "HOME",
+      "TMPDIR"
+    ],
+    "resources": {
+      "timeout_seconds": 300,
+      "max_parallelism": 1,
+      "max_output_bytes": 104857600,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "distiller",
+      "description": "Installed optimized deterministic Rust CLI, including native PDFium worker. HTML uses the recorded original base URL.",
+      "command": [
+        "/Users/rohit/.local/bin/distiller",
+        "{fixture}",
+        "--mode",
+        "epub",
+        "-o",
+        "{output}"
+      ],
+      "config": {
+        "input_adapter": "Shared offline HTML preparation: resolve links against original URL, fetch each image once, losslessly convert WebP to PNG, replace src with matching local image path and remove srcset. No content selection/removal. PDF copied unchanged.",
+        "packaging": "xberg output and direct HTML use Pandoc EPUB3 with TOC, depth6, preserved tabs and supplied source title/language. No PDF preprocessor is supplied to direct Pandoc; its unsupported-input terminal is recorded."
+      }
+    },
+    {
+      "name": "xberg-pandoc",
+      "description": "Installed xberg extraction with raster-image extraction enabled, followed by Pandoc EPUB3 with TOC; no OCR/cache/models/config discovery.",
+      "command": [
+        "xberg",
+        "extract",
+        "{fixture}",
+        "--no-config-discovery",
+        "--no-cache",
+        "true",
+        "--ocr",
+        "false",
+        "--content-format",
+        "html",
+        "--format",
+        "text",
+        "--extract-images",
+        "true",
+        "--output-dir",
+        "{asset_directory}",
+        "-o",
+        "{extracted_html}"
+      ],
+      "config": {
+        "input_adapter": "Shared offline HTML preparation: resolve links against original URL, fetch each image once, losslessly convert WebP to PNG, replace src with matching local image path and remove srcset. No content selection/removal. PDF copied unchanged.",
+        "packaging": "xberg output and direct HTML use Pandoc EPUB3 with TOC, depth6, preserved tabs and supplied source title/language. No PDF preprocessor is supplied to direct Pandoc; its unsupported-input terminal is recorded."
+      }
+    },
+    {
+      "name": "pandoc",
+      "description": "Direct HTML-to-EPUB3; PDF input unsupported and reported as such.",
+      "command": [
+        "pandoc",
+        "-f",
+        "html",
+        "-t",
+        "epub3",
+        "{fixture}",
+        "-o",
+        "{output}"
+      ],
+      "config": {
+        "input_adapter": "Shared offline HTML preparation: resolve links against original URL, fetch each image once, losslessly convert WebP to PNG, replace src with matching local image path and remove srcset. No content selection/removal. PDF copied unchanged.",
+        "packaging": "xberg output and direct HTML use Pandoc EPUB3 with TOC, depth6, preserved tabs and supplied source title/language. No PDF preprocessor is supplied to direct Pandoc; its unsupported-input terminal is recorded."
+      }
+    }
+  ],
+  "repetitions": 1,
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": "Two user-selected sources, descriptive case study. Frozen HTML/PDF inputs; image bytes cached once for identical inputs across pipelines and digested. Prior developmental output inspected; no held-out claim."
+  },
+  "metrics": {
+    "primary": "Successful EPUB creation and independent EPUBCheck errors, separated from source fidelity.",
+    "secondary": [
+      "Source text and selected reading-order sentences",
+      "Source versus EPUB raster image count",
+      "PDF page-anchor and validated-outline-heading retention",
+      "Blog article headings/navigation and chrome contamination",
+      "Known unresolved PDF semantic reconstruction",
+      "Original PDF bookmark links and exact source-page destinations"
+    ],
+    "acceptance_rule": "No overall score. No superiority claim if any declared important component is lost or reading-system display is unchecked. Report component tradeoffs, failures and selection bias."
+  },
+  "evaluator": {
+    "kind": "manual",
+    "command": [],
+    "rubric": "Inspect source DOM and PDF metadata/layout; inspect generated ZIP/XHTML source text, headings, images, source-page anchors, selected drop-cap/body/note sentences. Run EPUBCheck 5.4.0. Scanned PDF, vector graphics, semantic equation reconstruction and reading-device acceptance remain explicitly unverified. Prior exploratory substrate probes are known; no held-out generalization. Compare original bookmark labels/destinations separately from printed heading reconstruction. Generated covers are checked separately from source-fidelity runs. Reader smoke checks sample article prose/diagrams/lists and PDF navigation/prose/figures/notes; they do not imply full-book acceptance.",
+    "rubric_digest": "sha256:b576197f2cbff78a59ff3cb5c89add51ef4beff7b31fc8e88f84f3950cdb3185"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/distiller-reading-fidelity",
+    "curated": "experiments/evidence/distiller-reading-fidelity"
+  }
+}

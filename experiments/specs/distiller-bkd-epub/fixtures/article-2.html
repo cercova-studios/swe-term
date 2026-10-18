@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<html>
+  <head>
+    <link rel="stylesheet" href="/css/blog.css">
+    <title>John Salvatier</title>
+    <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-91422900-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+  </head>
+    
+  <body>
+    <div class="post-container">
+      <div class="blog-header">
+<h1 ><a href="/blog">John Salvatier</a></h1>
+</div>
+
+
+      
+      
+      <div>
+        <div class="post">
+  <table class="post-header">
+    <tr>
+      <td>
+        <div class="post-title">
+        <h2>
+          <a href="/blog/2017/reality-has-a-surprising-amount-of-detail">Reality has a surprising amount of detail</a> 
+        </h2>
+        </div>
+      </td>
+      <td class="post-date">13 May 2017</td>
+    </tr>
+  </table>
+  <h1 id="i">I.</h1>
+
+<p>My dad emigrated from Colombia to North America when he was 18 looking looking for a better life. For my brother and I that meant a lot of standing outside in the cold. My dad’s preferred method of improving his lot was improving lots, and my brother and I were “voluntarily” recruited to help working on the buildings we owned.</p>
+
+<p>That’s how I came to spend a substantial part of my teenage years replacing fences, digging trenches, and building flooring and sheds. And if there’s one thing I’ve learned from all this building, it’s that reality has a surprising amount of detail.</p>
+
+<p>This turns out to explain why its so easy for people to end up intellectually stuck. Even when they’re literally the best in the world in their field.</p>
+
+<p>Consider building some basement stairs for a moment. Stairs seem pretty simple at first, and at a high level they are simple, just two long, wide parallel boards (2” x 12” x 16’), some boards for the stairs and an angle bracket on each side to hold up each stair. But as you actually start building you’ll find there’s a surprising amount of nuance.</p>
+
+<p>The first thing you’ll notice is that there are actually quite a few subtasks. Even at a high level, you have to cut both ends of the 2x12s at the correct angles; then screw in some u-brackets to the main floor to hold the stairs in place; then screw in the 2x12s into the u-brackets; then attach the angle brackets for the stairs; then screw in the stairs.</p>
+
+<table class="image">
+<caption align="bottom">Those goddamn stairs.</caption>
+<tr><td><img src="/assets/stairs-diagram.jpg" alt="Those goddamn stairs." /></td></tr>
+</table>
+
+<p>Next you’ll notice that each of those steps above decomposes into several steps, some of which have some tricky details to them due to the properties of the materials and task and the limitations of yourself and your tools.</p>
+
+<p>The first problem you’ll encounter is that cutting your 2x12s to the right angle is a bit complicated because there’s no obvious way to trace the correct angles. You can either get creative (there <em>is</em> a way to  trace it), or you can bust out your trig book and figure out how to calculate the angle and position of the cuts.</p>
+
+<p>You’ll probably also want to look up what are reasonable angles for stairs. What looks reasonable when you’re cutting and what feels safe can be different. Also, you’re probably going to want to attach a guide for your circular saw when cutting the angle on the 2x12s because the cut has to be pretty straight.</p>
+
+<p>When you’re ready to you will quickly find that getting the stair boards at all the same angle is non-trivial. You’re going to need something that can give you an angle to the main board very consistently. Once you have that, and you’ve drawn your lines, you may be dismayed to discover that your straight looking board is not <em>that</em> straight. Lumber warps after it’s made because it was cut when it was new and wet and now it’s dryer, so no lumber is perfectly straight.</p>
+
+<p>Once you’ve gone back to the lumber store and gotten some straighter 2x12s and redrawn your lines, you can start screwing in your brackets. Now you’ll learn that despite <em>starting</em> aligned with the lines you drew, after screwing them in, your angle brackets are no longer quite straight because the screws didn’t go in quite straight and now they tightly secure the bracket at the wrong angle. You can fix that by drilling guide holes first. Also you’ll have to move them an inch or so because it’s more or less impossible to get a screw to go in differently than it did the first time in the same hole.</p>
+
+<p>Now you’re finally ready to screw in the stair boards. If your screws are longer than 2”, you’ll need different ones, otherwise they will poke out the top of the board and stab you in the foot.</p>
+
+<p>At every step and every level there’s an abundance of detail with material consequences.</p>
+
+<p>It’s tempting to think ‘So what?’ and dismiss these details as incidental or specific to stair carpentry. And they <strong>are</strong> specific to stair carpentry; that’s what makes them details. But the existence of a surprising number of meaningful details is <em>not</em> specific to stairs. Surprising detail is a near universal property of getting up close and personal with reality.</p>
+
+<p>You can see this everywhere if you look. For example, you’ve probably had the experience of doing something for the first time, maybe growing vegetables or using a Haskell package for the first time, and being frustrated by how many annoying snags there were. Then you got more practice and then you told yourself ‘man, it was so simple all along, I don’t know why I had so much trouble’. We run into a fundamental property of the universe and mistake it for a personal failing.</p>
+
+<p>If you’re a programmer, you might think that the fiddliness of programming is a special feature of programming, but really it’s that everything is fiddly, but you only notice the fiddliness when you’re new, and in programming you do new things more often.</p>
+
+<p>You might think the fiddly detailiness of things is limited to human centric domains, and that physics itself is simple and elegant. That’s true in some sense – the physical laws themselves tend to be quite simple – but the manifestation of those laws is often complex and counterintuitive.</p>
+
+<h1 id="ii-boiling-a-watched-pot">II. Boiling A Watched Pot</h1>
+
+<p>Consider the boiling of water. That’s straightforward, water boils at 100 °C, right?</p>
+
+<p>Well the stairs seemed simple too, so let’s double check.</p>
+
+<p>Put yourself in the shoes of someone at the start of the 1800’s, with only a crude, unmarked mercury thermometer, trying to figure the physics of temperature.</p>
+
+<p>Go to your stove, put some water in a pot, start heating some water, and pay attention as it heats.</p>
+
+<p><em>(I suggest actually doing this)</em></p>
+
+<p>The first thing you’ll probably notice is a lot of small bubbles gathering on the surface of the pot. Is that boiling? The water’s not that hot yet; you can still even stick your finger in. Then the bubbles will appear faster and start rising, but they somehow seem ‘unboiling’. Then you’ll start to see little bubble storms in patches, and you start to hear a hissing noise. Is that Boiling? Sort of? It doesn’t really <em>look</em> like boiling. The bubble storms grow larger and start releasing bigger bubbles. Eventually the bubbles get big and the surface of the water grows turbulent as the bubbles begin to make it to the surface. Finally we seem to have reached real boiling. I guess this is the boiling point? That seems kind of weird, what were the things that happened earlier if not boiling.</p>
+
+<p>To make matters worse, if you’d used a glass pot instead of a metal one, the water would boil at a higher temperature. If you cleaned the glass vessel with sulfuric acid, to remove any residue, you’d find that you can heat water substantially more before it boils and when it does boil it boils in little explosions of boiling and the temperature fluctuates unstably.</p>
+
+<p>Worse still, if you trap a drop of water between two other liquids and heat it, you can raise the temperature to at least 300 °C with nothing happening. That kind of makes a mockery of the statement ‘water boils at 100 °C’.</p>
+
+<p>It turns out that ‘boiling’ is a lot more complicated than you thought.</p>
+
+<p>This surprising amount of detail is is not limited to “human” or “complicated” domains, it is a near universal property of everything from space travel to sewing, to your internal experience of your own mind.</p>
+
+<h1 id="iii-invisible-vs-transparent-detail-and-getting-intellectually-stuck">III. Invisible vs. Transparent Detail And Getting Intellectually Stuck</h1>
+
+<p>Again, you might think ‘So what? I guess things are complicated but I can just notice the details as I run into them; no need to think specifically about this’. And if you are doing things that are relatively simple, things that humanity has been doing for a long time, this is often true. But if you’re trying to do difficult things, things which are not known to be possible, it is not true.</p>
+
+<p>The more difficult your mission, the more details there will be that are critical to understand for success.</p>
+
+<p>You might hope that these surprising details are irrelevant to your mission, but not so. Some of them will end up being key. Wood’s tendency to warp means it’s more accurate to trace a cut than to calculate its length and angle. The possibility of superheating liquids means it’s important to use a <a href="https://en.wikipedia.org/wiki/Packed_bed">packed bed</a> when boiling liquids in industrial processes lest your process be highly inefficient and unpredictable. The massive difference in weight between a rocket <em>full</em> of fuel and an empty one means that a reusable rocket can’t hover if it can’t throttle down to a very small fraction of its original thrust, which in turn means it must plan its trajectory very precisely to achieve 0 velocity at exactly the moment it reaches the ground.</p>
+
+<table class="image">
+<caption align="bottom">Some important details for colonizing the universe.</caption>
+<tr><td><img src="/assets/colonizing-the-universe.png" alt="Some important details for colonizing the universe." /></td></tr>
+</table>
+
+<p>You might also hope that the important details will be obvious when you run into them, but not so. Such details aren’t <em>automatically</em> visible, even when you’re directly running up against them. Things can just seem messy and noisy instead. ‘Spirit’ thermometers, made using brandy and other liquors, were in common use in the early days of thermometry. They were even considered as a potential standard fluid for thermometers. It wasn’t until the careful work of Swiss physicist Jean-André De Luc in the 18th century that physicists realized that alcohol thermometers are highly nonlinear and highly variable depending on concentration, which is in turn hard to measure.</p>
+
+<p>You’ve probably also had experiences where you were trying to do something and growing increasingly frustrated because it wasn’t working, and then finally, after some time you realize that your solution method can’t possibly work.</p>
+
+<p>Another way to see that noticing the right details is hard, is that different people end up noticing <em>different</em> details. My brother and I once built a set of stairs for the garage with my dad, and we ran into the problem of determining where to cut the long boards so they lie at the correct angle. After struggling with the problem for a while (and I do mean struggling, a 16’ long board is heavy), we got to arguing. I remembered from trig that we could figure out angle so I wanted to go dig up my textbook and think about it. My dad said, ‘no, no, no, let’s just trace it’, insisting that we could figure out how to do it.</p>
+
+<p>I kept arguing because I thought I was right. I felt really annoyed with him and he was annoyed with me. In retrospect, I think I saw the fundamental difficulty in what we were doing and I don’t think he appreciated it (look at the stairs picture and see if you can figure it out), he just heard ‘let’s draw some diagrams and compute the angle’ and didn’t think that was the solution, and if he had appreciated the thing that I saw I think he would have been more open to drawing some diagrams. But at the same time, he also understood that diagrams and math don’t account for the shape of the wood, which I did not appreciate. If we had been able to get these points across, we could have come to consensus. Drawing a diagram was probably a good idea, but computing the angle was probably not. Instead we stayed annoyed at each other for the next 3 hours.</p>
+
+<p>Before you’ve noticed important details they are, of course, basically invisible. It’s hard to put your attention on them because you don’t even know what you’re looking for. But <em>after</em> you see them they quickly become so integrated into your intuitive models of the world that they become essentially transparent. Do you remember the insights that were crucial in learning to ride a bike or drive? How about the details and insights you have that led you to be good at the things you’re good at?</p>
+
+<p>This means it’s really easy to get <em>stuck</em>. Stuck in your current way of seeing and thinking about things. Frames are made out of the details that seem important to you. The important details you haven’t noticed are invisible to you, and the details you <em>have</em> noticed seem completely obvious and you see right through them. This all makes makes it difficult to imagine how you could be missing something important.</p>
+
+<p>That’s why if you ask an anti-climate change person (or a climate scientist) “what could convince you you were wrong?” you’ll likely get back an answer like “if it turned out all the data on my side was faked” or some other extremely strong requirement for evidence rather than “I would start doubting if I noticed numerous important mistakes in the details my side’s data and my colleagues didn’t want to talk about it”. The second case is much more likely than the first, but you’ll never see it if you’re not paying close attention.</p>
+
+<p>If you’re trying to do impossible things, this effect should <em>chill you to your bones</em>. It means you could be intellectually stuck right at this very moment, with the evidence right in front of your face and you just can’t see it.</p>
+
+<p>This problem is not easy to fix, but it’s not impossible either. I’ve mostly fixed it for myself. The direction for improvement is clear: seek detail you would not normally notice about the world. When you go for a walk, notice the unexpected detail in a flower or what the seams in the road imply about how the road was built. When you talk to someone who is smart but just seems <em>so wrong</em>, figure out what details seem important to them and why. In your work, notice how that meeting actually wouldn’t have accomplished much if Sarah hadn’t pointed out that one thing. As you learn, notice which details actually change how you think.</p>
+
+<p>If you wish to not get stuck, seek to perceive what you have not yet perceived.</p>
+
+  
+  <a class="comment-link" href="http://lesswrong.com/r/discussion/lw/p0a/reality_has_a_surprising_amount_of_detail/">Comments</a>
+  
+</div>
+
+      </div>
+      
+      <div>
+        <div class="post">
+  <table class="post-header">
+    <tr>
+      <td>
+        <div class="post-title">
+        <h2>
+          <a href="/blog/2017/submission-and-dominance-among-friends">Submission and dominance among friends</a> 
+        </h2>
+        </div>
+      </td>
+      <td class="post-date">27 Mar 2017</td>
+    </tr>
+  </table>
+  <p>Status dynamics are weirder than you might think.</p>
+
+<p>I recently found myself longing for male friends to act dominant over me. Imagining close male friends putting their arms over my shoulders and jostling me a bit, or squeezing my shoulders a bit roughly as they come up to talk to me felt good. Actions that clearly convey ‘I’m in charge here and I think you’ll like it’.</p>
+
+<p>I was surprised at first. After all, aren’t showy displays of dominance bad? I don’t think of myself as particularly submissive either.</p>
+
+<p>But my longing started to make more sense when I thought about my high school cross country coach.</p>
+
+<p>When I was in high school, I was on the cross country team. Every day, practice would start with everyone slowly gathering in the quad; talking and starting to stretch. As we gathered, Coach would walk around and stop to talk to individual students. As he came up to you, he would often put his hand on your shoulder or sidle up alongside you and squeeze the nape of your neck. He would ask you - How are you? How did the long run feel yesterday? What are you aiming for at the meet? You’d tell him, and he would tell you what he thought was good - Just shoot to have a good final kick; don’t let anyone pass you.</p>
+
+<p>And it felt really good for him to talk to you like that. At least it did for me.</p>
+
+<p>It was clear that you were part of his plans, that he was looking out for you and that he wanted something from you. And that was reassuring because it meant he was going to keep looking out for you.</p>
+
+<p>You see something a bit like this among dogs.</p>
+
+<p><img src="http://johnsalvatier.org/assets/adultmuzzlegrab.jpg" alt="Wolf muzzle grab" /></p>
+
+<p>Dogs often <a href="http://johnsalvatier.org/assets/dog-belly.jpg">roll over to expose their bellies to their owners</a> as a sign of submission. They’ll look at you expectantly until you accept it by rubbing their belly. More dominant members of a wolf pack will <a href="https://rogerabrantes.wordpress.com/2012/04/25/muzzle-grab-behavior-in-canids/">muzzle grab</a> less dominant members to reinforce the relationship between them. Young puppies will <a href="https://www.youtube.com/watch?v=oHAABCjuTT0">stick their head in your mouth</a> if you give them a chance.</p>
+
+<p>Something feels really nice about being on the submissive end of this kind of clear status play. Not just from my male friends either, but my female friends too.</p>
+
+<p>You might think I only want this from my ‘cool kids’ friends, but it turns out not. I also want it from friends who I normally think of as generally being less able than me. Even if they’re less able than me, they can and will notice things I wouldn’t have noticed and make plans I wouldn’t have made. I’m not longing for a clear status hierarchy, I’m longing for my friends to notice <em>opportunities</em> to boss me around. Occasions when things would be better if they were in charge.</p>
+
+<p>I want you to come up to me, put your arm around me, ask me how I am and start telling me about the idea you’ve got. Show me you ought to be in charge, because right now I’m a little lost and you’re not.</p>
+
+<p>I want these kinds of dominance display as part of a show that I’m part of your plans. That you’re looking out for me because there’s a role for me in your plans; a role you can tell I’ll like. That our relationship is stable because you’re getting something out of it too. And that our relationship is a good one because you’re going to make me better.</p>
+
+<p>I don’t know if a lot of other rationalists feel this way, but I wish they would.</p>
+
+  
+  <a class="comment-link" href="http://lesswrong.com/lw/osj/submission_and_dominance_among_friends/#comments">Comments</a>
+  
+</div>
+
+      </div>
+      
+      <div>
+        <div class="post">
+  <table class="post-header">
+    <tr>
+      <td>
+        <div class="post-title">
+        <h2>
+          <a href="/blog/2017/had-taller-been">If only we had taller been</a> 
+        </h2>
+        </div>
+      </td>
+      <td class="post-date">04 Mar 2017</td>
+    </tr>
+  </table>
+  <p>Ray Bradbury once explained with a poem why he writes science fiction and why space travel is so important to him. It is perhaps my favorite poem.</p>
+
+<iframe src="https://www.youtube.com/embed/YD4Q3n3_5X4?ecver=2&amp;start=89" width="420" height="315" frameborder="0" allowfullscreen=""></iframe>
+
+<p>Text version:</p>
+<blockquote>
+  <p>The fence we walked between the years<br />
+Did balance us serene<br />
+It was a place half in the sky where<br />
+In the green of leaf and promising of peach<br />
+We’d reach our hands to touch and almost touch the sky<br />
+If we could reach and touch, we said,<br />
+‘Twould teach us, not to, never to, be dead</p>
+
+  <p>We ached and almost touched that stuff;<br />
+Our reach was never quite enough.<br />
+If only we had taller been<br />
+And touched God’s cuff, His hem,<br />
+We would not have to go with them<br />
+Who’ve gone before,<br />
+Who, short as us, stood as they could stand<br />
+And hoped by stretching tall that they might keep their land<br />
+Their home, their hearth, their flesh and soul.<br />
+But they, like us, were standing in a hole</p>
+
+  <p>O, Thomas, will a Race one day stand really tall  <br />
+Across the Void, across the Universe and all?<br />
+And, measured out with rocket fire,<br />
+At last put Adam’s finger forth<br />
+As on the Sistine Ceiling,<br />
+And God’s hand come down the other way<br />
+To measure man and find him Good<br />
+And Gift him with Forever’s Day?<br />
+I work for that</p>
+
+  <p>Short man, Large dream<br />
+I send my rockets forth between my ears<br />
+Hoping an inch of Good is worth a pound of years<br />
+Aching to hear a voice cry back along the universal mall:<br />
+We’ve reached Alpha Centauri!<br />
+We’re tall, O God, we’re tall!</p>
+</blockquote>
+
+<p>I love this poem deeply for how dumb his reason is.</p>
+
+<p>He’s very straightforward about why he dreams of space travel</p>
+
+<blockquote>
+  <p>‘Twould teach us, not to, never to, be dead</p>
+</blockquote>
+
+<p>Advancing space travel is a silly way of try to escape death, but when the mind really <em>really</em> wants something, it clings to the best plan it can find for achieving it. Even if that plan is very very dumb.</p>
+
+<p>I see a lot of honor in this poem because while many hope to escape death, few are willing to admit to themselves, much less talk openly about their dumb plan for it. Their friends and family would think they were foolish, naive and a bit suspect – only villains want to cheat death. But Bradbury was willing to dream openly anyway. His courage makes it easier for us to have courage too.</p>
+
+<p>I have a similar awed respect for the child who whispers quietly to herself when she’s alone ‘I wish mom wouldn’t hit me’. They both have the virtue of looking directly at a terrible darkness they are powerless in front of and whispering ‘I wish that weren’t there’.</p>
+
+<p>The poem is also tragic now that he’s dead. It reminds me of all those who have gone before me, longing futilely and silently, and now he has joined them. My mother and the many billions of other humans who preceeded me.</p>
+
+<blockquote>
+  <p>And hoped by stretching tall that they might keep their land<br />
+Their home, their hearth, their flesh and soul.</p>
+</blockquote>
+
+<p>I, too, long to keep my soul.</p>
+
+  
+  <a class="comment-link" href="http://lesswrong.com/r/discussion/lw/opb/if_only_we_had_taller_been/">Comments</a>
+  
+</div>
+
+      </div>
+      
+      <div>
+        <div class="post">
+  <table class="post-header">
+    <tr>
+      <td>
+        <div class="post-title">
+        <h2>
+          <a href="/blog/2017/the-i-already-get-it-slide">The “I Already Get It” Slide</a> 
+        </h2>
+        </div>
+      </td>
+      <td class="post-date">31 Jan 2017</td>
+    </tr>
+  </table>
+  <p><strong>Followup to</strong>: <a href="http://lesswrong.com/lw/o9/words_as_mental_paintbrush_handles/">Words as Mental Paintbrush Handles</a>, <a href="http://lesswrong.com/lw/iq/guessing_the_teachers_password/">Guessing The Teacher’s Password</a></p>
+
+<p>Jessica Taylor recently wrote a description of Paul Christiano’s and MIRI’s differing driving <a href="https://agentfoundations.org/item?id=1129">intuitions for thinking about the AI alignment problem</a>. Jacob Steinhardt <a href="https://www.facebook.com/groups/aisafety/permalink/768960229934760/?comment_id=769355593228557">observes</a> that the “do cognitive reductions” intuition seems to be at the heart of MIRI’s thought and the “search for solutions and fundamental obstructions” intuition at the heart of Paul’s thought.</p>
+
+<p>As I read his comment, I noticed myself make an error I’ve made before: thinking I <em>get</em> the intuitions by mere virtue of not thinking they’re crazy.</p>
+
+<p>I call this The “I Already Get It” Slide, and I suspect this error happens to people all the time but passes unnoticed.</p>
+
+<p>This is unfortunate because the error prevents you from <em>actually</em> absorbing other’s intutions, and absorbing other’s intuitions is important for doing <em>anything</em> hard.</p>
+
+<p>Jessica describes Search For Solutions And Fundamental Obstructions like this:</p>
+
+<blockquote>
+  <p><em>Almost all technical problems are either tractable to solve or are intractable/impossible for a good reason. […]</em></p>
+</blockquote>
+
+<blockquote>
+  <p><em>If the previous intuition is true, we should Search For Solutions And Fundamental Obstructions. If there is either a solution or a fundamental obstruction to a problem, then an obvious way to make progress on the problem is to alternate between generating obvious solutions and finding good reasons why a class of solutions (or all solutions) won’t work. In the case of AI alignment, we should try getting a very good solution (e.g. one that allows the aligned AI to be competitive with unprincipled AI systems such as ones based on deep learning by exploiting the same techniques) until we have a fundamental obstruction to this. Such a fundamental obstruction would tell us which relaxations to the “full problem” we should consider, and be useful for convincing others that coordination is required to ensure that aligned AI can prevail even if it is not competitive with unaligned AI.</em></p>
+</blockquote>
+
+<p>As I thought about Paul’s Search For Solutions And Fundamental Obstructions intuition, a justification easily came to mind — a non-verbal feeling that it looked like other well-accepted problem solving strategies.</p>
+
+<p>This justification was easy, familiar and wrong.</p>
+
+<p>There is no way that “it looks like other accepted strategies” is actually the reason Paul thinks finding fundamental obstructions is central.</p>
+
+<p>And yet it was very easy for me to mentally slide from getting the conclusion and not immediately thinking it’s crazy, into thinking I also got the intuitive argument that generated it.</p>
+
+<p>If I had to guess at Paul’s actual intuitive reasons, I would guess something like this</p>
+
+<blockquote>
+  <p><em>In Computer Science Theory, whenever there have been these kind of hard and confusing problems and people have tried to solve them, they’ve always turned out to either be possible or have some very revealing fundamental problem. For example, here are 4 clear examples. Furthermore, this makes intuitive sense because X. Also, this is also the case in these 3 other fields. And AI alignment looks a lot like these fields because it has Y and Z in common.“</em></p>
+</blockquote>
+
+<p>But I also bet that not only will Paul have a more detailed argument, but also he will use a different ontology in a way that makes the argument meaningfully different. The argument is not yet compelling to me.</p>
+
+<p>Now, perhaps his arguments sound weak or just boring to you. How could a useful intuition be consistent with weak sounding arguments?</p>
+
+<p>To answer, put yourself in Paul’s shoes, and ask yourself what could explain weak or boring sounding arguments?</p>
+
+<p>Maybe you have a strong but difficult to articulate intution – maybe a mental picture of how different parts of the research process move against each other.</p>
+
+<p>Or maybe you can articulate your intuition, but when you do people quickly offer counterarguments that are — sigh — <em>totally</em> off topic. They nod along as if understanding, but then go right back to what they were doing before.</p>
+
+<p>You can probably imagine your conclusion being wrong, but not your insight being irrelevant.</p>
+
+<p>If Paul is at least as sensible as you are and his arguments sound weak or boring, you probably haven’t grokked his real internal reasons. Your intuitive mental picture of how parts of the research process moves is shaped differently than his. Maybe you’re even using different piece.</p>
+
+<p>If so, then it is not surprising that you come to different conclusions. You don’t even have the <em>machinery</em> to come to his conclusion.</p>
+
+<p>Maybe instead you think that getting his intuitive reasons from him doesn’t matter. After all, now that I know what Search For Solutions And Fundamental Obstructions means, I can just check that it should be a central strategy myself. But without an intuitive model of <em>why</em> it should be a central strategy, to check I would probably have to do computer science theory for at least a few months.</p>
+
+<p>Without my own intuitive model pulled from Paul’s intuitive model, there’s little to distinguish Search For Solutions And Fundamental Obstructions from a near-infinite variety of nearby strategies like “search for solutions and obstructions on complexity problems” or “search directly for fundamental obstructions”. Intuitive models let us <a href="http://lesswrong.com/lw/jo/einsteins_arrogance/">cut down our uncertainty in great swaths</a> by concentrating our probability on simple hypotheses.</p>
+
+<p><em>With</em> my own intuitive model, checking often just requires seeing a few well chosen examples, or even just thinking back on past problems.</p>
+
+<p>All this is to say that Paul almost certainly has a valuable intuitive reason for his position. If I don’t catch my slide from understanding the conclusion to thinking I understand the argument, I’ll never notice that there’s something <em>more</em> to absorb.</p>
+
+<p>There’s a world of difference between understanding what Search For Solutions And Fundamental Obstructions <em>means</em>, and understanding <em>the intuition that generates it</em>. A difference, in other words, between understanding the conclusion and understanding the argument for it.</p>
+
+<p>If you mistake the conclusion for the argument, you will never get the argument.</p>
+
+<p>This reasoning doesn’t just apply to Paul and his intuitions, it applies to <em>anyone</em> who you think is about as reasonable as you. If they avoid errors about as well as you, then it would be silly to think that their intutions don’t point to real insight about the world.</p>
+
+<p>This also applies nicely to MIRI’s intuition that doing Cognitive Reductions is the main thing that can push AI alignment research ahead. Jessica describes Do Cognitive Reductions like this:</p>
+
+<blockquote>
+  <p><em>Cognitive Reductions are great. When we feel confused about something, there is often a way out of this confusion, by figuring out which algorithm would have generated that confusion. Often, this works even when the original problem seemed “messy” or “subjective”; something that looks messy can have simple principles behind it that haven’t been discovered yet.</em></p>
+</blockquote>
+
+<p>Again, it is tempting to gloss over the fact that cognitive reductions are useful but not central, since we do already agree to some extent.</p>
+
+<p>But consider: if I were in their position, what kind of intuitions would actually lead me to think that Cognitive Reduction is so central? It couldn’t be just a stronger version of the belief that I already have, that would just make me think its somewhat more useful, rather than something to base my whole strategy around. Only a <em>new</em> argument could make sense of that.</p>
+
+<p>If I go argue with MIRI without noticing that there’s an argument I’m missing, we’ll just go around in circles.</p>
+
+<p>I suspect that The “I Already Get It” Slide happens all the time and passes unnoticed. That people mistake a person’s conclusions with their intuitive reasons and don’t end up absorbing their real arguments, even when they have insight. That would explain why peoples opinions converge so slowly.</p>
+
+  
+  <a class="comment-link" href="http://lesswrong.com/r/discussion/lw/ok6/the_i_already_get_it_slide/">Comments</a>
+  
+</div>
+
+      </div>
+      
+
+    </div>
+    <p class="rss-subscribe">subscribe <a href="/feed.xml">via RSS</a></p>
+
+  </body>
+</html>

@@ -1,0 +1,955 @@
+{
+  "schema": "source-fidelity-oracle/v1",
+  "created_at_utc": "2026-10-18T20:25:34.205491+00:00",
+  "source": {
+    "path": "/Users/rohit/papers/mrta-taxonomy.pdf",
+    "sha256": "212cc05bfddeb35a5c670e23b7ab9746031f0df0a4fe72140e8a88096f3dc250",
+    "physical_page_count": 18,
+    "page_size_pt": [
+      612,
+      792
+    ],
+    "page_numbering": "1-based physical PDF page; printed page agrees"
+  },
+  "blindness": {
+    "converter_output_seen": false,
+    "implementation_source_seen": false,
+    "external_model_calls": false,
+    "baseline_or_candidate_scores_seen": false
+  },
+  "inspection": {
+    "raw_text_pages": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "contact_sheet_pages": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "full_render_pages": [
+      1,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "tools": [
+      "pypdf layout text extraction",
+      "bundled pypdfium2 PDFium renderer",
+      "Pillow contact sheets"
+    ],
+    "render_scale": 2,
+    "geometry_coordinates": "points, top-left origin, approximate manual regions; null means multi-page/disjoint evidence",
+    "failed_tool": "Bundled pdftoppm could not initialize writable fontconfig cache; interrupted and used already-installed PDFium."
+  },
+  "coverage": {
+    "standalone_figures_present": false,
+    "figure_scope": "No standalone illustration, chart, or figure caption found in all-page text and contact-sheet inspection. Vector geometry witnesses are ruled tables and mathematical operators, not figure coverage.",
+    "tables": "Two complexity/competitive-factor comparison tables on physical page 13; no empirical numeric data table.",
+    "footnotes": "Three footnotes, including cross-page Table 1 note 3."
+  },
+  "evaluation_policy": {
+    "unit": "per witness; no aggregate completeness claim",
+    "allowed_normalization": [
+      "Whitespace and line-wrap changes",
+      "Discretionary line-end hyphens removed only to rejoin the original word",
+      "Unicode/math equivalent notation preserving all operators, indices, bounds, conditions and labels"
+    ],
+    "must_score_separately": [
+      "source content fidelity",
+      "reading order and associations",
+      "semantic/accessibility representation",
+      "visual crop completeness"
+    ],
+    "no_length_reward": true,
+    "duplicate_policy": "Repeated witnesses earn no additional credit; contradictions, duplicate body text and interleaved noise are failures even when a matching substring exists.",
+    "image_policy": "A complete faithful source crop can pass visual preservation only. An image with no equivalent structured text/math/table content cannot pass accessibility.",
+    "required_failure_cases": [
+      "Bag-of-words extraction with scrambled columns",
+      "Long noisy output repeating the source",
+      "Missing conditional branches or inequality direction",
+      "Wrong row/column, author/year, role or footnote associations",
+      "Table-caption insertion inside continued prose",
+      "Clipped native crop or invisible mathematical glyph",
+      "Silent correction or invention of source mathematics",
+      "Raster-only mathematics/table passed as accessible without equivalent content"
+    ]
+  },
+  "limits": [
+    "Oracle is a manually reviewed sample, not an exhaustive proof of semantic completeness.",
+    "Full-size visual inspection excludes physical page 2; its raw text and contact-sheet render were inspected.",
+    "Source text extraction is evidence for locating prose, not an independent authority for mathematical glyphs; equations were checked against rendered pages.",
+    "No reading-device, screen-reader, EPUB/KFX or converter output inspected.",
+    "All boxes are coarse locator bounds, not pixel-perfect mask or ownership annotations.",
+    "No standalone figure fidelity can be established by this source."
+  ],
+  "witnesses": [
+    {
+      "id": "W01",
+      "category": "title_metadata",
+      "physical_pages": [
+        1
+      ],
+      "source_region_pt": [
+        120,
+        98,
+        525,
+        230
+      ],
+      "source_excerpt": "A formal analysis and taxonomy of task allocation in multi-robot systems",
+      "acceptance": [
+        "One title before the abstract.",
+        "Brian P. Gerkey belongs to Stanford University; Maja J Matarić belongs to University of Southern California.",
+        "Keep the two authors and their affiliations associated, even if author columns reflow."
+      ],
+      "failures_to_catch": [
+        "Row-wise mixing of author/affiliation columns.",
+        "Title fragments repeated as separate section headings."
+      ]
+    },
+    {
+      "id": "W02",
+      "category": "abstract_and_heading_order",
+      "physical_pages": [
+        1
+      ],
+      "source_region_pt": [
+        70,
+        250,
+        302,
+        550
+      ],
+      "source_excerpt": "Despite more than a decade of experimental work in multi-robot systems, important theoretical aspects of multi-robot coordination mechanisms have, to date, been largely untreated.",
+      "acceptance": [
+        "Abstract is one coherent block ending with “new approaches.”",
+        "The heading “1 Introduction” follows the complete abstract in reading order.",
+        "The right-column heading “1.1 Multi-Robot Task Allocation (MRTA)” follows the introduction paragraph, not the first abstract lines."
+      ],
+      "failures_to_catch": [
+        "Line-wise interleaving of abstract and right column.",
+        "Abstract italic text mistaken for a figure."
+      ]
+    },
+    {
+      "id": "W03",
+      "category": "column_join",
+      "physical_pages": [
+        1
+      ],
+      "source_region_pt": [
+        70,
+        550,
+        545,
+        696
+      ],
+      "source_excerpt": "it is no longer sufficient to show, for example, a pair of robots observing targets or a large group of robots flocking as examples of coordinated robot behavior.",
+      "acceptance": [
+        "Join the bottom-left introduction text “observing targets” to the top-right “or a large group”.",
+        "Then finish that paragraph before heading 1.1."
+      ],
+      "failures_to_catch": [
+        "Reading the top-right continuation before the abstract.",
+        "Inserting author text or page number into the sentence."
+      ]
+    },
+    {
+      "id": "W04",
+      "category": "column_join",
+      "physical_pages": [
+        3
+      ],
+      "source_region_pt": [
+        70,
+        620,
+        544,
+        696
+      ],
+      "source_excerpt": "Ideally the goal is to directly optimize overall system performance, but that quantity is often difficult to measure during system execution.",
+      "acceptance": [
+        "Heading “3 Utility” begins the bottom-left section.",
+        "Join “during sys-” at bottom-left to “tem execution.” at top-right.",
+        "Keep the following sentence about alternative task allocations after this join."
+      ],
+      "failures_to_catch": [
+        "Starting Utility with the right-column middle paragraph.",
+        "Leaving “sys- tem” as separate words.",
+        "Treating the page as row-wise prose."
+      ]
+    },
+    {
+      "id": "W05",
+      "category": "piecewise_equation",
+      "physical_pages": [
+        3
+      ],
+      "source_region_pt": [
+        309,
+        531,
+        544,
+        574
+      ],
+      "source_excerpt": "U_RT = { Q_RT − C_RT if R is capable of executing T and Q_RT > C_RT; 0 otherwise }",
+      "acceptance": [
+        "Preserve two branches under one left brace.",
+        "The capability condition AND strict Q_RT > C_RT condition belong to the first branch.",
+        "Zero is the fallback branch.",
+        "RT is a subscript on U, Q and C; minus is subtraction."
+      ],
+      "failures_to_catch": [
+        "Losing the brace or second branch.",
+        "Changing > to ≥.",
+        "Misreading minus as ¡ or hyphenated prose.",
+        "Text outside crop or partly clipped condition."
+      ],
+      "representation": "Image acceptable for visual fidelity only; accessibility needs equivalent machine-readable cases and condition structure."
+    },
+    {
+      "id": "W06",
+      "category": "numeric_example",
+      "physical_pages": [
+        3
+      ],
+      "source_region_pt": [
+        309,
+        580,
+        544,
+        662
+      ],
+      "source_excerpt": "U_AT = 20 − 10 = 10 = 15 − 5 = U_BT.",
+      "acceptance": [
+        "Keep Q_AT=20, C_AT=10, Q_BT=15, C_BT=5 paired with the correct robots.",
+        "The chain establishes equal utility; it is not a numerical table."
+      ],
+      "failures_to_catch": [
+        "Dropping a number, subscript or minus.",
+        "Inventing preference for robot A from quality alone."
+      ]
+    },
+    {
+      "id": "W07",
+      "category": "display_equation",
+      "physical_pages": [
+        4
+      ],
+      "source_region_pt": [
+        385,
+        114,
+        544,
+        145
+      ],
+      "source_excerpt": "u(X) = ∑_{e∈X} u(e) (1)",
+      "acceptance": [
+        "One summation with lower limit e∈X.",
+        "Equation number (1) remains associated with the sum.",
+        "The subset-maximization definition precedes it."
+      ],
+      "failures_to_catch": [
+        "Capital X substituted for the summation.",
+        "Omitting the lower limit or u(e).",
+        "Equation number injected into prose."
+      ]
+    },
+    {
+      "id": "W08",
+      "category": "algorithm_list",
+      "physical_pages": [
+        4
+      ],
+      "source_region_pt": [
+        309,
+        298,
+        544,
+        399
+      ],
+      "source_excerpt": "Algorithm (The Greedy algorithm).",
+      "acceptance": [
+        "Ordered step 1 sorts u(e1) ≥ u(e2) ≥ … ≥ u(en).",
+        "Step 2 sets X := ∅.",
+        "Step 3 loops j=1 to n with conditional X ∪ {e_j} ∈ F, then X = X ∪ {e_j}.",
+        "Preserve nested conditional structure instead of flattening into an unordered bag of tokens."
+      ],
+      "failures_to_catch": [
+        "Treating 1/2/3 as footnote links.",
+        "Replacing ∅ with 0.",
+        "Dropping the membership guard."
+      ]
+    },
+    {
+      "id": "W09",
+      "category": "taxonomy_list",
+      "physical_pages": [
+        5
+      ],
+      "source_region_pt": [
+        71,
+        398,
+        302,
+        636
+      ],
+      "source_excerpt": "single-task robots (ST) vs. multi-task robots (MT)",
+      "acceptance": [
+        "Three distinct bullets: ST vs MT; SR vs MR; IA vs TA.",
+        "ST concerns tasks per robot; SR concerns robots per task; IA concerns assignment horizon.",
+        "Keep each explanation under its own bullet."
+      ],
+      "failures_to_catch": [
+        "Swapping ST and SR.",
+        "Merging bullet labels into the optimal-assignment definition in the other column."
+      ]
+    },
+    {
+      "id": "W10",
+      "category": "display_equation",
+      "physical_pages": [
+        5
+      ],
+      "source_region_pt": [
+        375,
+        520,
+        544,
+        557
+      ],
+      "source_excerpt": "U = ∑_{i=1}^{m} ∑_{j=1}^{n} α_ij U_ij w_j (2)",
+      "acceptance": [
+        "Two nested sums with different limits.",
+        "Keep α_ij, U_ij and w_j factors in each summand.",
+        "Equation (2) is the objective, followed by “subject to”."
+      ],
+      "failures_to_catch": [
+        "Dropping weight w_j.",
+        "Flattening superscript limits into multiplicative text.",
+        "Replacing α with literal ®."
+      ]
+    },
+    {
+      "id": "W11",
+      "category": "display_equation",
+      "physical_pages": [
+        5
+      ],
+      "source_region_pt": [
+        369,
+        572,
+        544,
+        650
+      ],
+      "source_excerpt": "∑_{i=1}^{m} α_ij = 1, 1 ≤ j ≤ n; ∑_{j=1}^{n} α_ij = 1, 1 ≤ i ≤ m. (3)",
+      "acceptance": [
+        "Two stacked constraints share label (3).",
+        "First sums over i; second sums over j.",
+        "Preserve equality to 1 and both ranges exactly as printed."
+      ],
+      "failures_to_catch": [
+        "Changing equality to ≤ as a mathematical correction.",
+        "Losing either constraint.",
+        "Collapsing their index ranges."
+      ]
+    },
+    {
+      "id": "W12",
+      "category": "display_equations",
+      "physical_pages": [
+        6
+      ],
+      "source_region_pt": [
+        138,
+        340,
+        301,
+        410
+      ],
+      "source_excerpt": "P = ∑_{i=1}^{m} u_i + ∑_{j=1}^{n} v_j (4); u_i + v_j ≥ U_ij, ∀i,j. (5)",
+      "acceptance": [
+        "Definition introduces a dual minimum problem.",
+        "Preserve plus between the two sums.",
+        "Constraint uses ≥ and universal i,j.",
+        "Keep labels (4) and (5) with their own expressions."
+      ],
+      "failures_to_catch": [
+        "≥ becomes > or ≤.",
+        "Constraint falsely attached to the opposite-column equation (9).",
+        "Equation (4) number becomes start of right-column prose."
+      ]
+    },
+    {
+      "id": "W13",
+      "category": "argmax_equation",
+      "physical_pages": [
+        6
+      ],
+      "source_region_pt": [
+        131,
+        610,
+        301,
+        638
+      ],
+      "source_excerpt": "t_i = argmax_j {h_ij − p_j}. (6)",
+      "acceptance": [
+        "j is the argmax index.",
+        "The braces contain h_ij minus p_j.",
+        "The equation belongs after “its profit is maximized”."
+      ],
+      "failures_to_catch": [
+        "Missing argmax index.",
+        "h and p merged into a word.",
+        "Equation rendered as a caption without the defining prose."
+      ]
+    },
+    {
+      "id": "W14",
+      "category": "aligned_equations",
+      "physical_pages": [
+        6
+      ],
+      "source_region_pt": [
+        373,
+        103,
+        544,
+        304
+      ],
+      "source_excerpt": "u_i = h_it_i − p_t_i, ∀i; v_j = p_j − c_j, ∀j. (7)",
+      "acceptance": [
+        "Equation (7) has two rows, one for robot profit and one for broker profit.",
+        "Equation (8) reads h_ij = α_ij and c_j = 0.",
+        "Equation (9) reads u_i = α_it_i − p_t_i and v_j = p_j.",
+        "Labels (7),(8),(9) must not be read as mathematical factors."
+      ],
+      "failures_to_catch": [
+        "Omitting the second row of an aligned equation.",
+        "Changing α_ij to U_ij to repair an apparent source inconsistency.",
+        "Merging intervening prose into the equations."
+      ]
+    },
+    {
+      "id": "W15",
+      "category": "footnote",
+      "physical_pages": [
+        7
+      ],
+      "source_region_pt": [
+        71,
+        669,
+        302,
+        693
+      ],
+      "source_excerpt": "The code for our implementation is available from: http://robotics.stanford.edu/~gerkey.",
+      "acceptance": [
+        "Superscript 1 after “Hungarian method” targets this note.",
+        "URL has a tilde before gerkey, not » or whitespace.",
+        "Note is separate from main flow and does not interrupt the BLE algorithm conclusion."
+      ],
+      "failures_to_catch": [
+        "Deleting the URL as furniture.",
+        "Treating the footnote as a new paragraph between “and” and its right-column continuation.",
+        "Linking marker 1 to the first ordered-list step."
+      ]
+    },
+    {
+      "id": "W16",
+      "category": "algorithm_list",
+      "physical_pages": [
+        7
+      ],
+      "source_region_pt": [
+        71,
+        533,
+        302,
+        633
+      ],
+      "source_excerpt": "Algorithm (BLE assignment algorithm).",
+      "acceptance": [
+        "Step 1: if any robot remains unassigned, find highest-utility robot-task pair (i,j); otherwise quit.",
+        "Step 2 assigns i to j and removes both from consideration.",
+        "Step 3 returns to step 1.",
+        "The following statement says this is canonical Greedy and OAP is not a matroid."
+      ],
+      "failures_to_catch": [
+        "Dropping termination condition.",
+        "Preserving labels but scrambling step bodies.",
+        "Assigning the right-column analysis as an algorithm step."
+      ]
+    },
+    {
+      "id": "W17",
+      "category": "cross_page_join",
+      "physical_pages": [
+        7,
+        8
+      ],
+      "source_region_pt": null,
+      "source_excerpt": "n ≤ 11 for robot soccer, which is more than for most current multi-robot systems",
+      "acceptance": [
+        "Join p7 bottom-right “soc-” to p8 top-left “cer,”.",
+        "Keep n ≤ 11 and following O(n^3) statement within the same paragraph.",
+        "Footnote 1 and page number 7 do not enter the joined sentence."
+      ],
+      "failures_to_catch": [
+        "Duplicate soccer fragments.",
+        "“soc-” retained as a complete word.",
+        "Joining to p8 top-right Greedy paragraph instead."
+      ]
+    },
+    {
+      "id": "W18",
+      "category": "scheduling_notation",
+      "physical_pages": [
+        8
+      ],
+      "source_region_pt": [
+        309,
+        181,
+        544,
+        420
+      ],
+      "source_excerpt": "R || ∑ w_j C_j.",
+      "acceptance": [
+        "Notation is under section 5.2 ST-SR-TA, not the preceding online-assignment subsection.",
+        "Preserve double vertical separator and weighted sum.",
+        "The adjacent prose says strongly NP-hard, not tractable."
+      ],
+      "failures_to_catch": [
+        "Dropping bars as table rules.",
+        "Treating the sum as decorative image without equivalent accessible structure.",
+        "Losing weighted qualifier."
+      ]
+    },
+    {
+      "id": "W19",
+      "category": "display_equation",
+      "physical_pages": [
+        9
+      ],
+      "source_region_pt": [
+        393,
+        209,
+        544,
+        278
+      ],
+      "source_excerpt": "⋂_{x∈X} = ∅; ⋃_{x∈X} = E. (10)",
+      "acceptance": [
+        "Two vertically stacked large set operators share label (10).",
+        "Intersection and union are different glyphs with x∈X below each.",
+        "The first equals empty set; the second equals E.",
+        "As printed, no explicit operand x appears after either operator; preserve the source rather than silently correcting the mathematics."
+      ],
+      "failures_to_catch": [
+        "Both operators turned into slash/backslash.",
+        "Empty set becomes zero.",
+        "Only one row retained.",
+        "Adding mathematical operands not visible in source."
+      ]
+    },
+    {
+      "id": "W20",
+      "category": "display_equation",
+      "physical_pages": [
+        10
+      ],
+      "source_region_pt": [
+        402,
+        565,
+        544,
+        594
+      ],
+      "source_excerpt": "⋃_{x∈X} = E. (11)",
+      "acceptance": [
+        "Keep large union operator with x∈X beneath it.",
+        "As printed, the union has no explicit operand after the operator.",
+        "Following prose states that subsets in a cover need not be disjoint."
+      ],
+      "failures_to_catch": [
+        "Confusing union with intersection.",
+        "Changing need not be disjoint into must be disjoint.",
+        "Auto-repairing the source without annotation."
+      ]
+    },
+    {
+      "id": "W21",
+      "category": "heading_structure",
+      "physical_pages": [
+        10
+      ],
+      "source_region_pt": [
+        309,
+        108,
+        544,
+        146
+      ],
+      "source_excerpt": "5.5 MT-SR-IA & MT-SR-TA: Multi-task robots, single-robot tasks",
+      "acceptance": [
+        "One combined subsection heading with both classification triples.",
+        "It follows the completion of section 5.4 across columns.",
+        "Section 5.6 MT-MR-IA follows this subsection, not an invented 5.5.1."
+      ],
+      "failures_to_catch": [
+        "Splitting the ampersand heading into two unrelated sections.",
+        "Dropping one taxonomy triple.",
+        "Table-like treatment caused by spaced heading text."
+      ]
+    },
+    {
+      "id": "W22",
+      "category": "run_in_and_list",
+      "physical_pages": [
+        11
+      ],
+      "source_region_pt": [
+        309,
+        194,
+        544,
+        689
+      ],
+      "source_excerpt": "Methodology",
+      "acceptance": [
+        "Section 6 has an ordered three-item list: computation requirements; communication requirements; solution quality.",
+        "“Methodology” is a bold run-in label for prose beginning “Computational requirements, or running time”.",
+        "Do not manufacture an extra numbered section from the run-in label."
+      ],
+      "failures_to_catch": [
+        "List numbers become footnotes or heading levels.",
+        "Body prose is all bold because a run-in span leaks style.",
+        "Methods text read before section 5.7 conclusion at top-right."
+      ]
+    },
+    {
+      "id": "W23",
+      "category": "footnote",
+      "physical_pages": [
+        11
+      ],
+      "source_region_pt": [
+        309,
+        681,
+        544,
+        696
+      ],
+      "source_excerpt": "This analysis was originally presented in Gerkey & Matarić (2003)",
+      "acceptance": [
+        "Superscript 2 after “characteristics” points to this note.",
+        "Retain the original-publication attribution and separate it from the main paragraph."
+      ],
+      "failures_to_catch": [
+        "Deleting note as footer.",
+        "Treating marker 2 as list item 2.",
+        "Inserting note between “does not” on p11 and “measure” on p12."
+      ]
+    },
+    {
+      "id": "W24",
+      "category": "footnote",
+      "physical_pages": [
+        12,
+        13
+      ],
+      "source_region_pt": [
+        309,
+        660,
+        544,
+        695
+      ],
+      "source_excerpt": "In addition to solving the ST-SR-IA problem, the ALLIANCE architecture is also capable of building time-extended task schedules in order to solve a form of the ST-SR-TA problem (see Section 5.2.1).",
+      "acceptance": [
+        "Footnote 3 lives on p12 and is referenced by superscript 3 on ALLIANCE in Table 1 on p13.",
+        "Preserve both classification triples and Section 5.2.1 cross-reference.",
+        "Do not attach this note to the Table 2 MURDOCH row."
+      ],
+      "failures_to_catch": [
+        "Wrong numeric anchor chosen from other source numbers.",
+        "Note incorrectly removed as repeating footer.",
+        "Broken cross-page note target."
+      ]
+    },
+    {
+      "id": "W25",
+      "category": "table_geometry",
+      "physical_pages": [
+        13
+      ],
+      "source_region_pt": [
+        95,
+        71,
+        517,
+        170
+      ],
+      "source_excerpt": "Name | Computation / iteration | Communication / iteration | Solution quality",
+      "acceptance": [
+        "Table 1 has four columns, one header row and three architecture rows.",
+        "Column divider x coordinates approximately 299,368,449 pt; outer x approximately 95 and 517 pt.",
+        "Header row spans approximately y72–96; data rows y96–121,121–145,145–170.",
+        "Table 1 caption follows the table and remains separate from Table 2."
+      ],
+      "failures_to_catch": [
+        "Column labels detached from cells.",
+        "Loss of row/column associations despite all tokens being present.",
+        "One image treated as accessible table without an equivalent row/column representation."
+      ],
+      "geometry_note": "Approximate manual bounds from a 2x native render, not a segmentation ground-truth tolerance."
+    },
+    {
+      "id": "W26",
+      "category": "table_values",
+      "physical_pages": [
+        13
+      ],
+      "source_region_pt": [
+        95,
+        96,
+        517,
+        170
+      ],
+      "source_excerpt": "ALLIANCE³ (Parker 1998) | O(mn) | O(m) | at least 2-competitive",
+      "acceptance": [
+        "ALLIANCE: computation O(mn), communication O(m), quality “at least 2-competitive”.",
+        "BLE (Werger & Matarić 2001): O(mn), O(mn), 2-competitive.",
+        "M+ (Botelho & Alami 1999): O(mn), O(mn), 2-competitive.",
+        "Preserve “at least” on ALLIANCE only."
+      ],
+      "failures_to_catch": [
+        "Swapping computation and communication.",
+        "Turning O(m) into O(mn) from nearby rows.",
+        "Dropping at least or footnote 3."
+      ],
+      "cells": [
+        [
+          "ALLIANCE",
+          "O(mn)",
+          "O(m)",
+          "at least 2-competitive"
+        ],
+        [
+          "BLE",
+          "O(mn)",
+          "O(mn)",
+          "2-competitive"
+        ],
+        [
+          "M+",
+          "O(mn)",
+          "O(mn)",
+          "2-competitive"
+        ]
+      ]
+    },
+    {
+      "id": "W27",
+      "category": "table_geometry",
+      "physical_pages": [
+        13
+      ],
+      "source_region_pt": [
+        95,
+        222,
+        517,
+        322
+      ],
+      "source_excerpt": "Name | Computation / task | Communication / task | Solution quality",
+      "acceptance": [
+        "Table 2 has four columns and three architecture rows beneath its header.",
+        "Each computation cell contains two lines: O(1) / bidder and O(m) / auctioneer.",
+        "These lines are roles within the same row, not separate architectures.",
+        "Table 2 caption describes online assignment and follows the table."
+      ],
+      "failures_to_catch": [
+        "Dropping bidder/auctioneer role labels.",
+        "Flattening two complexity lines into O(1)/O(m) without role associations.",
+        "Merging Table 1 per-iteration header into Table 2 per-task header."
+      ]
+    },
+    {
+      "id": "W28",
+      "category": "table_values",
+      "physical_pages": [
+        13
+      ],
+      "source_region_pt": [
+        95,
+        247,
+        517,
+        322
+      ],
+      "source_excerpt": "MURDOCH (Gerkey & Matarić 2002b) | O(1) / bidder; O(m) / auctioneer | O(m) | 3-competitive",
+      "acceptance": [
+        "MURDOCH has 3-competitive with no “at least”.",
+        "First-price auctions (Dias & Stentz 2001) has “at least 3-competitive”.",
+        "Dynamic role assignment (Chaimowicz et al. 2002) has “at least 3-competitive”.",
+        "Every row has O(m) communication and the same bidder/auctioneer computation pair."
+      ],
+      "failures_to_catch": [
+        "Switching 2-competitive from Table 1 into Table 2.",
+        "Applying at least uniformly.",
+        "Attaching author/year to adjacent architecture."
+      ],
+      "cells": [
+        [
+          "MURDOCH",
+          "O(1) / bidder; O(m) / auctioneer",
+          "O(m)",
+          "3-competitive"
+        ],
+        [
+          "First-price auctions",
+          "O(1) / bidder; O(m) / auctioneer",
+          "O(m)",
+          "at least 3-competitive"
+        ],
+        [
+          "Dynamic role assignment",
+          "O(1) / bidder; O(m) / auctioneer",
+          "O(m)",
+          "at least 3-competitive"
+        ]
+      ]
+    },
+    {
+      "id": "W29",
+      "category": "floating_table_reading_order",
+      "physical_pages": [
+        12,
+        13
+      ],
+      "source_region_pt": null,
+      "source_excerpt": "These similarities are encouraging because they suggest that, regardless of the details of the robots or tasks in use, the various authors are all studying a common, fundamental problem in autonomous coordination.",
+      "acceptance": [
+        "Join p12 bottom-right “because” to p13 below both tables, left column “they suggest”.",
+        "Both floating tables and captions remain separately navigable.",
+        "Do not put table text inside this sentence; acceptable semantic placement keeps the sentence contiguous while retaining tables in the nearby source order."
+      ],
+      "failures_to_catch": [
+        "Literal page-order stitching that inserts both tables in the middle of the sentence.",
+        "Discarding tables to make prose coherent.",
+        "Joining “because” to p13 right-column continuation “variety”."
+      ]
+    },
+    {
+      "id": "W30",
+      "category": "column_join",
+      "physical_pages": [
+        14
+      ],
+      "source_region_pt": null,
+      "source_excerpt": "In addition to an assumption of independent utilities, our taxonomy also assumes independent tasks. There may instead be constraints among the tasks, such as sequential or parallel execution.",
+      "acceptance": [
+        "Heading “7.2 Task constraints” at bottom-left precedes this paragraph.",
+        "Join bottom-left “There may” to top-right “instead be constraints”.",
+        "Section 8 Summary begins only after the task-constraints discussion."
+      ],
+      "failures_to_catch": [
+        "Interleaving Summary before constraints finish.",
+        "Losing the word instead or changing independent into dependent.",
+        "Joining the bottom-left continuation to page15 instead."
+      ],
+      "geometry_note": "Two disjoint column regions; the bounding values identify the lower-left start and upper-right continuation, not one crop.",
+      "source_regions_pt": [
+        {
+          "page": 14,
+          "box": [
+            71,
+            643,
+            302,
+            696
+          ]
+        },
+        {
+          "page": 14,
+          "box": [
+            309,
+            72,
+            544,
+            274
+          ]
+        }
+      ]
+    },
+    {
+      "id": "W31",
+      "category": "reference_order",
+      "physical_pages": [
+        15,
+        16,
+        17
+      ],
+      "source_region_pt": null,
+      "source_excerpt": "References",
+      "acceptance": [
+        "References begins p15 right column after Acknowledgments.",
+        "p16 left column runs Atamtürk through Chvátal, then right column Cormen through Gerkey (2002b).",
+        "p17 left column runs Gerkey (2003) through Matarić (1992), then right column Modi through Vail & Veloso (2003).",
+        "Kuhn (1955): “The Hungarian Method for the Assignment Problem”, Naval Research Logistics Quarterly 2(1), 83–97."
+      ],
+      "failures_to_catch": [
+        "Row-wise interleaving of unrelated bibliography entries.",
+        "Splitting one citation across different entries.",
+        "Interpreting bold journal volumes as subsection numbers.",
+        "Dropping years, page ranges or diacritics in cited names."
+      ]
+    },
+    {
+      "id": "W32",
+      "category": "terminal_references_and_furniture",
+      "physical_pages": [
+        18
+      ],
+      "source_region_pt": [
+        71,
+        73,
+        302,
+        281
+      ],
+      "source_excerpt": "Zlot, R., Stentz, A., Dias, M. B. & Thayer, S. (2002), Multi-Robot Exploration Controlled by a Market Economy",
+      "acceptance": [
+        "Final page contains four references in order: Weigel; Werger & Matarić; Yamauchi; Zlot.",
+        "Zlot entry ends “(ICRA), Washington, DC, pp. 3016–3023.”",
+        "Yamauchi entry preserves pp. 47–53.",
+        "Page number 18 is furniture, not a fifth citation or prose continuation; blank right column does not authorize invented content."
+      ],
+      "failures_to_catch": [
+        "Truncating the final bibliography.",
+        "Repeating prior page references to fill blank space.",
+        "Losing final digits or merging 18 into the last page range."
+      ]
+    }
+  ]
+}

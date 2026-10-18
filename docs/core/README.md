@@ -1,11 +1,17 @@
-# Core Docs
+# Core documentation
 
-Day-to-day docs for delivery, architectural rationale, and research synthesis.
+[Root architecture](../../ARCHITECTURE.md) defines current interfaces, invariants
+and accepted architectural constraints. The [mechanism ledger](MECHANISM_LEDGER.md)
+defines shipping and review rules.
 
-## Documents
+## Development archive
 
-- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) — canonical architecture contract
-- [`PLAN.md`](PLAN.md) — compressed delivery roadmap
-- [`FRAMEWORKS.md`](FRAMEWORKS.md) — condensed cross-framework guidance
-- [`BACKLOG.md`](BACKLOG.md) — prioritized opportunities queue
-- [`GOLANG_TUI_PLAN.md`](GOLANG_TUI_PLAN.md) — long-form rationale and appendix
+These records belong to the [designated development archive](../README.md#designated-development-archive):
+
+- [Roadmap](PLAN.md) — development phases and acceptance criteria.
+- [Backlog](BACKLOG.md) — candidate tooling and integration work.
+- [Framework synthesis](FRAMEWORKS.md) and [verdicts](HARNESS_VERDICTS.md) — comparative decisions.
+- [Go design rationale](GOLANG_TUI_PLAN.md) — extended design history and reference material.
+
+Use each record's status and date. A plan or historical test result is not a
+current runtime capability or verification receipt.

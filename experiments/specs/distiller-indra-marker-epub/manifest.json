@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "experiment_id": "distiller-indra-marker-epub",
+  "status": "preregistered",
+  "kind": "benchmark",
+  "papers": [],
+  "design_references": [
+    {
+      "title": "Distiller EPUB fidelity",
+      "url": "https://github.com/cercova-studios/swe-term/blob/dev/extensions/distiller/ARCHITECTURE.md",
+      "claim": "Compare source-linked PDF reconstruction and reader output against local Indra and Marker extraction plus common Pandoc packaging."
+    }
+  ],
+  "hypothesis": "Distiller retains more frozen source witnesses in readable EPUBs than local Indra and Marker on the selected previously unused PDF.",
+  "null_hypothesis": "Distiller loses important witnesses or fails conversion or reader acceptance, preventing a superiority claim.",
+  "independent_variable": "PDF conversion pipeline on identical frozen source bytes.",
+  "source": {
+    "kind": "directory",
+    "locator": "fixtures",
+    "revision": "",
+    "content_digest": "sha256:79a6e579f26b6f652aa65c2c913db8f1aa97fba64a6a6f54cde32eb2ff76dd33"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "inherit",
+    "network_justification": "Download pinned local OCR weights from official model hosts; Distiller alone sends the public source to its existing OpenRouter model. Indra/Marker receive no credentials. No external model calls for competitor pipelines.",
+    "allowed_env": [
+      "PATH",
+      "HOME",
+      "TMPDIR",
+      "HF_HOME",
+      "TORCH_DEVICE",
+      "OMP_NUM_THREADS",
+      "OPENROUTER_API_KEY",
+      "DISTILLER_PDF_CACHE",
+      "TOKENIZERS_PARALLELISM",
+      "HF_HUB_DISABLE_TELEMETRY"
+    ],
+    "resources": {
+      "timeout_seconds": 1200,
+      "max_parallelism": 1,
+      "max_output_bytes": 209715200,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": true,
+    "provider": "OpenRouter and local ONNX/PyTorch",
+    "id": "deepseek/deepseek-v4.1-flash; indra-ocr0.3.2/v3.1.1; marker-pdf2.0.0/default-fast-local",
+    "parameters": {
+      "distiller": "cold reconstruction cache per repetition; adaptive owned-page source packets; low reasoning draft/source-review and bounded join-only compound review",
+      "indra": "auto, math enabled, cores4; package-default text reading order",
+      "marker": "fast mode recommended for CPU/MPS; no optional remote LLM"
+    },
+    "prompt_digest": "sha256:4b5d171f5c7ef3fc94d32cd8f52fd1a1d8ca829326d289b8370c8c02d1435bd3",
+    "tool_schema_digest": "sha256:761c0f99dd35ad288510698b9c684d5f103f42db07329a802b418ee366d25e7d"
+  },
+  "variants": [
+    {
+      "name": "distiller",
+      "description": "Installed Rust CLI; PDF-only cloud reconstruction, supplied common cover; no arXiv HTML identified.",
+      "command": [
+        "distiller",
+        "{fixture}",
+        "--mode",
+        "epub",
+        "--cover",
+        "{cover}",
+        "-o",
+        "{output}"
+      ],
+      "config": {
+        "cache": "cold per repetition"
+      }
+    },
+    {
+      "name": "indra",
+      "description": "Pinned local Indra math-enabled extraction followed by common Pandoc EPUB packaging.",
+      "command": [
+        "indra-ocr",
+        "{fixture}",
+        "--math",
+        "--cores",
+        "4",
+        "--out",
+        "{directory}"
+      ],
+      "config": {
+        "packaging": "pandoc EPUB3, same title/language/cover; retain raw Markdown"
+      }
+    },
+    {
+      "name": "marker",
+      "description": "Pinned local Marker fast extraction recommended for CPU/MPS, followed by common Pandoc EPUB packaging.",
+      "command": [
+        "marker_single",
+        "{fixture}",
+        "--mode",
+        "fast",
+        "--output_format",
+        "markdown",
+        "--output_dir",
+        "{directory}"
+      ],
+      "config": {
+        "packaging": "pandoc EPUB3, same title/language/cover; retain raw Markdown"
+      }
+    }
+  ],
+  "repetitions": 3,
+  "randomness": {
+    "mode": "uncontrolled",
+    "seeds": [],
+    "justification": "Cloud routing and model inference cannot be fully seeded. Three complete repetitions per pipeline, no cherry picking. Weight/binary/artifact identities recorded. Missing runs/failures stay explicit."
+  },
+  "metrics": {
+    "primary": "Per-witness source fidelity under frozen 32-witness oracle; component counts and unknowns, no summed quality score.",
+    "secondary": [
+      "EPUBCheck errors/warnings",
+      "successful complete EPUB publication",
+      "extraction and total wall seconds",
+      "process maximum resident bytes when available; local-server memory limitations explicit",
+      "reader layout/accessibility sampled separately",
+      "download/setup excluded from warm-model runtime but recorded"
+    ],
+    "acceptance_rule": "Report every terminal and every witness; no overall superiority claim if any important component is lost or reader acceptance missing. Do not change code/oracle after benchmark results; followup fixes need a new run identity."
+  },
+  "evaluator": {
+    "kind": "manual",
+    "command": [],
+    "rubric": "Frozen fixtures/oracle.json: inspect source wording, reading order, math structure, table cell relationships, notes, navigation and references. Full original-page images alone preserve visual content but do not count as semantic accessibility. Long noisy extraction does not pass through substring matches. Fresh source has no standalone figures; figure parity not measured. Grade failures and unknowns explicitly per repetition; sample reader independently.",
+    "rubric_digest": "sha256:1ac17303215416cbbf0a2c4977a6fca385691986004fbb5d930cc603f653b043"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/distiller-indra-marker-epub",
+    "curated": "experiments/evidence/distiller-indra-marker-epub"
+  }
+}

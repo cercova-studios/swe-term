@@ -120,7 +120,7 @@ per study; code-mode's cost ranking flipped between the two studies. Direction
 agrees with Anthropic's code-execution-with-MCP findings; treat magnitudes as
 indicative, not settled.
 
-Scope: the CLI surface of swe-term-native tools (`swe_distiller`, future
+Scope: the CLI surface of swe-term-native tools (`distiller`, future
 `swe_graph`, backlog CLIs above). AXI says nothing about approval, effects,
 mutation ownership, or receipts — it is read-path ergonomics only. Core
 contracts in `ARCHITECTURE.md` govern what tools may do; this governs what

@@ -1,0 +1,156 @@
+{
+  "run": "20261013T034735.061342Z",
+  "manifest_sha256": "e42833509c9a711b2ec73900ee72ffff605883cc57edd9f5e4dc7a2624e89138",
+  "runner_sha256": "d0020db2c595780b6a0e1e306d7125a4765e8f7938ba9dcdee6917608ba53898",
+  "pdf_sha256": "68735f1b5a3d30fb276e42493389d016d4afb46fef922b44ed7ebf7ad55189d3",
+  "tool_sha256": {
+    "distiller": "6c9e1b7bb5c214f80de7d650779dfabd26a6841874ceca6df7ee97ccc35b2d93",
+    "xberg": "2f8bc4699e7dbb95163d4d1e0297291d7da0711d6dfcba574e0885a0e3b2045c",
+    "pandoc": "4fdc165083e4b1ffae7ee029d3371dcaab2c4b3d81336e37b74a92aee9e07bef",
+    "java": "0a1eea36b7899323b32caab6f1d0e416ad7208792b076391278062efab4b15d8"
+  },
+  "components": {
+    "article-distiller": {
+      "conversion_exit": 0,
+      "fidelity": {
+        "image_elements": 8,
+        "headings": 21,
+        "embedded_image_files": 8,
+        "source_images_with_exact_decoded_pixels": 8,
+        "source_headings_retained": 18,
+        "source_headings_total": 18,
+        "source_headings_in_navigation": 18,
+        "source_text_blocks_retained": 92,
+        "source_text_blocks_total": 92,
+        "article_image_total": 8,
+        "chrome_markers_present": []
+      },
+      "epubcheck_exit": 0,
+      "artifact_sha256": "cd85435aadb464d20054dd3976edc8f3564ab833dd3ee8c074e2cc4bc44083ca"
+    },
+    "article-xberg-pandoc": {
+      "conversion_exit": 0,
+      "fidelity": {
+        "image_elements": 4,
+        "headings": 23,
+        "embedded_image_files": 4,
+        "source_images_with_exact_decoded_pixels": 0,
+        "source_headings_retained": 18,
+        "source_headings_total": 18,
+        "source_headings_in_navigation": 18,
+        "source_text_blocks_retained": 90,
+        "source_text_blocks_total": 92,
+        "article_image_total": 8,
+        "chrome_markers_present": []
+      },
+      "epubcheck_exit": 0,
+      "artifact_sha256": "496b0baa1de3813d080d3dda9eaf1787c574e0b4292d5be92dafa19dadbd9e78"
+    },
+    "article-pandoc": {
+      "conversion_exit": 0,
+      "fidelity": {
+        "image_elements": 10,
+        "headings": 23,
+        "embedded_image_files": 10,
+        "source_images_with_exact_decoded_pixels": 8,
+        "source_headings_retained": 18,
+        "source_headings_total": 18,
+        "source_headings_in_navigation": 0,
+        "source_text_blocks_retained": 92,
+        "source_text_blocks_total": 92,
+        "article_image_total": 8,
+        "chrome_markers_present": []
+      },
+      "epubcheck_exit": 1,
+      "artifact_sha256": "bcb07941fea0291c8c55f3416a05d81ba8bf7260f23919c0aa8c28f5999ddd77"
+    },
+    "pdf-distiller": {
+      "conversion_exit": 0,
+      "fidelity": {
+        "image_elements": 40,
+        "headings": 45,
+        "embedded_image_files": 40,
+        "source_images_with_exact_decoded_pixels": 40,
+        "source_pages": 165,
+        "page_anchors": 165,
+        "source_raster_images": 40,
+        "selected_text_presence": {
+          "We have machines now": true,
+          "Ev- ery": true,
+          "Amer- ican": true,
+          "com- pute": true,
+          "GPT- 3": true
+        },
+        "source_outline_titles_retained_as_headings": 40,
+        "source_outline_titles_in_navigation": 40,
+        "source_outline_titles_total": 41,
+        "original_outline_links_with_correct_page": 41
+      },
+      "epubcheck_exit": 0,
+      "artifact_sha256": "e08088aa5e5ddfab9cf524957ea370a5605e2c8d65581d557b2c82205034b569"
+    },
+    "pdf-xberg-pandoc": {
+      "conversion_exit": 0,
+      "fidelity": {
+        "image_elements": 68,
+        "headings": 42,
+        "embedded_image_files": 68,
+        "source_images_with_exact_decoded_pixels": 40,
+        "source_pages": 165,
+        "page_anchors": 0,
+        "source_raster_images": 40,
+        "selected_text_presence": {
+          "We have machines now": true,
+          "Ev- ery": false,
+          "Amer- ican": false,
+          "com- pute": false,
+          "GPT- 3": true
+        },
+        "source_outline_titles_retained_as_headings": 35,
+        "source_outline_titles_in_navigation": 35,
+        "source_outline_titles_total": 41,
+        "original_outline_links_with_correct_page": 0
+      },
+      "epubcheck_exit": 0,
+      "artifact_sha256": "4abe0030b8fffd24dcdb666630485dd82d9b3bb0589964698c2e52fbbe5d47d1"
+    },
+    "pdf-pandoc": {
+      "conversion_exit": 21,
+      "fidelity": null,
+      "epubcheck_exit": null,
+      "artifact_sha256": null
+    }
+  },
+  "covered_deliverables": [
+    {
+      "file": "situationalawareness-eink-final.epub",
+      "sha256": "480b3ad2c2d1f90ad68fdea66fbf6371c3c8ade48cc052a27e0efaa1f59c011e",
+      "cover_sha256": "e3c5156b205dfa4595e3cabb1b534d8e8bc928ff57143fd22ae3364c6267251a",
+      "cover_bytes_preserved": true,
+      "epubcheck_exit": 0
+    },
+    {
+      "file": "building-effective-agents-eink.epub",
+      "sha256": "645f6105d43c0db1f962ebd28d3c528063ba7450a7af7224e25f27bbfcb2a39c",
+      "cover_sha256": "3c441523a10e67758d1c60174337778d9787deab62e7db04248e69cf92d0769b",
+      "cover_bytes_preserved": true,
+      "epubcheck_exit": 0
+    }
+  ],
+  "reader": {
+    "app": "Calibre E-book viewer",
+    "version": "9.16.0",
+    "scope": "Both generated cover replacements rendered; article prose, navigation and augmented-LLM/prompt-chaining diagrams; PDF repaired chapter navigation, original Introduction destination, source page10 body/drop cap/figure/notes and page47/48 boundary. Same content inspected before final distinct outline-ID fix; final covers inspected in corrected artifacts.",
+    "observed_limits": [
+      "PDF repeated heading text",
+      "Printed line-end hyphens remain in prose",
+      "Notes interrupt paragraphs at source page boundaries",
+      "Small labels within PDF figures need zoom"
+    ],
+    "not_checked": [
+      "macOS Books library rendering",
+      "Physical Kindle e-ink hardware",
+      "Full-book display or a held-out corpus"
+    ]
+  }
+}

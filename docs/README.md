@@ -1,58 +1,46 @@
-# Documentation Index
+# Documentation
 
-This directory is organized to keep architecture decisions centralized and reduce repeated rationale.
+Start with [usage](../README.md), the [architecture contract](../ARCHITECTURE.md),
+and [contributor operations](../CONTRIBUTING.md).
+[Distiller](../extensions/distiller/README.md) documents article extraction and ebook conversion.
 
-## Groups
+## Current contracts
 
-- `core/` — roadmap, framework synthesis, backlog, and long-form rationale
-- `plans/` — bounded implementation and experiment plans
-- `research/` — deep-dive and critique evidence packs
-- [`research/papers/`](research/papers/) — paper discovery, research-taste, and
-  experiment-selection workflow
-- `services/` — service and sidecar architecture docs
-- [`../experiments/`](../experiments/) — experiment specifications, schemas,
-  raw-run boundary, and curated evidence contract
+- [ARCHITECTURE.md](../ARCHITECTURE.md) owns layers, domain contracts, invariants,
+  extension points, and the distinction between implemented behavior and accepted targets.
+- [CONTRIBUTING.md](../CONTRIBUTING.md) owns setup, checks, Jujutsu and PR delivery.
+- [Mechanism ledger](core/MECHANISM_LEDGER.md) owns mechanism classification,
+  shipping conditions, evidence requirements, and review rules.
+- [Paper discovery](research/papers/README.md) and its templates define the research workflow.
+- [Experiments](../experiments/README.md) owns specification, preregistration,
+  isolation, cleanup and evidence-promotion rules. Executable specs, templates,
+  runners, fixtures, schemas and tests stay with the code.
+- [Drift baseline](reports/drift-baseline.json) is an executable operating baseline.
 
-## Source-of-Truth Documents
+## Designated development archive
 
-- [`../CONTRIBUTING.md`](../CONTRIBUTING.md) — How to develop and open stacked PRs (`just`, `jj`, `gh stack link`).
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Canonical architecture contract.
-- [`core/PLAN.md`](core/PLAN.md) — Concise execution roadmap (phases, milestones, done criteria).
-- [`core/FRAMEWORKS.md`](core/FRAMEWORKS.md) — Condensed cross-framework comparison and porting guidance.
-- [`core/BACKLOG.md`](core/BACKLOG.md) — Tooling and integration opportunities.
-- [`services/AST_SERVICE_ARCHITECTURE.md`](services/AST_SERVICE_ARCHITECTURE.md) — AST/analyzer service architecture.
-- [`core/GOLANG_TUI_PLAN.md`](core/GOLANG_TUI_PLAN.md) — Detailed architecture rationale and extended reference material.
+The following existing paths are the project's development archive. Keeping their
+paths preserves frozen design references and research-change gates. Records may
+contain active plans or completed history; read each record's date and status.
+They are not current capability or verification claims. Root ARCHITECTURE.md
+retains accepted architectural constraints and identifies implemented behavior.
 
-## Comparative Analysis Documents
+| Area | Records |
+| --- | --- |
+| [Plans](plans/) | Implementation designs, experiment plans and the [distiller roadmap](plans/distiller-roadmap.md) |
+| [Core roadmap](core/PLAN.md), [backlog](core/BACKLOG.md) | Development milestones and candidate work |
+| [Go rationale](core/GOLANG_TUI_PLAN.md), [Rust prototype plan](RUST_TUI_PLAN.md) | Extended rationale and earlier implementation designs |
+| [Framework synthesis](core/FRAMEWORKS.md), [verdicts](core/HARNESS_VERDICTS.md) | Comparative decisions and source-pinned research |
+| [Service design](services/AST_SERVICE_ARCHITECTURE.md) | Sidecar design rationale; current status comes from root architecture |
+| [Paper packets](research/papers/) | Search plans, notes and syntheses; the README/templates remain current workflow contracts |
+| [Research summary](reports/research-and-experiments-summary.md) | Dated findings and validation history; updates remain subject to the research-change gate |
+| [Experiment evidence](../experiments/evidence/), per-spec RESULTS.md files | Historical measurements, provenance and limitations; manifests, receipts and executable spec contracts keep their paths |
+| [Completed grouping pass](TODO.md) | Documentation migration history |
 
-- [`core/FRAMEWORKS.md`](core/FRAMEWORKS.md) — compressed port/avoid matrix. Read first.
-- [`core/HARNESS_VERDICTS.md`](core/HARNESS_VERDICTS.md) — per-harness verdicts, port and do-not-port lists, each pinned to an upstream commit.
+General source-derived research lives in the source-insights library at
+`~/.agents/knowledge/sources/`; local entry IDs are retained where cited.
 
-General architecture notes on each harness and the papers behind the research
-packets live in the `source-insights` library (`~/.agents/knowledge/sources/`),
-not in this repository. Entry IDs are cited where they are used.
-
-## Reading Order
-
-1. [`../ARCHITECTURE.md`](../ARCHITECTURE.md)
-2. [`core/PLAN.md`](core/PLAN.md)
-3. [`core/FRAMEWORKS.md`](core/FRAMEWORKS.md)
-4. [`core/BACKLOG.md`](core/BACKLOG.md)
-5. [`services/AST_SERVICE_ARCHITECTURE.md`](services/AST_SERVICE_ARCHITECTURE.md)
-6. [`core/GOLANG_TUI_PLAN.md`](core/GOLANG_TUI_PLAN.md) (deep reference)
-7. Specific deep-dive/critique files in [`research/`](research/) as needed
-
-Paper-backed experiment work starts with
-[`research/papers/README.md`](research/papers/README.md), then moves to the
-preregistration contract under [`../experiments/`](../experiments/).
-
-Current focused plans:
-
-- [`plans/2026-08-27-harness-hypothesis-experiments.md`](plans/2026-08-27-harness-hypothesis-experiments.md)
-- [`plans/2026-08-29-experiment-infrastructure-design.md`](plans/2026-08-29-experiment-infrastructure-design.md)
-
-## Group Entrypoints
-
-- [`core/README.md`](core/README.md)
-- [`research/README.md`](research/README.md)
-- [`services/README.md`](services/README.md)
+Maintain source identity and caveats when updating archive records. Do not rewrite
+frozen manifests to hide path moves. Keep raw runs in their ignored local directory.
+Review private paths and material before any public publication; this archive
+classification does not authorize a wiki push, commit, or release.

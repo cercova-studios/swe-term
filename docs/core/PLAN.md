@@ -98,6 +98,12 @@ Follow-on target, once obligations and receipts exist in core:
 - The deterministic enforcement this depends on is already validated:
   `ApplyControlEvent` and `ApplyReceiptGateEvent`, evidence under
   [`experiments/evidence/`](../../experiments/evidence/).
+- **SDK primitives slice for the obsidian-agent rebuild** (design:
+  [`../plans/2026-10-12-tool-effects-journal-design.md`](../plans/2026-10-12-tool-effects-journal-design.md)):
+  typed `EffectDeclaration` with observation levels (OA-003), a `Tool`
+  contract with no `ReadOnly()` bool, and a durable JSONL `ControlJournal`
+  feeding the existing monitor. No loop, `SessionStore`, or wire protocol
+  in this slice; obsidian-agent OA-001/OA-002 stay deferred against it.
 
 ### Phase 3: Extensibility Path
 

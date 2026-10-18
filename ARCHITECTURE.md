@@ -4,10 +4,9 @@ This is the authoritative architecture contract for the repository. It describes
 both the implemented system and the accepted target design; every contract is
 marked accordingly so plans are not mistaken for shipped behavior.
 
-Long-form rationale lives in [`docs/core/GOLANG_TUI_PLAN.md`](docs/core/GOLANG_TUI_PLAN.md).
-Comparative evidence lives in [`docs/core/FRAMEWORKS.md`](docs/core/FRAMEWORKS.md)
-[`docs/core/HARNESS_VERDICTS.md`](docs/core/HARNESS_VERDICTS.md), and
-[`docs/research/papers/`](docs/research/papers/).
+Plans, comparative evidence, design history and detailed validation records live
+in the [designated development archive](docs/README.md#designated-development-archive).
+Those records retain their dates, status and limitations.
 
 ## 1. Document Contract
 
@@ -149,6 +148,83 @@ may refine their representation without weakening Sections 6 or 10.
 - The reference deployment is a local modular monolith and single Go binary.
 - Sidecars are optional, independently restartable processes with versioned,
   bounded protocols.
+- **Implemented:** [`extensions/distiller`](extensions/distiller/README.md) is
+  a standalone Rust URL/HTML-to-Markdown/JSON/EPUB CLI and library. Install locally with
+  `cargo install --path extensions/distiller --locked`; the binary is `distiller`.
+  Its deterministic path preserves code text/whitespace and numeric content,
+  uses TeX annotations or MathML for equations, and retains complex tables as
+  sanitized HTML. Prose cleanup excludes technical content; DOM sanitization
+  and URL resolution operate on attributes. Renderer support remains external.
+  Its `--stdin --base-url URL` extraction accepts bounded UTF-8 HTML without source fetching
+  or invoking a model; EPUB cover production may separately call Muse. JSON stdout uses `article-extraction/v1` with the exact
+  caller-supplied URL, snapshot SHA-256, extractor provenance, and Markdown,
+  allowing independent consumers to validate retained evidence through pipes.
+  Versioned arXiv EPUB/KFX inputs prefer the complete HTML article and check its
+  matching PDF; a versioned local PDF stamp selects the same route. Other HTML
+  can pair with a local `--pdf-source`. `html_first.rs` compares visible prose
+  witnesses, restores uniquely associated missing artwork and isolated text, and
+  rejects ambiguous gaps. A sidecar receipt binds both sources and output hashes
+  while recording unchecked short spans and native-region equivalence. Semantic
+  completeness and reading-order correctness still require source inspection.
+  Its deterministic EPUB mode packages cleaned structured HTML through sandboxed
+  Pandoc, with typography, metadata and heading navigation. Raster images are
+  linked to retained caption descriptions; explicit table-header roles and narrow
+  LaTeXML visual-header inference improve accessible structure. Empty layout tables
+  without media are removed while preserving anchors; equation tables use separate typography.
+  Visual header inference and caption fallback do not prove semantic accessibility.
+  Raster images are
+  decoded under limits; local files stay beneath the HTML resource directory,
+  and URL/file modes fetch bounded HTTP(S) assets. Stdin never fetches. WebP
+  becomes PNG. Output publication never overwrites an existing EPUB.
+  Every successful EPUB has a cover: a caller-supplied PNG/JPEG (`--cover`), a
+  verified cache entry, or Muse artwork with exact locally rasterized typography.
+  `MODEL_API_KEY` is injected at runtime; one request per cache miss, no automatic
+  paid retries. Generation failure prevents publication. Cache reservations
+  retain ambiguous billing after interruption. `cover.rs` owns the bounded Muse
+  request, licensed bundled font, grayscale profile and PNG provenance.
+  Born-digital PDF conversion uses a bounded Rust/PDFium worker to extract
+  source spans, font/position evidence, bookmarks and raster figures. A separate
+  `pdf_reconstruct.rs` stage uses OpenRouter `deepseek/deepseek-v4.1-flash` with
+  strict JSON Schema to assign source IDs
+  to semantic blocks. Rust rejects missing/duplicate IDs, invented prose,
+  invalid joins and unsafe furniture removals before EPUB publication. Each page
+  pair requires a draft and a separately validated source review before caching.
+  Oversized source packets split into single pages and shrink optional neighboring
+  context without truncating owned spans; the 256 KiB cap covers source JSON.
+  Exact source spellings can preserve compound separators. Related spellings
+  select a bounded join-only model review, with evidence-bound decision caches.
+  Unresolved decision-cache misses require credentials; invalid replies prevent publication.
+  Bounded heading history, the book outline and intact-word witnesses aid review;
+  captions remain separate from prose continuing across floating tables.
+  Validated geometry repairs baseline numeral spacing, same-line run-ins and
+  uniquely located linked callouts on fresh and cached plans. A bounded typography
+  heuristic closes em dashes within aligned adjacent lines; explicit spacing and
+  ambiguous page/column boundaries remain unchanged. The receipt hashes the effective
+  normalized plan and rendered HTML for comparison. Draft and source-review passes
+  start with low reasoning and treat candidates as user data.
+  Malformed replies are not replayed.
+  Draft retries can retain a typed source-ID candidate for focused correction.
+  Every rejected-response retry disables reasoning within the existing attempt cap.
+  Native regions are rendered before model calls. Opaque source anchors protect
+  glyph/image/graphic membership; the model chooses semantic roles and reading order.
+  Review policy participates in cache identity and receipts; diagnostics stay
+  outside the reading flow. Scans,
+  graphic-only pages and rotated/skewed/stretched Forms fail explicitly. Native
+  bold/italic ranges survive in prose. Equations, mathematical/complex tables and
+  vector figures use source-bound color crops with complete intersecting-object
+  ownership and pixel receipts from a second bounded native worker. Native anchors
+  can remain within paragraph/note flow; hidden numeric members remain link candidates.
+  Ordinary text tables remain semantic. A narrowly aligned bold native header can
+  become real column-header cells above a stable semantic body; math, spanning
+  labels and referenced callouts retain native rendering. Inseparable inline formulas retain a whole
+  source line as an image. General textbook semantics, accessible mathematical
+  notation and reading-device acceptance remain targets.
+  CLI-only KFX output reuses that EPUB path and invokes independent `epub-to-kfx`
+  (Amazon Previewer/KFX Output). `scripts/save2kindle.py` composes URL/local-file
+  conversion and independent `kindle-send` delivery, retaining KFX on transfer
+  failure. Delivery uses the configured Kindle SSH alias and SHA-256 verification
+  without overwriting existing books. Its Go tool adapter remains a target,
+  as described in Section 9.
 - Moving to services requires a measured isolation, scaling, or ownership pain;
   it is not the default evolution path.
 - State formats and journal schemas outlive implementations and require explicit
@@ -309,23 +385,22 @@ with the refactor. Conflicts require an explicit architecture decision.
 
 ## 13. Source Hierarchy
 
-When documents conflict:
+The root `ARCHITECTURE.md` owns architectural constraints and their
+`Implemented` / `Target` status. Current source and tests decide whether a
+constraint is implemented. If code contradicts an implemented claim here, stop
+and resolve the drift before building on either version.
 
-1. `ARCHITECTURE.md` at the repository root
-2. `docs/core/PLAN.md`
-3. `docs/core/FRAMEWORKS.md`
-4. Per-harness verdicts in `docs/core/HARNESS_VERDICTS.md`; paper packets in `docs/research/papers/`
-5. Extended rationale in `docs/core/GOLANG_TUI_PLAN.md`
+Scoped operating contracts govern their workflows unless they conflict with this file:
 
-Scoped operational contracts govern their own workflows unless they conflict
-with this file: [`CONTRIBUTING.md`](CONTRIBUTING.md) for change delivery and
-[`experiments/README.md`](experiments/README.md) for research execution and
-evidence promotion. Paper discovery and experiment selection are governed by
-[`docs/research/papers/README.md`](docs/research/papers/README.md).
+- [CONTRIBUTING.md](CONTRIBUTING.md) governs change delivery and documentation placement.
+- [Mechanism ledger](docs/core/MECHANISM_LEDGER.md) governs mechanism classification and shipping rules.
+- [Experiments](experiments/README.md) governs execution and evidence promotion.
+- [Paper discovery](docs/research/papers/README.md) governs research selection.
 
-Current source and tests decide whether an architectural target is implemented.
-If code contradicts an implemented claim here, stop and resolve the drift before
-building on either version.
+The [development archive](docs/README.md#designated-development-archive) preserves
+roadmaps, rationale, comparisons and historical validation. Those records explain
+decisions; a plan or dated result does not override current source or establish
+current verification. Accepted targets remain explicit in this architecture contract.
 
 ## 14. How to Keep This Document Honest
 

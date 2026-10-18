@@ -715,12 +715,12 @@ LEARNED CONTEXT (continual learning)
 ## Learned User Preferences
 - Design the `swe-term` Go harness primarily for AI-agent extensibility: keep a small, robust, stable core and let agents/community build extensions on top without deep framework knowledge (pi / pi-mono coding-agent philosophy). Go owns the agent loop, approvals, schemas, and Tool adapters; heavy engines (Rust/etc.) run as sidecar binaries behind thin Go adapters — not as the primary FFI/plugin surface.
 - Prefer agent-facing UX through `swe-term` / `st`; keep extension CLIs as thin spawn/debug contracts, not parallel product CLIs.
-- When simplifying extensions (e.g. `swe_distiller`), pare complexity without dropping functionality and lock behavior with regression tests — only the fail-closed or journey tests above, not helper suites.
+- When simplifying extensions (e.g. `distiller`), pare complexity without dropping functionality and lock behavior with regression tests — only the fail-closed or journey tests above, not helper suites.
 - Avoid cloud-vendor lock-in: prefer pluggable, cloud-agnostic backends that swap across GCP, AWS, Cloudflare, Modal, and turbopuffer for deployment, storage, and search/vector layers.
 - When evaluating other agent frameworks, produce thorough, candid paired "deep dive" + "critique" docs under `docs/` ("don't hold back") and validate them against the local reference checkouts before finalizing.
 
 ## Learned Workspace Facts
 - `swe-term` is a Go-based terminal/TUI SWE-agent harness intended to be invoked as `swe-term` or `st`; the primary design doc is the root `ARCHITECTURE.md`, with `docs/core/GOLANG_TUI_PLAN.md` as long-form rationale, and `docs/research/` holds paired deep-dive + critique analyses of other agent frameworks (Claude Code, Codex, flue, pi-mono, deepagents).
 - Local reference checkouts of comparison frameworks live at the repo root and are gitignored: `flue/`, `pi-mono/`, `codex/`, `claude-code/`, `claw-code/`, `deepagents/`. Consult these when enriching framework docs.
-- The harness wraps services as extensions under `extensions/`; `extensions/swe_distiller/` is a Rust URL→markdown extractor sidecar (thin CLI for Go spawn/debug; generated outputs are gitignored).
+- The harness wraps services as extensions under `extensions/`; `extensions/distiller/` is a Rust URL→markdown extractor sidecar (thin CLI for Go spawn/debug; generated outputs are gitignored).
 - VCS is colocated Jujutsu; trunk is `dev` on `github.com/cercova-studios/swe-term`. PRs are stacked with `gh stack link --base dev` (`just stack`), not `gh pr create`.

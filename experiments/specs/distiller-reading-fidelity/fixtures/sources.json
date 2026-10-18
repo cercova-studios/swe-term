@@ -1,0 +1,11 @@
+{
+  "article": {
+    "file": "anthropic-agents.html",
+    "url": "https://www.anthropic.com/engineering/building-effective-agents"
+  },
+  "pdf": {
+    "path": "/Users/rohit/books/situationalawareness.pdf",
+    "sha256": "68735f1b5a3d30fb276e42493389d016d4afb46fef922b44ed7ebf7ad55189d3",
+    "bytes": 21371840
+  }
+}
