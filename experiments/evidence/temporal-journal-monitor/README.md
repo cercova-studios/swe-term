@@ -237,3 +237,42 @@ cryptographic lock, and a passing suite did not notice a two-valued axis
 (nil versus empty) on a field the comparator read. That is the standing
 argument for property-shaped rows over additional examples, recorded here
 because it was paid for rather than argued.
+
+## Regrade on corpus v4 (2026-10-18)
+
+**Status: re-graded `complete` on `temporal-monitor-trace-corpus-v4`
+(`sha256:93d87fa07cb1ed8c22e2884faa2f7e03926a0d523ba9dcceaa163e7a1538542a`),
+which pins `internal/core/control_monitor_test.go` and
+`internal/core/control_monitor_replay_test.go`.**
+
+### Why the record was reopened
+
+The SDK primitives slice (design:
+`docs/plans/2026-10-12-tool-effects-journal-design.md`) replaced the
+reducer's opaque `[]string` effect tokens with typed `EffectDeclaration`
+and `ObservedEffect` values, and replaced string membership with the
+declaration's `Covers` test plus observation-level compatibility. The frozen
+traces therefore had to be rewritten in the typed shape. Unlike the v3
+episode, no falsifier was reached: every v3 ordering keeps its verdict and
+its rule ID under the typed contract. Two rows are new because the typed
+contract makes them expressible: a mutating declaration at
+`unobservable` observation is rejected at declaration time, and a declared
+read within the lease no longer invalidates a recorded receipt (only
+write, process, or unobservable observations do).
+
+### Run
+
+`experiments/runs/temporal-journal-monitor/run-004/{control,treatment}.log`
+— executions of the v4 manifest's `control` and `treatment` commands (with
+`-v` added), executed 2026-10-18 after `experimentctl validate` and
+`experimentctl ready` passed on the reopened record. All exit 0. The
+treatment log includes the two new rows passing alongside the nine carried
+over from v3.
+
+### Verdict
+
+**Hypothesis accepted on v4 evidence; the v3 acceptance is superseded as
+the current record, not contradicted.** The typed contract preserves the
+ordering guarantees the corpus exists to pin, and the lock again holds the
+line: the pinned test files changed only through a new corpus revision,
+lock, digest, and recorded run.

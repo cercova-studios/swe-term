@@ -17,8 +17,8 @@
   "source": {
     "kind": "directory",
     "locator": "fixtures",
-    "revision": "temporal-monitor-trace-corpus-v3",
-    "content_digest": "sha256:6bd4b6cffcdd2fa59e22597a6de89914f6003121943b7277bafdc2846596e016"
+    "revision": "temporal-monitor-trace-corpus-v4",
+    "content_digest": "sha256:93d87fa07cb1ed8c22e2884faa2f7e03926a0d523ba9dcceaa163e7a1538542a"
   },
   "environment": {
     "adapter": "process",
@@ -66,13 +66,13 @@
     },
     {
       "name": "treatment",
-      "description": "A pure closed-event reducer enforces approval, lease, effect, receipt, cancellation, and replay rules across the whole frozen trace corpus: the stale-receipt contrast trace plus every legal, illegal, retention, replay, and bounds trace the primary metric counts. Corpus v3 adds the replay-shape row that v2 could not express: every fixture built Effects as nil or as a populated literal, so the empty-but-non-nil slice that broke replay idempotence was unreachable.",
+      "description": "A pure closed-event reducer enforces approval, lease, effect, receipt, cancellation, and replay rules across the whole frozen trace corpus: the stale-receipt contrast trace plus every legal, illegal, retention, replay, and bounds trace the primary metric counts. Corpus v3 adds the replay-shape row that v2 could not express: every fixture built Effects as nil or as a populated literal, so the empty-but-non-nil slice that broke replay idempotence was unreachable. Corpus v4 re-expresses the same traces against the typed EffectDeclaration/ObservedEffect contract that replaced []string effect tokens (approved SDK primitives design, 2026-10-12): identical orderings and rule IDs, plus two rows the typed contract adds — an unobservable mutation declaration is rejected, and a declared read no longer invalidates a recorded receipt.",
       "command": [
         "go",
         "test",
         "./internal/core",
         "-run",
-        "^(TestControlMonitorTreatmentTrace|TestControlMonitorLegalTrace|TestControlMonitorRejectsIllegalTracesWithStableRules|TestControlMonitorRetainsFailedReceipt|TestControlMonitorRepeatedTargetKeepsReceipt|TestControlMonitorReplayDuplicateAndSequenceRules|TestControlMonitorPrefixReplayMatchesUninterruptedTrace|TestControlMonitorBoundsEffectDeclaration|TestControlEventReplayIsIdempotentAcrossEffectsShapes)$",
+        "^(TestControlMonitorTreatmentTrace|TestControlMonitorLegalTrace|TestControlMonitorRejectsIllegalTracesWithStableRules|TestControlMonitorRetainsFailedReceipt|TestControlMonitorRepeatedTargetKeepsReceipt|TestControlMonitorReplayDuplicateAndSequenceRules|TestControlMonitorPrefixReplayMatchesUninterruptedTrace|TestControlMonitorBoundsEffectDeclaration|TestControlMonitorRejectsUnobservableMutationDeclaration|TestControlMonitorDeclaredReadKeepsReceipt|TestControlEventReplayIsIdempotentAcrossEffectsShapes)$",
         "-count=1"
       ],
       "config": {

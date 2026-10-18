@@ -113,3 +113,21 @@ fails against the pre-fix comparator and passes against the fix, with the
 other eight corpus tests passing in both configurations. See
 [`experiments/evidence/temporal-journal-monitor/`](../../evidence/temporal-journal-monitor/),
 section "Regrade on corpus v3".
+
+## Corpus revision to v4: typed effect contract (2026-10-18)
+
+The approved SDK primitives design
+(`docs/plans/2026-10-12-tool-effects-journal-design.md`) replaced the
+reducer's `[]string` effect tokens with typed `EffectDeclaration` /
+`ObservedEffect` values. That is a reducer-contract change after the ready
+gate, so the record was reopened following the v3 precedent: corpus
+`temporal-monitor-trace-corpus-v4` re-expresses every v3 trace with identical
+orderings and rule IDs, and adds the two rows the typed contract creates —
+an unobservable mutation declaration is rejected
+(`TestControlMonitorRejectsUnobservableMutationDeclaration`), and a declared
+read no longer invalidates a recorded receipt
+(`TestControlMonitorDeclaredReadKeepsReceipt`). The preregistration gate was
+re-passed (`experimentctl validate` and `ready`) and both variants were
+executed as `run-004` (all exit 0). Status returned to `complete`. This is a
+representation revision, not a falsifier: no v3 trace changed verdict. See
+the evidence README, section "Regrade on corpus v4".
