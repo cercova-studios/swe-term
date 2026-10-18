@@ -5,7 +5,7 @@ Per-harness verdicts are in [`HARNESS_VERDICTS.md`](HARNESS_VERDICTS.md#`harness
 
 ## Executive Takeaways
 
-- **pi-mono** (now `earendil-works/pi` 1.1.0) is the primary architectural baseline to port; it now ships a real `Provider` interface and before/after tool-call hooks.
+- **pi-mono** (now `earendil-works/pi` 1.3.0 at `1402973a9`, 2026-10-18) is the primary architectural baseline to port; it now ships a real `Provider` interface and before/after tool-call hooks.
 - **Codex** has the strongest protocol seam and execution safety model.
 - **Claude Code** has production-hardened permissions/orchestration lessons, but not a portable architecture; auto mode makes a model classifier the default gate — deterministic policy must still enforce.
 - **Flue** (2.x) is valuable for headless framework/deploy shape and its accepted-work durability contract, not core agent loop internals (still pi's).
@@ -21,7 +21,7 @@ Revalidated against current upstream on 2026-10-10; each deep dive has a "Change
 
 | Framework | Port | Avoid |
 |---|---|---|
-| **pi-mono** | Core-four layering, `Provider` interface, injected `streamFn` + before/afterToolCall hooks, built-in MCP/codemode as references | God-object session (4.4k ln), jiti dynamic-import extensions, URL-sniff compat fallback, chars/4 tail estimate, experimental durable/chord stack |
+| **pi-mono** | Core-four layering, `Provider` interface, injected `streamFn` + before/afterToolCall hooks, built-in MCP/codemode as references | God-object session (4.4k ln), jiti dynamic-import extensions, URL-sniff compat fallback, chars/4 tail estimate, pi-durable as a runtime (port its commit-before-show and per-tool replay contracts instead) |
 | **Codex** | Protocol-first seam (SQ/EQ, now a single app-server façade), layered execution safety, out-of-process code runtime, steerable one-task loop | Responses API lock-in, growing runtime surface (8 SQLite DBs, dual Guardian LLMs), shared mutable session core |
 | **Claude Code** | Permission rules + OS sandbox with default-deny egress, read-parallel/write-serial tool orchestration, startup prefetch | Monolithic query engine/state, feature-flag architecture as core structure, model classifier as sole safety gate |
 | **Flue** | Headless-first framework framing, accepted-work durability contract (submission → one terminal outcome, tool-batch repair, `step.do`), host-side tool boundary | Treating borrowed pi core as original architecture, opt-in durability (in-memory default), API churn (2.0 reset-only redesign) |

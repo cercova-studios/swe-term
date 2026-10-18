@@ -8,8 +8,65 @@ revalidated against upstream on 2026-10-10; the pinned commit is in each header.
 
 ## pi
 
-> Upstream: https://github.com/earendil-works/pi at `ea448f454`, revalidated 2026-10-10. General architecture notes:
-> source-insights entry `1f02f5710a14d39d5e970403`.
+> Upstream: https://github.com/earendil-works/pi at `1402973a9` (1.3.0), revalidated 2026-10-18
+> (previous pin `ea448f454`, 1.1.0). General architecture notes:
+> source-insights entries `1f02f5710a14d39d5e970403` (2026-10-10) and `b1014b6151d898ae355ce69c` (pi-durable, 2026-10-18).
+
+### Changes since `ea448f454` (154 commits, 2026-10-10 → 2026-10-18)
+- **Experimental server stack removed** (`7472cda0d`): `pi-protocol`,
+  `pi-server`, and `pi-client` are deleted, and coding-agent no longer depends
+  on `chord`. pi's out-of-process story is again `--mode rpc` and the
+  in-process SDK (`createAgentSession`, `packages/coding-agent/docs/sdk.md`).
+- **`AgentSession` keeps growing**: 4,398 → 4,428 lines. The `agent-loop.ts`
+  core is 949 lines.
+- **`chord` reworked** (`0104fef1e`, protocol 3–4): objects addressed by
+  reference across processes, typed principals, hot reload with migration at a
+  safe point. It is now an application runtime, not a coding-agent dependency.
+- **`pi-durable` matured** (1.3.0, ~25.6k lines of src). It is a second,
+  separate harness, not coding-agent's runtime. See below.
+
+### pi-durable
+`packages/durable/README.md` ("Experimental. The API changes without notice")
+plus `docs/spec.md` (5,612 lines). Its claim: conversations, model turns, tool
+calls, and host state are committed to storage before anything is shown, and
+reopening the storage resumes a turn the process died in.
+
+Mechanisms (README line refs at `1402973a9`):
+- **One atomic commit line.** Entries, typed JSON documents (`pi.agent`,
+  `pi.live`, `pi.inbox`, `pi.usage`), and tasks change together in one commit,
+  or not at all.
+- **Everything is a checkpointed task.** `pi.generation` owns its `pi.tool`
+  tasks; each step saves a checkpoint. Tasks can sleep on a stored deadline and
+  wake after restart (l.132).
+- **Tool replay policy** (l.267): a tool's intent is committed before
+  `execute()`. After a crash it reruns only if declared `replay: "safe"`;
+  otherwise the model gets an `interrupted` error result with the output
+  committed so far.
+- **Keyed nested calls** (l.318): a replay-safe caller that reruns gets its
+  already-made nested calls back by key. Effectful replay-safe tools still need
+  their own idempotency.
+- **Deterministic code-mode replay** (l.358): virtual clock, seeded randomness,
+  journaled results fed back in order; a divergent path, a changed sandbox
+  fingerprint, or an expired timeout fails the call instead of re-executing.
+- **Crash-loop guard** (l.206): crashes that cut a task off are counted, and the
+  task is parked as `restart_limit` after 5 (`settings.restartLimit`), with an
+  explicit `retryTask`.
+- **Idempotent submission** (l.120): the same `requestId` returns the existing
+  submission.
+- **Failure isolation** (l.809): a throwing tool gets an error result, a throwing
+  `beforeTool` hook blocks the call, a throwing commit callback rolls back.
+- **Storage**: memory, JSONL, SQLite, with conformance suites. **One process owns
+  a storage; there is no cross-process locking** (l.774).
+- **Telemetry** (l.80): an adapter boundary only; it "currently emits no spans or
+  metrics."
+
+**Verdict.** pi-durable is the strongest independent statement in this survey of
+the contracts swe-term already wants: commit before show, intent before
+effect, interruption as an explicit result, and an explicit replay policy per
+tool. It confirms the swe-term ordering of journal → effect → receipt. Do not
+port it as a runtime: it is experimental TypeScript, single-process by
+construction, and adds a task scheduler (2,368 lines) whose generality swe-term
+does not need for a single-session loop. Port the contracts.
 
 
 ### Verdict Changes in the 2026-10-10 Refresh
@@ -22,7 +79,7 @@ revalidated against upstream on 2026-10-10; the pinned commit is in each header.
 | `Promise.all` (gap #8) | **Minor.** Tool execution now has an explicit `sequential`/`parallel` policy; parallel still collects via `Promise.all`. | `packages/agent/src/agent-loop.ts:519,646` |
 | `AbortController` sprawl (gap #7) | **Unchanged in kind.** Five singletons became four plus a `Set` for bash runs. | `agent-session.ts:403–420` |
 | JSONL storage (gap #4) | **Strengthened.** Coding agent is still JSONL-only; upstream's new `pi-durable` adds SQLite storage — independent confirmation of the SQLite fix. | `packages/durable/src/storage/sqlite/` |
-| Layering / scope | **Qualified.** The core four packages remain clean, but the repo is now 14 packages with an experimental durable/remote stack (`chord`, `pi-protocol`, `pi-server`, `pi-client`, `pi-durable`, `pi-env`). Port the core four only. | `packages/*/package.json` |
+| Layering / scope | **Qualified.** The core four packages remain clean, but the repo is now 14 packages with an experimental durable/remote stack (`chord`, `pi-protocol`, `pi-server`, `pi-client`, `pi-durable`, `pi-env`). Port the core four only. 2026-10-18: `pi-protocol`/`pi-server`/`pi-client` were deleted (`7472cda0d`); 11 packages remain. | `packages/*/package.json` |
 | MCP | **New port input.** MCP is built in (`pi-mcp` + bundled `mcp` extension), and `pi-codemode` runs tools from a QuickJS sandbox. Both are references for swe-term's MCP `Tool` source and sandboxed-execution tier. | `packages/mcp`, `packages/codemode`, `packages/coding-agent/src/extensions/` |
 
 ### Verdict Summary
@@ -34,7 +91,7 @@ scope is sane, and the agent core is genuinely provider- and domain-agnostic (Fl
 building on `pi-agent-core` + `pi-ai` directly).
 
 But pi-mono is a **Node/TypeScript hacker's tool**, and its implementation choices reflect that:
-a **4,398-line** `AgentSession` god object, dynamic-`import()` extensions, URL-substring provider
+a **4,428-line** `AgentSession` god object, dynamic-`import()` extensions, URL-substring provider
 sniffing as a fallback, `chars/4` estimation for the un-reported tail of compaction decisions, a JSONL tree with only
 an in-memory index, `AbortController` sprawl, and `any` types in the hot path. None of these are
 fatal — they're the difference between "great architecture, pragmatic implementation" and
@@ -85,6 +142,11 @@ Undifferentiated work. Borrow ratatui / Bubble Tea.
 | Zero-build iteration *spirit* | Starlark hot-reload of tool defs | Keep the DX, lose the dynamic import |
 | `beforeToolCall` / `afterToolCall` loop hooks | `Hook` interface | Pre/Post tool-use is a good model |
 | `pi-mcp` client + `codemode` nested tool calls | MCP `Tool` source; sandboxed (Monty) execution tier | Built-in MCP and out-of-context tool composition now have a reference |
+| pi-durable: tool intent committed before `execute()`; `replay: "safe"` or an `interrupted` result (2026-10-18) | Tool manifest gains a replay policy; journal row before effect; restart emits `interrupted`, never a silent rerun | Crash semantics become a declared per-tool contract (Invariant 9) |
+| pi-durable: keyed nested calls; deterministic code-mode replay with fingerprint check (2026-10-18) | Monty tier journals tool results; rerun fails on divergence | Code mode can resume without re-running effects |
+| pi-durable: crash-loop guard parks a task after N cut-offs (2026-10-18) | Session resume counts crashes; park with an explicit retry | Prevents resume-crash loops |
+| pi-durable: idempotent `requestId` on submit (2026-10-18) | SDK `submit` takes a request ID | Client retries after reconnect do not double-submit |
+| pi SDK `createAgentSession` (`coding-agent/docs/sdk.md`) | Python and TypeScript SDK client ergonomics (ARCHITECTURE.md §9) | The API shape to match, over the protocol instead of in process |
 
 ## Codex
 
