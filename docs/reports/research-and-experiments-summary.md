@@ -561,11 +561,11 @@ section with commit or path citations; the compressed verdicts live in
 | oh-my-pi | 18.8.9, `fd27203d27` | Edit engine in Rust (`pi-edit`); eval as tool gateway; session 9,428 → 13,598 ln | No flips; N-API and eval re-entry concerns strengthened |
 | Flue | 2.2.2, `6583259` | 2.0 hook-based `'use agent'` redesign; uniform durability contract | Cloudflare-coupling concern largely withdrawn; API churn added |
 | Deep Agents | core 0.7.23, `9f0e39d` | Lean prompts, `TodoListMiddleware` out of defaults, Harbor wrapper deleted | LangSmith coupling strengthened (now a core dependency) |
-| opencode (new) | 2.0.26, `823ac87f58` | Protocol-first, event-sourced V2 core with durable inbox | Closest production match to swe-term's shape; no OS sandbox |
+| opencode (new; refreshed 2026-10-18) | 2.0.32, `501b15af26` (was 2.0.26, `823ac87f58`) | Protocol-first, event-sourced V2 core with durable inbox; since: bounded retry, `OutputLimit` outcome, incomplete-input fail, LF-view edits | Closest production match; still no OS sandbox, still eager fork. `PLAN.md` now carries a "Competitive bar: opencode V2" section |
 
 Cross-cutting: every pi-family descendant kept growing its session class
 (pi 4.4k, omp 13.6k, Prime 15.1k before rewrite), while log-driven loops
-stayed small (dsh 705 ln, opencode 375 ln). The "do not grow another
+stayed small (dsh 705 ln, opencode 375 ln; 363 ln at `501b15af26`). The "do not grow another
 `AgentSession`" rule in `FRAMEWORKS.md` is now better supported.
 
 Sources: `docs/core/HARNESS_VERDICTS.md` and the per-harness source-insights entries (each cites its

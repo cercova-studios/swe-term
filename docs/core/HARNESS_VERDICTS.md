@@ -254,8 +254,37 @@ In Harness, the bridge is a `Frontend` implementation. It implements the same in
 
 ## opencode
 
-> Upstream: https://github.com/anomalyco/opencode at `823ac87f58`, revalidated 2026-10-10. General architecture notes:
-> source-insights entry `fb8c4bcd0bc7329b73ca9fff`.
+> Upstream: https://github.com/anomalyco/opencode at `501b15af26` (v2.0.32), revalidated 2026-10-18
+> (previous pin `823ac87f58`, v2.0.26). General architecture notes:
+> source-insights entries `fb8c4bcd0bc7329b73ca9fff` (2026-10-10) and `3e59a50483011038620159f3` (2026-10-18 refresh).
+
+### Changes since `823ac87f58` (293 commits, 2026-10-10 → 2026-10-18)
+Most commits are TUI dialog redesign, console marketing, and provider quirks.
+The harness-relevant ones:
+
+- **Bounded retry policy** (`core/src/model-retry.ts`, new): exponential 2s
+  capped at 10s per gap, 10 retries, jitter; provider `retry-after` honored
+  but capped at 15 min; transport timeouts get a separate cap of 3 retries.
+  Failed attempts never contribute to returned output.
+- **Output-limit outcome** (`session/runner/step.ts:41,282`,
+  `session/runner/llm.ts:290`): `finish === "length"` is its own
+  `OutputLimit` outcome; the runner continues, and fails the step after three
+  consecutive length-finished assistant messages.
+- **Incomplete tool input fails explicitly** (`publish-llm-event.ts:406`
+  `failIncompleteTools`): a call whose arguments never finished streaming is
+  failed, not executed.
+- **Shell exit after capture** (`core/src/shell.ts`, #56321): exit and timeout
+  race on one `Deferred`; the exit is reported only after output is captured.
+- **Line-ending-preserving edit** (`tool/plugin/edit.ts:104–200`): match on
+  the LF view the model saw, map offsets back, and reuse each region line's
+  original ending via LCS alignment, so mixed CRLF/LF files keep untouched bytes.
+- **Product mass keeps growing**: experimental voice session endpoint
+  (`core/src/voice.ts`, #55951), iOS voice delegations, device pairing.
+- **Unchanged**: tool calls still fork per call (`step.ts:133`
+  `Effect.forkScoped`); still no OS sandbox in `packages/core/src` (no
+  Seatbelt/bubblewrap/Landlock hits — #55817 only *tolerates* denials from an
+  external sandbox); plugins still in-process. Runner is now 363 lines
+  (`index.ts` 42 + `step.ts` 321).
 
 
 ### Verdict Summary
@@ -315,6 +344,26 @@ encodes the same invariants in Go types and `context.Context`.
 | Checkpoint compaction + verbatim tail | `session/compaction.ts:45,160–173,228` | Summary checkpoint updated in place; protected recent tail |
 | Bounded subscriber, loud overflow | `server/event-feed.ts` | Per-client buffered chan; overflow closes stream with error |
 | Subagent depth default 1, background notify | `tool/plugin/subagent.ts:118–132` | Already planned; confirms default |
+| Bounded retry, capped `retry-after`, timeout sub-budget (2026-10-18) | `core/src/model-retry.ts` | `Provider` retry wrapper; each attempt a journal row; no partial output from failed attempts |
+| `OutputLimit` outcome + 3-strike exhaustion (2026-10-18) | `step.ts:282`, `llm.ts:290` | Distinct loop outcome; continuation counted from `SessionStore`, not memory |
+| Incomplete tool input ⇒ failed, never run (2026-10-18) | `publish-llm-event.ts:406` | Invariant 9: explicit `failed` outcome with repair hint |
+| Exit reported only after output captured (2026-10-18) | `core/src/shell.ts` #56321 | Shell tool returns one terminal record: status, exit, captured tail |
+| LF-view matching with per-line ending reuse (2026-10-18) | `tool/plugin/edit.ts:104–200` | Edit tool tier 0; property test on mixed-ending files |
+
+### Where swe-term must beat opencode V2
+opencode is the bar for the shape. swe-term wins only on axes opencode has
+structurally declined, each with a check that makes the claim falsifiable.
+`PLAN.md` "Competitive bar" maps these to phases.
+
+| Axis | opencode V2 (`501b15af26`) | swe-term target | Check |
+|---|---|---|---|
+| Confinement | Permission prompts only | OS sandbox + default-deny egress under the permission layer | Escape fixtures: write outside root, network, credential read all fail |
+| Tool scheduling | Fork every call as it streams | `EffectDeclaration`-driven: reads parallel, writes/exec serial | Race fixture: two writes to one file never interleave |
+| Extensions | In-process npm plugins | First-party in-process; third-party sidecars over protocol | Fitness test: no third-party code in core process |
+| Definition of done | Model stops calling tools | Obligations + receipts + V&V rung gate | `ReceiptGate` blocks exit with an open obligation |
+| Context | Read/grep on demand | Analyzer `ContextPacket` (blast radius, coupling) before the model decides | Benchmark vs. no-packet baseline |
+| Footprint | Bun/TS + Effect, ~154k-line app | Single static Go binary, framework-free core | RSS and cold-start budget in CI |
+| Loop size | 363 lines | Stay under it | `cmd/drift` line ratchet on loop package |
 
 ## oh-my-pi
 

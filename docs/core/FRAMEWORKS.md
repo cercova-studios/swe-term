@@ -12,7 +12,7 @@ Per-harness verdicts are in [`HARNESS_VERDICTS.md`](HARNESS_VERDICTS.md#`harness
 - **Deep Agents** validates middleware composition and adapter patterns, but not the dependency stack.
 - **Prime Agent** is the long-running/detachable product built *on* pi: steal protocol versioning, host-RPC, harness rollback — not Python-REPL-as-the-loop. Now a Rust rewrite (0.10.0).
 - **DeepSeek Harness** is the strongest *correctness spec* (log-derived requests, seams, fail-closed sandbox) and the worst template to copy (340 packages, Cordis). It dropped its own runtime invariant; swe-term keeps it.
-- **opencode** (V2, 2.0.x) is the closest production match to swe-term's shape — protocol-first, event-sourced session, durable inbox — but ships no OS sandbox and in-process npm plugins.
+- **opencode** (V2, 2.0.32 at `501b15af26`, 2026-10-18) is the closest production match to swe-term's shape — protocol-first, event-sourced session, durable inbox — but ships no OS sandbox and in-process npm plugins.
 - **oh-my-pi** is the strongest *tool-quality* fork of pi: steal hashline, per-model edit contracts, summarized reads, Rust engines as **sidecars** — not N-API-in-process or the IDE kitchen sink.
 
 ## Port / Avoid Matrix
@@ -47,7 +47,7 @@ Three independent pi-family / harness systems converge on the same cuts swe-term
 | Code-exec | Prime closed host-RPC, **not** omp full re-entry | Optional sidecar, enumerated methods |
 | Native engines | omp's *what* (grep/edit/tokenize), dsh landlock *how* (separate binary) | Spawn sidecars; never N-API into core |
 
-**Do not grow another `AgentSession`.** Prime (15,101 ln before its Rust rewrite split it) and omp (13,598 ln) are the post-pi cautionary pair; upstream pi itself grew to 4,398 ln. dsh's 705-line driver and opencode's 375-line loop are the size proof that hooks + a log keep the loop small.
+**Do not grow another `AgentSession`.** Prime (15,101 ln before its Rust rewrite split it) and omp (13,598 ln) are the post-pi cautionary pair; upstream pi itself grew to 4,398 ln. dsh's 705-line driver and opencode's 363-line runner are the size proof that hooks + a log keep the loop small.
 
 ## swe-term Decision Mapping
 
