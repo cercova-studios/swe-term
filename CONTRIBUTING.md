@@ -130,3 +130,18 @@ Do not land helper, constructor, mapper, formatter, ranking, or string-snapshot 
 - Bookmarking `@` while it is still the dirty working copy
 - Force-pushing `dev`
 - Treating the Nix flake as required, or mise as the Go version manager (Go lives in `go.mod`)
+
+## Documentation placement
+
+Keep usage, setup, current interfaces, architecture and operating rules beside
+the code. Lead READMEs with useful examples and describe supported prerequisites
+and bounds. Keep tests, runnable examples, schemas, licenses, experiment execution
+contracts and safety/recovery rules with their owners.
+
+The [documentation index](docs/README.md#designated-development-archive) designates
+the existing planning and historical-evidence paths as the development archive.
+Put plans, TODOs, design history and detailed validation/provenance there; link
+from current guides. Preserve status, source identity and limitations. The running
+summary stays at its gated path; frozen experiment metadata is not silently rewritten.
+Historical tests do not imply current verification. Check privacy before publishing
+archive material. Wiki publication and commits still require their usual authorization.

@@ -860,7 +860,7 @@ they did it.
 
 **Do rebirth the CPG *idea* as a swe-term Analyzer**, in Rust, at 5–10% of
 Joern’s power and ~90% of agent value: tree-sitter tags + import/call graph +
-SCIP ingest + SQLite, behind the existing `swe_distiller` sidecar pattern.
+SCIP ingest + SQLite, behind the existing `distiller` sidecar pattern.
 Optionally **wrap** stock `joern-parse` later for security-review taint — with
 a **closed query pack**, never the unsandboxed Scala HTTP interpreter.
 
@@ -908,3 +908,45 @@ Still JVM, still a Joern-shaped fork. Don’t inherit a second analysis OS.
 | Packaged queries | Semgrep + optional Joern query ids | Model never authors the engine language |
 | Export IR for later | SQLite + optional GraphSON | Content-addressed artifacts |
 | `joern-parse` CLI split from REPL | Sidecar has no REPL | `swe_graph` is parse+query, not a shell |
+
+## Google Antigravity (AGY)
+
+> Upstream: closed-source runtime binary (`agy` CLI / Antigravity 2.0 / IDE) and public Python SDK (`google-antigravity`), inspected from bundled reference documentation and active runtime environment contracts on 2026-10-16. General architecture notes:
+> source-insights entry `8c9fc83bb89cc6009bdd712c`.
+
+### Verdict Summary
+Antigravity is a **multi-surface product harness** (CLI, Electron app, IDE, and a thin Python SDK wrapping the compiled runtime binary) whose strongest contributions for swe-term are **context-budget mechanics, hook ergonomics, and SDK packaging** — while its default permission and error-recovery choices provide concrete cautionary counterexamples that validate swe-term's `EffectDeclaration` and Invariant 9/12 rules.
+
+### Assumptions to NOT Port
+#### ❌ "Blocking shell execution equals read-only safety (`confirm_run_command`)"
+
+`LocalAgentConfig` defaults to `policy.confirm_run_command()`, which blocks `run_command` while allowing file creation/edits and **every connected MCP tool** by default unless the caller opts into `deny_all()`. Tool-name-based default policies cannot reason about effect surfaces; swe-term requires per-invocation `EffectDeclaration` + `ObservationLevel` (`observed` | `attested` | `unobservable`).
+
+#### ❌ "Expose `BypassSandbox: bool` on the model's command tool schema"
+
+Putting a sandbox-bypass boolean directly in the model's `run_command` tool arguments forces prompt-level coaching to keep the model inside the sandbox and split command chains. Confinement belongs in the harness adapter driven by declared effects (`Network`, `Writes`), not a model-toggled flag.
+
+#### ❌ "Report `0` tokens when an execution fails"
+
+The SDK documents that failed agent executions may report `total_usage` counts as `0`. That violates swe-term Invariant 12: unknown or failed accounting must remain explicit, never converted to a reassuring zero.
+
+#### ❌ "Let `OnToolErrorHook` mask raw exceptions with fallback strings"
+
+Returning a fallback string in `OnToolErrorHook` hides the failure from the model and risks flattening a failed invocation into apparent success (violating Invariant 9). Repair hints must ride alongside an explicit `failed` or `denied` outcome.
+
+#### ❌ "Vary transcript and artifact paths by product surface"
+
+Hook payloads expose surface-dependent directory names (`antigravity-cli/`, `antigravity/`, `antigravity-ide/`). swe-term's `SessionStore` and artifact paths must stay identical across TUI, headless, and SDK frontends.
+
+### What to Actually Port
+| From Antigravity | To swe-term | Why |
+|------------------|-------------|-----|
+| Thin Python SDK (`Agent` / `Conversation` / `Connection`) over compiled binary | Python SDK for `obsidian-agent` (`OA-001`, `OA-002`) | Host language registers tools/schemas (`ToolContext`, `response_schema`); Go binary owns loop and journal |
+| Eager vs. lazy MCP tool schemas (`<mcp_dir>/<server>/<tool>.json` + `call_mcp_tool`) | MCP `Tool` source (`ARCHITECTURE.md` §9) | Zero upfront schema token tax; on-demand file read + frozen snapshot hash |
+| Paired `transcript.jsonl` + `transcript_full.jsonl` with `truncated_fields` | `SessionStore` / mechanical compaction | O(1) field offload with exact line-aligned provenance and full replay |
+| Dedicated rules token budget (`20,000` tokens) with pointer demotion | Instruction/context loader | Over-budget `AGENTS.md` files demote to path pointers instead of silently truncating or starving context |
+| `PreToolUse` argument `overwrite` prefix notice in tool result | `Hook` contract | Prevents silent hook argument rewrites from corrupting the model's beliefs |
+| Single-turn `ephemeralMessage` injection in `PreInvocation` | Cognitive aids (`structured-verifier-feedback`) | Transient repair guidance is dropped after the turn, leaving zero permanent log bloat |
+| `Stop` hook with `terminationReason` and `fullyIdle` | Loop termination + `ReceiptGate` | Blocks loop exit when background tasks or required obligations remain open |
+| Reactive turn wakeup + subagent `Workspace` mode (`inherit` \| `branch` \| `share`) | Subagent / async tool scheduling | Eliminates status-polling loops and makes worktree isolation explicit at spawn |
+

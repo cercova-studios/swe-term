@@ -1,20 +1,16 @@
-# Research Docs
+# Research workflow and records
 
-swe-term keeps only its own research decisions here. General, source-derived
-knowledge (paper findings, harness architecture notes) lives in the
-`source-insights` library at `~/.agents/knowledge/sources/`; entry IDs are
-cited where they are used.
+[Paper discovery](papers/README.md) and its [templates](papers/templates/) define
+the operating workflow for mechanism discovery, triage and experiment handoff.
+[Experiments](../../experiments/README.md) defines preregistration and execution.
 
-## Paper discovery
+Search plans, paper notes, syntheses and comparative verdicts are development
+records in the [designated archive](../README.md#designated-development-archive).
+The [framework synthesis](../core/FRAMEWORKS.md) and
+[source-pinned verdicts](../core/HARNESS_VERDICTS.md) retain project decisions;
+read their dates and limitations before reuse.
 
-- [`papers/README.md`](papers/README.md) — Hugging Face Papers discovery,
-  signal/noise triage, extraction, synthesis, and experiment handoff contract
-- [`papers/templates/`](papers/templates/) — search plan, paper note, and
-  cross-paper synthesis templates
-
-## Harness and engine verdicts
-
-- [`../core/FRAMEWORKS.md`](../core/FRAMEWORKS.md) — compressed port/avoid matrix
-- [`../core/HARNESS_VERDICTS.md`](../core/HARNESS_VERDICTS.md) — per-harness
-  verdicts for pi, Codex, Claude Code, opencode, oh-my-pi, Prime Agent,
-  DeepSeek Harness, Flue, Deep Agents, and Joern
+General source-derived knowledge lives in the source-insights library at
+`~/.agents/knowledge/sources/`. Entry IDs are cited where used. The root
+[architecture contract](../../ARCHITECTURE.md) decides accepted constraints;
+current source and tests decide implementation status.

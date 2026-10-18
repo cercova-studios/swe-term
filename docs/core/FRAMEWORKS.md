@@ -14,10 +14,11 @@ Per-harness verdicts are in [`HARNESS_VERDICTS.md`](HARNESS_VERDICTS.md#`harness
 - **DeepSeek Harness** is the strongest *correctness spec* (log-derived requests, seams, fail-closed sandbox) and the worst template to copy (340 packages, Cordis). It dropped its own runtime invariant; swe-term keeps it.
 - **opencode** (V2, 2.0.32 at `501b15af26`, 2026-10-18) is the closest production match to swe-term's shape — protocol-first, event-sourced session, durable inbox — but ships no OS sandbox and in-process npm plugins.
 - **oh-my-pi** is the strongest *tool-quality* fork of pi: steal hashline, per-model edit contracts, summarized reads, Rust engines as **sidecars** — not N-API-in-process or the IDE kitchen sink.
+- **Google Antigravity** (`agy` CLI / Python SDK, inspected 2026-10-16) is a strong reference for thin Python SDK packaging over a compiled binary (`Agent`/`Conversation`/`Connection`), filesystem-materialized lazy MCP tool schemas, paired compact/full JSONL transcripts (`truncated_fields`), and hook overwrite/ephemeral-injection contracts — while its tool-name-only default policy (`confirm_run_command`) and zeroed failure token counts are cautionary counterexamples.
 
 ## Port / Avoid Matrix
 
-Revalidated against current upstream on 2026-10-10; each deep dive has a "Changes since" section.
+Revalidated against current upstream on 2026-10-10 (Google Antigravity added 2026-10-16); each deep dive has a "Changes since" section.
 
 | Framework | Port | Avoid |
 |---|---|---|
@@ -30,6 +31,7 @@ Revalidated against current upstream on 2026-10-10; each deep dive has a "Change
 | **DeepSeek Harness** | `deriveMessages`-built frozen requests (keep our runtime check; dsh dropped theirs), versioned session format + migrations, turn/step events, waterfall hook phases, capability seam triple, fail-closed argv sandbox, profile-as-patches, ACP v1 as loop-agnostic adapter | Cordis kernel, 340-package granularity, per-file 100% coverage, in-process `eval` plugins, dual host/client runtimes, Typert/catalog gate factory |
 | **opencode** | History-only `drain`, event-sourced session + projector, durable steer/next-turn inbox, last-match permission rules (empty = deny), `opaque` shell scan, checkpoint compaction with verbatim tail | In-process npm plugins, no OS sandbox, fork-every-tool-call fan-out, dual provider SDKs, Effect as architecture, product mass in-repo |
 | **oh-my-pi** | Hashline/snapshot-verified edits (Rust engine), per-model tool contracts, summarized read/grep, `ToolContext`, JSONL+SQLite split, prompts-as-files, mechanical + notes-backed compaction, harness metrics | In-process N-API as plugin ABI (now edit/VCS too), eval as tool gateway (Code Mode, browser/computer), 13.6k-line session, kitchen-sink core, snapcompact as default, Bun lock-in |
+| **Google Antigravity** | Thin Python SDK (`Agent`/`Conversation`/`Connection` + `ToolContext`) over compiled binary, filesystem-materialized lazy MCP schemas (`<mcp_dir>/<server>/<tool>.json` + `call_mcp_tool`), paired `transcript.jsonl` + `transcript_full.jsonl` (`truncated_fields`), 20k-token rules budget with pointer demotion, `PreToolUse` overwrite notice, single-turn `ephemeralMessage`, `Stop` hook with `fullyIdle`, reactive wakeup + subagent `Workspace` modes (`inherit`/`branch`/`share`) | Tool-name-only default policy (`confirm_run_command` allows file edits and all MCP tools), model-facing `BypassSandbox: bool` tool arg, `0` token reporting on failed runs, error-masking `OnToolErrorHook` fallback strings, surface-specific transcript/artifact directory names |
 
 ## Cross-cutting synthesis (this round)
 

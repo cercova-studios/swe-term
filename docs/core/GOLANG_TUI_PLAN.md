@@ -31,7 +31,7 @@ The CLI tools (X search, web→markdown, PDF parsing, codebase research) and AST
 | Layered modularity | npm packages with clear dependencies | Go modules with `go.work` |
 | Unified LLM abstraction | `streamFn()` + `ModelRegistry` | `Provider` interface + `Registry` |
 | Extension system | `pi.registerTool()`, `pi.on()` | Go `Tool`/`Hook` interfaces + thin subprocess adapters for native services |
-| External services | Wrapped inside TS extensions via `exec`/`spawn` | Dedicated `cli/*` adapters calling `extensions/*` binaries (e.g. `swe_distiller`) |
+| External services | Wrapped inside TS extensions via `exec`/`spawn` | Dedicated `cli/*` adapters calling `extensions/*` binaries (e.g. `distiller`) |
 | Event streaming | EventEmitter with typed events | Typed channels with `context.Context` |
 | Message queuing | `steeringQueue` + `followUpQueue` | Channel-based priority queue |
 | Tool execution | parallel/sequential + before/after hooks | Same model, goroutine-native |
@@ -59,7 +59,7 @@ Analysis of Claude Code's source (~512K LoC, ~1900 files) reveals production-har
 | **Mock parity harness** | `mock-anthropic-service` + scripted scenarios in `mock_parity_harness.rs` + `mock_parity_scenarios.json` | Phase 1: `test/mockprovider` + `test/integration/scenarios.json`; CI runs clean-env E2E before TUI |
 | **Honest capability matrix** | `PARITY.md` labels stub vs real per tool | `docs/HARNESS_PARITY.md` (or section in plan): what's implemented, what's delegated to `extensions/*` |
 | **Lean agent binary** | `claw-analog`: FS tools only, no bash/MCP/plugins, NDJSON for automation | `cmd/harness-headless`: read/grep/write (mode-gated), stdout JSON — CI and agent-to-agent |
-| **RAG / heavy retrieval sidecar** | `claw-rag-service` HTTP + SQLite; agent calls `retrieve_context` | Same as `swe_distiller`: sidecar or `extensions/*` binary, never embed indexing in core |
+| **RAG / heavy retrieval sidecar** | `claw-rag-service` HTTP + SQLite; agent calls `retrieve_context` | Same as `distiller`: sidecar or `extensions/*` binary, never embed indexing in core |
 | **Permission modes** | `PermissionMode`: read-only, workspace-write, danger-full-access, prompt | Extend `Approver` with `PermissionProfile` on session; tools declare `RequiredMode()` |
 | **Typed approval tokens** | `approval_tokens.rs`: scope, expiry, consumed/revoked, delegation hops | `ApprovalGrant` struct for one-shot exceptions (e.g. allow `distill_url` to internal docs host) |
 | **Structured events > TUI scrape** | `lane_events.rs`: typed names, status, fingerprints, dedupe | Event bus payloads include `schema`, `seq`, fingerprint; TUI is never source of truth |
@@ -69,7 +69,7 @@ Analysis of Claude Code's source (~512K LoC, ~1900 files) reveals production-har
 | **Workspace trust gate** | `trust_resolver.rs`: allowlist, auto-trust, typed `TrustEvent` | Run once at session start before loop; emit `TrustResolved` on bus |
 | **Bash safety decomposition** | Nine validation submodules (path, sed, sandbox decision, …) | `tools/terminal/safety/*` as separate files, each testable |
 | **Task packet** | `task_packet.rs`: objective, scope, acceptance criteria, permission profile | Optional `Session.Task` for spawned child agents / SWE-bench runs |
-| **In-crate vs subprocess tools** | `pdf_extract.rs` in `tools/` (small, pure Rust) | In Go only when small; else `extensions/*` + `cli/*` adapter (see swe_distiller) |
+| **In-crate vs subprocess tools** | `pdf_extract.rs` in `tools/` (small, pure Rust) | In Go only when small; else `extensions/*` + `cli/*` adapter (see distiller) |
 
 **Explicitly defer from claw-code** (complexity without Harness v1 goals): 40-tool surface parity, team/cron registries, lane board JSON, plugin marketplace install, 100+ slash commands, green-contract merge automation.
 
@@ -209,7 +209,7 @@ Harness     →  Go core + Bubble Tea + extensions/* (planned)
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │  Native Services (repo `extensions/`, non-Go binaries)    │    │
 │  │  ┌──────────────┐  ┌──────────┐  ┌──────────┐           │    │
-│  │  │ swe_distiller│  │ (future) │  │ swe-token│           │    │
+│  │  │ distiller    │  │ (future) │  │ swe-token│           │    │
 │  │  │   (Rust)     │  │          │  │  (Rust)  │           │    │
 │  │  └──────┬───────┘  └──────────┘  └──────────┘           │    │
 │  │         │ subprocess / JSON stdout                       │    │
@@ -230,7 +230,7 @@ This means:
 - Replace the TUI with a web frontend without touching agent logic
 - Add a new tool by implementing a 3-method interface
 - Integrate an AST analyzer as a specialized tool
-- Wrap a Rust/Python service (like `swe_distiller`) with a thin Go `Tool` adapter — same role pi-mono extensions play for `rg` or custom CLIs, without dynamic `import()`
+- Wrap a Rust/Python service (like `distiller`) with a thin Go `Tool` adapter — same role pi-mono extensions play for `rg` or custom CLIs, without dynamic `import()`
 - Expose hosted agents via `POST /agents/{name}/{instanceID}` with stable instance scope (Flue) while keeping the interactive path on Bubble Tea
 - Back each infrastructure concern (compute, retrieval, blobs, KV) with the *best* provider behind a narrow port — Modal for sandboxes, turbopuffer for retrieval, S3/GCS/R2 for blobs — none of them load-bearing, each swappable for a self-host adapter
 - Let **agents extend the framework** without writing Go — author a Markdown skill, a sandboxed Monty program, or a Starlark tool def at runtime; promote to a compiled `Tool` only when proven (see *Metaengineering: A Framework Agents Can Extend*)
@@ -495,7 +495,7 @@ harness/
 │   ├── xsearch/
 │   │   └── xsearch.go              # X API search — implements Tool
 │   ├── distiller/
-│   │   └── distiller.go            # Wraps extensions/swe_distiller — implements Tool
+│   │   └── distiller.go            # Wraps extensions/distiller — implements Tool
 │   ├── webmd/
 │   │   └── webmd.go                 # Web→Markdown (may delegate to distiller or pure Go)
 │   ├── pdfparse/
@@ -562,9 +562,9 @@ harness/
 
 # Repo root (sibling to harness/) — native implementations, not Go modules
 extensions/
-├── swe_distiller/                   # Rust: URL → markdown/json (see ARCHITECTURE.md)
+├── distiller/                       # Rust: URL → markdown/json (see ARCHITECTURE.md)
 │   ├── Cargo.toml
-│   └── src/                         # Library + `swe_distiller` binary
+│   └── src/                         # Library + `distiller` binary
 └── (future native services)
 ```
 
@@ -961,7 +961,7 @@ func (ts *TreeSitter) Query(ctx context.Context, q *harness.AnalysisQuery) (*har
 }
 ```
 
-### Wrapping Native Services (`swe_distiller`)
+### Wrapping Native Services (`distiller`)
 
 pi-mono extensions are TypeScript modules loaded at runtime (`~/.pi/agent/extensions/`, `-e path.ts`). They extend the agent via `pi.registerTool()` and `pi.on()`. When the capability lives in another language or a standalone CLI, the extension **wraps a subprocess** — see [truncated-tool.ts](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/examples/extensions/truncated-tool.ts), which registers an `rg` tool that shells out to ripgrep, truncates output, and optionally spills full results to a temp file.
 
@@ -972,7 +972,7 @@ Harness does not use dynamic extension loading. The equivalent is a **two-layer 
 | **Native service** | `extensions/<name>/` | Fast, focused binary or library (Rust, Python, etc.). Stable CLI contract. No knowledge of the agent loop. |
 | **Go adapter** | `harness/cli/<name>/` | Implements `harness.Tool`. Spawns the binary, maps JSON schema ↔ CLI flags, truncates/caches, returns `ToolResult`. |
 
-`swe_distiller` is the reference implementation of this pattern.
+`distiller` is the reference implementation of this pattern.
 
 #### pi-mono vs Harness (same intent, different wiring)
 
@@ -982,10 +982,10 @@ pi-mono (runtime extension)                Harness (compile-time composition)
   extension.ts                               cmd/harness/main.go
        │                                          │
        ├─ pi.registerTool({ name: "…" })          ├─ core.WithTools(distiller.New(cfg))
-       └─ execute() → spawn swe_distiller         └─ DistillerTool.Execute() → process.Run(...)
+       └─ execute() → spawn distiller             └─ DistillerTool.Execute() → process.Run(...)
               │                                          │
               ▼                                          ▼
-         swe_distiller binary                      extensions/swe_distiller binary
+         distiller binary                          extensions/distiller binary
 ```
 
 | Concern | pi-mono | Harness |
@@ -1000,15 +1000,15 @@ pi-mono (runtime extension)                Harness (compile-time composition)
 
 #### Stable CLI contract (owned by the native service)
 
-The adapter depends on a **versioned subprocess contract**, not on Rust types. Today `swe_distiller` exposes:
+The adapter depends on a **versioned subprocess contract**, not on Rust types. Today `distiller` exposes:
 
 ```bash
-swe_distiller <url> --stdout                    # markdown on stdout (agent-friendly)
-swe_distiller <url> --mode json --stdout        # structured metadata + content
-swe_distiller <url> --llm -o out.md             # optional LLM override pipeline
+distiller <url> --stdout                    # markdown on stdout (agent-friendly)
+distiller <url> --mode json --stdout        # structured metadata + content
+distiller <url> --llm -o out.md             # optional LLM override pipeline
 ```
 
-Harness adapters should prefer `--stdout` and `--mode json` so nothing writes into the workspace unless the LLM explicitly asks for a file path. Environment (proxy, provider keys) stays in the **native** service (`SWE_DISTILLER_*`, `JINA_API_KEY`, etc.) — the Go layer only forwards allowlisted env vars from config, never logs secrets.
+Harness adapters should prefer `--stdout` and `--mode json` so nothing writes into the workspace unless the LLM explicitly asks for a file path. Environment (proxy, provider keys) stays in the **native** service (`DISTILLER_*`, `JINA_API_KEY`, etc.) — the Go layer only forwards allowlisted env vars from config, never logs secrets.
 
 #### Go adapter sketch
 
@@ -1027,7 +1027,7 @@ import (
     "github.com/user/harness/core/process"
 )
 
-// DistillerTool wraps extensions/swe_distiller for the agent loop.
+// DistillerTool wraps extensions/distiller for the agent loop.
 // Equivalent to a pi-mono extension that registerTool({ name: "distill_url", execute: ... }).
 type DistillerTool struct {
     Bin    string              // default: lookup PATH or cfg.Extensions.Distiller
@@ -1071,7 +1071,7 @@ func (d *DistillerTool) Execute(ctx context.Context, args json.RawMessage) (*cor
     out, err := d.Runner.Run(ctx, process.Command{
         Path: d.Bin,
         Args: argv,
-        // Env: only SWE_DISTILLER_* + proxy vars from config — never dump os.Environ()
+        // Env: only DISTILLER_* + proxy vars from config — never dump os.Environ()
     })
     if err != nil {
         return &core.ToolResult{IsError: true, Content: err.Error()}, nil
@@ -1097,12 +1097,12 @@ func (d *DistillerTool) Execute(ctx context.Context, args json.RawMessage) (*cor
 ```go
 // config.Extensions — resolved at startup (no runtime plugin registry)
 type Extensions struct {
-    Distiller string `toml:"distiller"` // path to binary; default: "swe_distiller" on PATH
+    Distiller string `toml:"distiller"` // path to binary; default: "distiller" on PATH
 }
 
 // cmd/harness/main.go
 distillerTool := distiller.New(distiller.Options{
-    Bin:    cfg.Extensions.Distiller, // or ${REPO_ROOT}/extensions/swe_distiller/target/release/swe_distiller
+    Bin:    cfg.Extensions.Distiller, // or ${REPO_ROOT}/extensions/distiller/target/release/distiller
     Runner: process.DefaultRunner(),
     Cache:  diskCache,
 })
@@ -1121,7 +1121,7 @@ h := core.New(
 
 ```bash
 # Native service alone
-cd extensions/swe_distiller && cargo run -- "https://example.com" --stdout | head
+cd extensions/distiller && cargo run -- "https://example.com" --stdout | head
 
 # Through harness (once wired)
 echo '{"tool":"distill_url","args":{"url":"https://example.com"}}' | go run ./cmd/harness/
@@ -1132,10 +1132,10 @@ echo '{"tool":"distill_url","args":{"url":"https://example.com"}}' | go run ./cm
 | Style | When | Example |
 |-------|------|---------|
 | **In-process Go `Tool`** | Logic is small, no special runtime | `read_file`, glob rules |
-| **Subprocess adapter** (`cli/*` → `extensions/*`) | Heavy native stack (HTML, ML, browsers) | `swe_distiller`, future `swe-tokenizer` |
+| **Subprocess adapter** (`cli/*` → `extensions/*`) | Heavy native stack (HTML, ML, browsers) | `distiller`, future `swe-tokenizer` |
 | **Long-running sidecar** | Amortize startup (index servers) | Zoekt, tree-sitter daemon (later) |
 
-Rule: keep the **native** crate/script focused on one job (extract, tokenize, parse). Keep the **Go adapter** focused on agent concerns (schema, cache, truncation, approval, events). Do not re-implement distillation in Go while `extensions/swe_distiller` exists — that duplicates the pipeline described in `extensions/swe_distiller/ARCHITECTURE.md`.
+Rule: keep the **native** crate/script focused on one job (extract, tokenize, parse). Keep the **Go adapter** focused on agent concerns (schema, cache, truncation, approval, events). Do not re-implement distillation in Go while `extensions/distiller` exists — that duplicates the pipeline described in `extensions/distiller/ARCHITECTURE.md`.
 
 #### Hooks without `pi.on()`
 
@@ -1304,7 +1304,7 @@ The single biggest deployment mistake is treating "run it in the cloud" as one t
 | Workload | Shape | Wants |
 |----------|-------|-------|
 | **Orchestrator** (`harness-server`, agent loop, sessions, run registry) | long-lived, light CPU, stateful | live near your DB/secrets; steady-state economics |
-| **Sandbox / archaeology** (clone, extract, `rg`/`bsdtar`/`swe_distiller`, agent-authored code) | ephemeral, per-repo, untrusted, bursty | FS + arbitrary subprocess; per-job isolation; scale-to-zero |
+| **Sandbox / archaeology** (clone, extract, `rg`/`bsdtar`/`distiller`, agent-authored code) | ephemeral, per-repo, untrusted, bursty | FS + arbitrary subprocess; per-job isolation; scale-to-zero |
 
 Cloudflare Workers can host the orchestrator but **cannot** be the sandbox (no FS, no subprocess). That asymmetry is the whole argument for keeping the sandbox tier behind a swappable port.
 
@@ -1345,7 +1345,7 @@ A `Runtime` capability descriptor lets the core adapt to environments that lack 
 ```go
 type Runtime struct {
     LocalFS       bool   // can we write to a real disk?
-    Subprocess    bool   // can we exec rg / bsdtar / swe_distiller?
+    Subprocess    bool   // can we exec rg / bsdtar / distiller?
     EphemeralGB   int    // scratch budget for hydration
     Region        string
 }
@@ -1367,7 +1367,7 @@ The payoff of narrow ports: each one is backed by the *best* provider, none load
 
 ### Sandbox compute tier (Modal vs cloud-native)
 
-`modal.Sandbox` is purpose-built for "execute agent code": gVisor isolation, `sb.Exec([...])` runs **any** binary (so `swe_distiller`, `rg`, `bsdtar` work unchanged), volumes, FS snapshots, web tunnels, idle-timeout + scale-to-zero, and a **Go SDK** (`mc.Sandboxes.Create`, `sb.Exec`) that maps onto our `Sandbox` interface 1:1. It's the same role Flue gives Daytona — a *remote sandbox connector*, not foundational.
+`modal.Sandbox` is purpose-built for "execute agent code": gVisor isolation, `sb.Exec([...])` runs **any** binary (so `distiller`, `rg`, `bsdtar` work unchanged), volumes, FS snapshots, web tunnels, idle-timeout + scale-to-zero, and a **Go SDK** (`mc.Sandboxes.Create`, `sb.Exec`) that maps onto our `Sandbox` interface 1:1. It's the same role Flue gives Daytona — a *remote sandbox connector*, not foundational.
 
 ```go
 // platform/modal — Remote tier of core/sandbox.Sandbox
@@ -1494,7 +1494,7 @@ The extensions that make this an **agent harness**, not just an agent.
 | Module | What | Learn |
 |--------|------|-------|
 | `cli/runner` | Shared subprocess + truncation for native CLIs | `process.Runner`, argv-only spawn, output limits |
-| `cli/distiller` | Go `Tool` adapter for `extensions/swe_distiller` | Polyglot extension pattern (pi `registerTool` → compile-time `Tool`) |
+| `cli/distiller` | Go `Tool` adapter for `extensions/distiller` | Polyglot extension pattern (pi `registerTool` → compile-time `Tool`) |
 | `core/archive` | Catalog/reader/search over zip+tar.gz w/o extraction | JIT streaming, central-directory parsing, lazy grep |
 | `cli/xsearch` | X API search as a tool | OAuth, API clients, pagination |
 | `cli/webmd` | Optional pure-Go fallback if distiller binary absent | When not to subprocess |
@@ -1605,11 +1605,11 @@ Harness promotes safety from "convention" to "structure":
 
 This is the single most important architectural difference from Claude Code. Safety is not a feature. It is the architecture.
 
-### 7. Why Native Services Use Subprocess Adapters (Lesson from pi-mono + swe_distiller)
+### 7. Why Native Services Use Subprocess Adapters (Lesson from pi-mono + distiller)
 
 pi-mono can load a TypeScript extension that wraps `rg`, a Python script, or any CLI via `registerTool` + subprocess. Harness replaces runtime discovery with **explicit wiring**, but keeps the same boundary: the agent never embeds Rust/HTML/ML stacks inside the Go core.
 
-- **`extensions/swe_distiller`** owns extraction quality (fetch, DOM, markdown, optional LLM). It ships as a standalone binary with a stable `--stdout` contract.
+- **`extensions/distiller`** owns extraction quality (fetch, DOM, markdown, optional LLM). It ships as a standalone binary with a stable `--stdout` contract.
 - **`cli/distiller`** owns agent semantics: JSON schema, content-addressable cache, truncation, `ReadOnly()`, Approver visibility, event bus.
 - **No CGO/FFI** unless profiling proves subprocess overhead is dominant — subprocess + cache is simpler and matches how pi-mono wraps ripgrep.
 
@@ -1625,7 +1625,7 @@ claw-code's main gift to Harness is **operational honesty** and **machine-readab
 
 2. **Headless lean binary** — `claw-analog` separates "agent for humans" from "agent for pipes." Harness: `cmd/harness-headless` with `--output-format json`, explicit caps (turns, bytes, glob hits), and no bash — ideal for CI and for another agent calling Harness.
 
-3. **Sidecar retrieval** — Indexing and embeddings live in `claw-rag-service`; the agent only HTTP-calls `retrieve_context`. This mirrors `extensions/swe_distiller` + `cli/distiller`: **never** pull RAG or HTML pipelines into `core/`.
+3. **Sidecar retrieval** — Indexing and embeddings live in `claw-rag-service`; the agent only HTTP-calls `retrieve_context`. This mirrors `extensions/distiller` + `cli/distiller`: **never** pull RAG or HTML pipelines into `core/`.
 
 4. **Permission profile + enforcer** — Tools declare required mode; `PermissionEnforcer` returns structured `Denied { tool, active_mode, required_mode, reason }`. Map to Harness: `Tool.RequiredMode()` + `Approver` chain; return structured denials the LLM can read (not opaque strings).
 
@@ -1685,7 +1685,7 @@ Flue validates that **“harness framework”** is a distinct product from **“
 
 8. **Run registry** — Assign `runID` per invocation; expose status and event tail for automation (Flue `run-registry.ts`, OpenAPI envelopes).
 
-9. **Connector recipes** — Document `extensions/swe_distiller`, Daytona, etc. as markdown install guides (Flue `flue add` pattern) even when wiring stays compile-time in `main.go`.
+9. **Connector recipes** — Document `extensions/distiller`, Daytona, etc. as markdown install guides (Flue `flue add` pattern) even when wiring stays compile-time in `main.go`.
 
 10. **MCP bootstrap in trusted code only** — Connect remote MCP in server bootstrap; pass `[]Tool` into registry; never auto-spawn stdio MCP from agent turns (Flue v1 scope).
 
@@ -1845,7 +1845,7 @@ Claude Code maintains a ~15K-line custom Ink fork (layout engine, reconciler, ev
 
 ### Architecture Inspiration
 - [pi-mono](https://github.com/badlogic/pi-mono) — The TypeScript agent framework this design evolves from. Extension docs: [extensions.md](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/extensions.md). Subprocess tool example: [truncated-tool.ts](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/examples/extensions/truncated-tool.ts).
-- [extensions/swe_distiller/ARCHITECTURE.md](../../extensions/swe_distiller/ARCHITECTURE.md) — Native extraction service wrapped by `cli/distiller`
+- [extensions/distiller/ARCHITECTURE.md](../../extensions/distiller/ARCHITECTURE.md) — Native extraction service wrapped by `cli/distiller`
 - [claw-code](../../claw-code/) — Rust agent port in this repo: mock parity harness, permission modes, typed events/reports, RAG sidecar, lean `claw-analog`. See `claw-code/rust/PARITY.md`, `claw-code/rust/MOCK_PARITY_HARNESS.md`, `claw-code/docs/g004-events-reports-contract.md`.
 - [flue](../../flue/) — Local reference copy (gitignored) of [withastro/flue](https://github.com/withastro/flue): headless harness on pi-mono, sandbox tiers, instance/harness/session API, structured `prompt` results, `flue run` / HTTP deploy. Read `flue/README.md`, `flue/packages/runtime/src/session.ts`, `flue/packages/runtime/src/compaction.ts`, `flue/packages/runtime/src/result.ts`.
 - [Deep Agents](https://github.com/langchain-ai/deepagents) — LangChain's middleware-over-LangGraph harness; the survey's strongest *organizational* reference (composition, pluggable backends, FS-as-overflow, thin ACP/Harbor adapters). Local checkout at `../../deepagents`. See `HARNESS_VERDICTS.md#deep-agents`.

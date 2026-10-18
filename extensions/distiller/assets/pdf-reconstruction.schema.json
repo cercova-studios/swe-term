@@ -1,0 +1,130 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "blocks"
+  ],
+  "properties": {
+    "blocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "parts",
+          "level",
+          "continues",
+          "reference",
+          "rows",
+          "images"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "p",
+              "h",
+              "quote",
+              "li",
+              "note",
+              "furniture",
+              "figure",
+              "table",
+              "caption",
+              "pre",
+              "visual"
+            ]
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "join"
+              ],
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "join": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "space",
+                    "dehyphen"
+                  ]
+                }
+              }
+            }
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "continues": {
+            "type": "boolean"
+          },
+          "reference": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "parts"
+                ],
+                "properties": {
+                  "parts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "join"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "join": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "space",
+                            "dehyphen"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    }
+  }
+}

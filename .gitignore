@@ -31,9 +31,9 @@ pi-mono/
 .mcp_data/
 setup-agents.sh
 
-# swe_distiller generated outputs
-extensions/swe_distiller/webpage.md
-extensions/swe_distiller/webpage-llm.md
+# distiller generated outputs
+extensions/distiller/webpage.md
+extensions/distiller/webpage-llm.md
 
 .pi/npm/
 deepagents/

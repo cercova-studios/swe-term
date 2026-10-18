@@ -9,7 +9,7 @@ compiled counterpart to `docs/research/papers/<topic>/synthesis.md` and
 the detailed, per-topic and per-experiment record; this is the one place that
 answers "what do we actually know so far, across everything."
 
-Last compiled: 2026-10-10.
+Last compiled: 2026-10-16.
 
 ## 1. Fleet CPG Engine — completed benchmark experiments
 
@@ -562,6 +562,7 @@ section with commit or path citations; the compressed verdicts live in
 | Flue | 2.2.2, `6583259` | 2.0 hook-based `'use agent'` redesign; uniform durability contract | Cloudflare-coupling concern largely withdrawn; API churn added |
 | Deep Agents | core 0.7.23, `9f0e39d` | Lean prompts, `TodoListMiddleware` out of defaults, Harbor wrapper deleted | LangSmith coupling strengthened (now a core dependency) |
 | opencode (new; refreshed 2026-10-18) | 2.0.32, `501b15af26` (was 2.0.26, `823ac87f58`) | Protocol-first, event-sourced V2 core with durable inbox; since: bounded retry, `OutputLimit` outcome, incomplete-input fail, LF-view edits | Closest production match; still no OS sandbox, still eager fork. `PLAN.md` now carries a "Competitive bar: opencode V2" section |
+| Google Antigravity (new, 2026-10-16) | `agy` CLI / Python SDK (bundled docs + active runtime) | Thin Python SDK over compiled binary, lazy MCP schema files, dual `transcript.jsonl` + `transcript_full.jsonl` (`truncated_fields`), hook overwrite notice & `ephemeralMessage` | Validates SDK-over-binary (`OA-001`) and lazy MCP schemas; `confirm_run_command` default and `0`-token failure reporting reinforce `EffectDeclaration` and Invariant 12 |
 
 Cross-cutting: every pi-family descendant kept growing its session class
 (pi 4.4k, omp 13.6k, Prime 15.1k before rewrite), while log-driven loops
@@ -642,3 +643,22 @@ suite was not trimmed, the dependencies were not vendored to disguise the
 count, and nothing was moved out of `internal/` to dodge the exported-decl
 signal. The one legitimate reduction available — unexporting the span
 taxonomy, since nothing outside the package reads it — was taken.
+
+
+## Deterministic distiller fidelity — local comparison, unpromoted
+
+The [comparison report](../../experiments/specs/distiller-xberg-quoted-fidelity/RESULTS.md)
+records the frozen PurpleSyringa article and an authored regression fixture.
+Final installed distiller and xberg 1.3.7 both retain all seven source code blocks.
+Distiller retains 48/48 MathML structures; xberg flattens them into plain text.
+On the authored fixture, both preserve code, links and blank cells; only distiller
+retains math and spanning table attributes. Observer wall medians on the article
+were 20.56/40.60 ms, maximum RSS 15.34/24.69 MiB. Polling overhead and different
+input adapters prevent a precise parser-speed claim.
+
+Initial loopback and auto-MIME attempts aborted. A code-oracle false negative
+was corrected in a separate preregistration; earlier xberg 4/7 is invalid,
+and the corrected result is 7/7. Fixtures were inspected during development,
+not held out. The extraction fixes passed 52 Rust tests, with four initial new
+journeys failing on the old implementation. Raw results remain unpromoted;
+no general extractor ranking or architecture acceptance follows from this run.

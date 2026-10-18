@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "experiment_id": "distiller-xberg-fidelity-file",
+  "status": "preregistered",
+  "kind": "benchmark",
+  "papers": [],
+  "design_references": [
+    {
+      "title": "Deterministic distiller extension",
+      "url": "https://github.com/cercova-studios/swe-term/blob/dev/ARCHITECTURE.md",
+      "claim": "Section 9 URL extraction extension: deterministic source fidelity and process cost."
+    }
+  ],
+  "hypothesis": "Distiller retains at least as many exact source code blocks, MathML structures, links and declared table invariants as xberg on the two frozen fixtures.",
+  "null_hypothesis": "Xberg retains more of any declared fidelity component, preventing a distiller dominance verdict.",
+  "independent_variable": "CLI extractor implementation with supported input adapter: distiller loopback HTTP versus xberg local file; identical bytes.",
+  "source": {
+    "kind": "directory",
+    "locator": "fixtures",
+    "revision": "",
+    "content_digest": "sha256:1c8786d67719c6833fe2c65479a34b5feb8b8726134dbf3a1963e5c98059dcd2"
+  },
+  "environment": {
+    "adapter": "process",
+    "network": "loopback",
+    "network_justification": "Both URL extractors receive identical frozen HTML from a local HTTP server; no WAN or LLM calls.",
+    "allowed_env": [
+      "PATH",
+      "HOME",
+      "TMPDIR"
+    ],
+    "resources": {
+      "timeout_seconds": 30,
+      "max_parallelism": 1,
+      "max_output_bytes": 1048576,
+      "memory_bytes": null,
+      "cpu_seconds": null
+    }
+  },
+  "model": {
+    "required": false,
+    "provider": "",
+    "id": "",
+    "parameters": {},
+    "prompt_digest": "",
+    "tool_schema_digest": ""
+  },
+  "variants": [
+    {
+      "name": "distiller",
+      "description": "Installed deterministic distiller; no --llm flag.",
+      "command": [
+        "/Users/rohit/.cargo/bin/distiller",
+        "{url}",
+        "--stdout"
+      ],
+      "config": {}
+    },
+    {
+      "name": "xberg",
+      "description": "Installed xberg-cli 1.3.7; Markdown output, OCR and cache disabled, config discovery disabled. Local file input because URL loopback is denied.",
+      "command": [
+        "/opt/zerobrew/bin/xberg",
+        "extract",
+        "{fixture}",
+        "--no-config-discovery",
+        "--no-cache",
+        "true",
+        "--ocr",
+        "false",
+        "--content-format",
+        "markdown",
+        "--format",
+        "text"
+      ],
+      "config": {}
+    }
+  ],
+  "repetitions": 5,
+  "randomness": {
+    "mode": "deterministic",
+    "seeds": [],
+    "justification": "Frozen deterministic sources; alternating CLI order, one warmup then five measurements per fixture and variant."
+  },
+  "metrics": {
+    "primary": "Exact preformatted source code blocks retained, preserving indentation and blank lines.",
+    "secondary": [
+      "MathML tag/text structure retained (alternative math representation equivalence unverified)",
+      "Absolute link targets retained",
+      "Synthetic empty cells and colspan/rowspan preserved",
+      "Median/range process wall time",
+      "Peak process RSS"
+    ],
+    "acceptance_rule": "A fixture-scoped fidelity winner must be no worse in every declared fidelity component and better in at least one. Timing is descriptive and cannot compensate for fidelity loss. Otherwise report ties/tradeoffs. No general superiority or architecture promotion."
+  },
+  "evaluator": {
+    "kind": "command",
+    "command": [
+      "python3",
+      "experiments/specs/distiller-xberg-fidelity/run.py",
+      "--self-check"
+    ],
+    "rubric": "Independent stdlib HTMLParser source oracle; fenced-code exact comparison with only a missing terminal newline tolerated. Math tag/text trees retain attributes and ignore insignificant whitespace; report representation retention, not semantic equivalence. All source non-fragment links resolved against loopback URL; only Markdown link destinations and HTML hrefs count. Synthetic table empty cell and span checks; one warmup excluded, five timed repetitions, retain failures and all raw outputs. Abort on timeout, nonzero exit, excess output or varying fidelity.",
+    "rubric_digest": "sha256:eeb29f2a97b136c23e31e28d8359ce80d464ef2742133e371bcab9b883443276"
+  },
+  "evidence": {
+    "raw_runs": "experiments/runs/distiller-xberg-fidelity-file",
+    "curated": "experiments/evidence/distiller-xberg-fidelity-file"
+  }
+}
