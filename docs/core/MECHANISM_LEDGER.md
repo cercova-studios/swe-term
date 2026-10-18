@@ -32,8 +32,8 @@ A mechanism without a row does not ship by default.
 | Mechanism | Kind | Status | Owner | Evidence | Models | Verdict | Review when |
 |---|---|---|---|---|---|---|---|
 | Receipt-gated lifecycle claims | boundary | Implemented (reducer only) | `internal/core/receipt_gate.go`, invariant 6 | `evidence-gated-lifecycle` (complete, accepted) | — (deterministic traces) | keep; friction unmeasured | First loop-driven task run |
-| Temporal control-journal monitor | boundary | Target | `ControlJournal`, §6 | `temporal-journal-monitor` (complete) | — (deterministic traces) | keep; friction unmeasured | First loop-driven task run |
-| Effect declarations | boundary | Target | `EffectDeclaration`, in-flight refactor 2 | — | — | keep; measure declaration cost per call | First mutating tool lands |
+| Temporal control-journal monitor | boundary | Implemented | `internal/core/journal.go`, `internal/core/control_monitor.go`, §6 | `temporal-journal-monitor` (complete, corpus v4) | — (deterministic traces) | keep; friction unmeasured | First loop-driven task run |
+| Effect declarations | boundary | Implemented | `internal/core/effect.go`, in-flight refactor 2 | `temporal-journal-monitor` (complete, corpus v4) | — | keep; measure declaration cost per call | First mutating tool lands |
 | Externalized task state | boundary | Target | `TaskSnapshot` | `verified-external-task-state` (draft) | — | keep; measure friction | Spec reaches `ready` |
 | Context provenance and freshness | boundary | Target (contract defined) | `internal/core/context_packet.go` | Fleet CPG benchmarks (complete) | — | keep | First packet producer lands |
 | Protected-spine compaction | boundary (spine) + aid (summary) | Target | §7 | `protected-spine-compaction` (draft) | — | Spine: keep. Summary content: ablate | Spec reaches `ready` |

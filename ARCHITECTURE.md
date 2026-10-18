@@ -95,11 +95,11 @@ earns its keep as per-turn cost and token attribution, not as a call tree.
 | `Message`, `StreamRequest`, `StreamEvent`, `Model` | Implemented | Provider-neutral request and streaming event vocabulary | [`internal/core/provider.go`](internal/core/provider.go) |
 | `Provider` | Implemented | Streams completions and exposes model capabilities | [`internal/core/provider.go`](internal/core/provider.go) |
 | `Usage`, `UsageTotals`, `Response` | Implemented | Provider-reported completion and session accounting. `Usage.InputTokens` is **uncached** input; `gen_ai.usage.input_tokens` is defined cache-inclusive, so exporters must reconstruct the total rather than copy the field | [`internal/core/usage.go`](internal/core/usage.go) |
-| `Tool` | Target | Declares a versioned schema and executes a bounded invocation | [`internal/core/`](internal/core/) |
-| `EffectDeclaration` | Target | Per-invocation paths, processes, network destinations, and secret names | [`internal/core/`](internal/core/) |
+| `Tool` | Implemented | Declares a versioned schema and executes a bounded invocation | [`internal/core/tool.go`](internal/core/tool.go) |
+| `EffectDeclaration` | Implemented | Per-invocation paths, processes, network destinations, and secret names, with an observation level | [`internal/core/effect.go`](internal/core/effect.go) |
 | `SessionStore` | Target | Persists sessions, journal checkpoints, task snapshots, and receipt indexes | [`internal/core/`](internal/core/) |
 | `TaskSnapshot` | Target | Externalized, typed task state updated only from attributable evidence | [`internal/core/`](internal/core/) |
-| `ControlEvent` / `ControlJournal` | Target | Durable ordered lifecycle record used by the safety monitor | [`internal/core/`](internal/core/) |
+| `ControlEvent` / `ControlJournal` | Implemented | Durable ordered lifecycle record used by the safety monitor; JSONL file journal assigns sequence and fails loudly on corrupt or gapped records | [`internal/core/journal.go`](internal/core/journal.go), [`internal/core/control_monitor.go`](internal/core/control_monitor.go) |
 | `VerificationReceipt` | Target | Fresh, source-bound evidence that an obligation was discharged | [`internal/core/`](internal/core/) |
 | `Obligation` | Target | Required check with kind, risk policy, status, and minimum V&V rung | [`internal/core/`](internal/core/) |
 | `MutationLease` | Target | Enforces a single active mutation owner | [`internal/core/`](internal/core/) |
@@ -246,8 +246,11 @@ may refine their representation without weakening Sections 6 or 10.
   `internal/core` (invariant 13). Tracing is off unless an OTLP endpoint is
   configured, so a default local run opens no connection. Design evidence:
   [`docs/plans/2026-10-06-openinference-openllmetry-integration-research.md`](docs/plans/2026-10-06-openinference-openllmetry-integration-research.md).
-- **Tool adapters — target.** Add bounded actions with the same manifest, effect,
-  journal, and receipt contracts in every implementation language. The
+- **Tool adapters — contract implemented, adapters target.** Add bounded actions with the same manifest, effect,
+  journal, and receipt contracts in every implementation language
+  ([`internal/core/tool.go`](internal/core/tool.go),
+  [`internal/core/effect.go`](internal/core/effect.go),
+  [`internal/core/journal.go`](internal/core/journal.go)). The
   manifest declares a replay policy: the journal records a call's intent
   before its effect, and on resume a call cut off mid-run reruns only if it
   is declared replay-safe; otherwise it ends with an explicit `interrupted`
@@ -366,6 +369,8 @@ These are accepted direction, not completed runtime claims:
    retaining the current provider completion invariant.
 2. **Tool safety contract.** Replace the planned `ReadOnly() bool` design with
    per-invocation effect declarations before landing the first mutating tool.
+   Contract landed (`internal/core/effect.go`, `tool.go`, `journal.go`); the
+   first mutating tool is still pending.
 3. **State expansion.** Define session snapshot, obligation ledger, mutation
    lease, receipt index, and durable control journal before production
    persistence.

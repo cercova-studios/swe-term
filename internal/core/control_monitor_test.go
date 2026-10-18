@@ -14,15 +14,19 @@ func TestControlMonitorLegalTrace(t *testing.T) {
 		testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
 		testControlEvent(2, ControlApprovalGranted, func(event *ControlEvent) { event.Action = "edit" }),
 		testControlEvent(3, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-1" }),
-		testControlEvent(4, ControlEffectsDeclared, func(event *ControlEvent) { event.Lease, event.Effects = "lease-1", []string{"workspace/main.go"} }),
-		testControlEvent(5, ControlEffectObserved, func(event *ControlEvent) { event.Lease, event.Effect = "lease-1", "workspace/main.go" }),
+		testControlEvent(4, ControlEffectsDeclared, func(event *ControlEvent) {
+			event.Lease, event.Declared = "lease-1", testWriteDeclaration("workspace/main.go")
+		}),
+		testControlEvent(5, ControlEffectObserved, func(event *ControlEvent) {
+			event.Lease, event.Observed = "lease-1", testObservedWrite("workspace/main.go")
+		}),
 		testControlEvent(6, ControlLeaseReleased, func(event *ControlEvent) { event.Lease = "lease-1" }),
 		testControlEvent(7, ControlReceiptRecorded, func(event *ControlEvent) { event.Receipt = receipt }),
 		testControlEvent(8, ControlLifecycleClaimed, func(event *ControlEvent) { event.Claim = ClaimVerified }),
 	}
 
 	state := applyAcceptedControlEvents(t, ControlMonitorState{}, events)
-	if state.ActiveLease != "" || len(state.DeclaredEffects) != 0 {
+	if state.ActiveLease != "" || !reflect.DeepEqual(state.Declared, EffectDeclaration{}) {
 		t.Fatalf("legal trace leaked mutation state: %#v", state)
 	}
 	if !state.CurrentReceipt.Valid() || !state.CurrentReceipt.Identity.Equal(identity) {
@@ -103,7 +107,9 @@ func TestControlMonitorRejectsIllegalTracesWithStableRules(t *testing.T) {
 				testControlEvent(1, ControlApprovalGranted, func(event *ControlEvent) { event.Action = "edit" }),
 				testControlEvent(2, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-1" }),
 			},
-			event:    testControlEvent(3, ControlEffectsDeclared, func(event *ControlEvent) { event.Lease, event.Effects = "lease-2", []string{"workspace/main.go"} }),
+			event: testControlEvent(3, ControlEffectsDeclared, func(event *ControlEvent) {
+				event.Lease, event.Declared = "lease-2", testWriteDeclaration("workspace/main.go")
+			}),
 			wantRule: ControlLeaseRequired,
 		},
 		{
@@ -111,9 +117,13 @@ func TestControlMonitorRejectsIllegalTracesWithStableRules(t *testing.T) {
 			prefix: []ControlEvent{
 				testControlEvent(1, ControlApprovalGranted, func(event *ControlEvent) { event.Action = "edit" }),
 				testControlEvent(2, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-1" }),
-				testControlEvent(3, ControlEffectsDeclared, func(event *ControlEvent) { event.Lease, event.Effects = "lease-1", []string{"workspace/main.go"} }),
+				testControlEvent(3, ControlEffectsDeclared, func(event *ControlEvent) {
+					event.Lease, event.Declared = "lease-1", testWriteDeclaration("workspace/main.go")
+				}),
 			},
-			event:    testControlEvent(4, ControlEffectObserved, func(event *ControlEvent) { event.Lease, event.Effect = "lease-1", "workspace/other.go" }),
+			event: testControlEvent(4, ControlEffectObserved, func(event *ControlEvent) {
+				event.Lease, event.Observed = "lease-1", testObservedWrite("workspace/other.go")
+			}),
 			wantRule: ControlEffectUndeclared,
 		},
 		{
@@ -165,8 +175,12 @@ func TestControlMonitorRejectsIllegalTracesWithStableRules(t *testing.T) {
 				testControlEvent(2, ControlReceiptRecorded, func(event *ControlEvent) { event.Receipt = receipt }),
 				testControlEvent(3, ControlApprovalGranted, func(event *ControlEvent) { event.Action = "edit" }),
 				testControlEvent(4, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-1" }),
-				testControlEvent(5, ControlEffectsDeclared, func(event *ControlEvent) { event.Lease, event.Effects = "lease-1", []string{"workspace/main.go"} }),
-				testControlEvent(6, ControlEffectObserved, func(event *ControlEvent) { event.Lease, event.Effect = "lease-1", "workspace/main.go" }),
+				testControlEvent(5, ControlEffectsDeclared, func(event *ControlEvent) {
+					event.Lease, event.Declared = "lease-1", testWriteDeclaration("workspace/main.go")
+				}),
+				testControlEvent(6, ControlEffectObserved, func(event *ControlEvent) {
+					event.Lease, event.Observed = "lease-1", testObservedWrite("workspace/main.go")
+				}),
 			},
 			event:    testControlEvent(7, ControlLifecycleClaimed, func(event *ControlEvent) { event.Claim = ClaimDone }),
 			wantRule: ControlLifecycleReceiptRequired,
@@ -264,8 +278,12 @@ func TestControlMonitorPrefixReplayMatchesUninterruptedTrace(t *testing.T) {
 		testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
 		testControlEvent(2, ControlApprovalGranted, func(event *ControlEvent) { event.Action = "edit" }),
 		testControlEvent(3, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-1" }),
-		testControlEvent(4, ControlEffectsDeclared, func(event *ControlEvent) { event.Lease, event.Effects = "lease-1", []string{"workspace/main.go"} }),
-		testControlEvent(5, ControlEffectObserved, func(event *ControlEvent) { event.Lease, event.Effect = "lease-1", "workspace/main.go" }),
+		testControlEvent(4, ControlEffectsDeclared, func(event *ControlEvent) {
+			event.Lease, event.Declared = "lease-1", testWriteDeclaration("workspace/main.go")
+		}),
+		testControlEvent(5, ControlEffectObserved, func(event *ControlEvent) {
+			event.Lease, event.Observed = "lease-1", testObservedWrite("workspace/main.go")
+		}),
 		testControlEvent(6, ControlLeaseReleased, func(event *ControlEvent) { event.Lease = "lease-1" }),
 	}
 
@@ -283,15 +301,56 @@ func TestControlMonitorBoundsEffectDeclaration(t *testing.T) {
 		testControlEvent(2, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-1" }),
 	})
 
-	effects := make([]string, maxDeclaredEffects+1)
-	for index := range effects {
-		effects[index] = fmt.Sprintf("workspace/file-%d", index)
+	writes := make([]PathEffect, maxDeclaredEffects+1)
+	for index := range writes {
+		writes[index] = PathEffect{Path: fmt.Sprintf("workspace/file-%d", index)}
 	}
 	_, decision := ApplyControlEvent(state, testControlEvent(3, ControlEffectsDeclared, func(event *ControlEvent) {
-		event.Lease, event.Effects = "lease-1", effects
+		event.Lease = "lease-1"
+		event.Declared = EffectDeclaration{Writes: writes, Observation: ObservationObserved}
 	}))
 	if decision.RuleID != ControlEffectDeclarationInvalid {
 		t.Fatalf("oversized declaration rule = %q, want %q", decision.RuleID, ControlEffectDeclarationInvalid)
+	}
+}
+
+func TestControlMonitorRejectsUnobservableMutationDeclaration(t *testing.T) {
+	state := applyAcceptedControlEvents(t, ControlMonitorState{}, []ControlEvent{
+		testControlEvent(1, ControlApprovalGranted, func(event *ControlEvent) { event.Action = "edit" }),
+		testControlEvent(2, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-1" }),
+	})
+	_, decision := ApplyControlEvent(state, testControlEvent(3, ControlEffectsDeclared, func(event *ControlEvent) {
+		event.Lease = "lease-1"
+		event.Declared = EffectDeclaration{
+			Writes:      []PathEffect{{Path: "workspace/main.go"}},
+			Observation: ObservationUnobservable,
+		}
+	}))
+	if decision.RuleID != ControlEffectDeclarationInvalid {
+		t.Fatalf("unobservable mutation rule = %q, want %q", decision.RuleID, ControlEffectDeclarationInvalid)
+	}
+}
+
+func TestControlMonitorDeclaredReadKeepsReceipt(t *testing.T) {
+	identity := testControlReceiptIdentity("a")
+	receipt := testPassingReceipt(identity)
+	state := applyAcceptedControlEvents(t, ControlMonitorState{}, []ControlEvent{
+		testControlEvent(1, ControlSetReceiptTarget, func(event *ControlEvent) { event.Obligation, event.Identity = "tests", identity }),
+		testControlEvent(2, ControlReceiptRecorded, func(event *ControlEvent) { event.Receipt = receipt }),
+		testControlEvent(3, ControlApprovalGranted, func(event *ControlEvent) { event.Action = "edit" }),
+		testControlEvent(4, ControlLeaseAcquired, func(event *ControlEvent) { event.Action, event.Lease = "edit", "lease-1" }),
+		testControlEvent(5, ControlEffectsDeclared, func(event *ControlEvent) {
+			event.Lease = "lease-1"
+			event.Declared = EffectDeclaration{Reads: []PathEffect{{Path: "workspace/main.go"}}, Observation: ObservationObserved}
+		}),
+		testControlEvent(6, ControlEffectObserved, func(event *ControlEvent) {
+			event.Lease = "lease-1"
+			event.Observed = ObservedEffect{Class: EffectClassRead, Target: "workspace/main.go", Observation: ObservationObserved}
+		}),
+		testControlEvent(7, ControlLifecycleClaimed, func(event *ControlEvent) { event.Claim = ClaimVerified }),
+	})
+	if state.CurrentReceipt != receipt {
+		t.Fatalf("declared read discarded current receipt: %#v", state.CurrentReceipt)
 	}
 }
 
@@ -305,6 +364,14 @@ func applyAcceptedControlEvents(t *testing.T, state ControlMonitorState, events 
 		}
 	}
 	return state
+}
+
+func testWriteDeclaration(path string) EffectDeclaration {
+	return EffectDeclaration{Writes: []PathEffect{{Path: path}}, Observation: ObservationObserved}
+}
+
+func testObservedWrite(path string) ObservedEffect {
+	return ObservedEffect{Class: EffectClassWrite, Target: path, Observation: ObservationObserved}
 }
 
 func testControlEvent(sequence uint64, kind ControlEventKind, mutate func(*ControlEvent)) ControlEvent {

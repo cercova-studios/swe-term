@@ -9,7 +9,7 @@ compiled counterpart to `docs/research/papers/<topic>/synthesis.md` and
 the detailed, per-topic and per-experiment record; this is the one place that
 answers "what do we actually know so far, across everything."
 
-Last compiled: 2026-10-16.
+Last compiled: 2026-10-18.
 
 ## 1. Fleet CPG Engine — completed benchmark experiments
 
@@ -247,6 +247,19 @@ journal is implemented).
   `temporal-monitor-trace-corpus-v2` adds all of those rows; they have no
   recorded run yet and are **not** part of the accepted result until
   `run-002` is recorded and evaluated.
+- Corpus v4 revision (2026-10-18): the SDK primitives slice replaced the
+  reducer's `[]string` effect tokens with typed `EffectDeclaration` /
+  `ObservedEffect` values and landed the durable JSONL `ControlJournal`
+  behind the reducer (the bounded follow-up accepted above). The frozen
+  traces were re-expressed with identical orderings and rule IDs, the
+  preregistration gate was re-passed, and both variants were recorded as
+  `run-004` (all exit 0); hypothesis accepted on
+  `temporal-monitor-trace-corpus-v4`, superseding v3 as the current record
+  without contradicting it. Two rows are new: an unobservable mutation
+  declaration is rejected, and a declared read no longer invalidates a
+  recorded receipt. Evidence:
+  [`experiments/evidence/temporal-journal-monitor/`](../../experiments/evidence/temporal-journal-monitor/),
+  section "Regrade on corpus v4".
 
 Both specs' fixtures now carry `executable-corpus.sha256`, pinning the Go
 test file that is the corpus's executable form inside the digested

@@ -1,7 +1,5 @@
 package core
 
-import "slices"
-
 // ControlRuleID is a stable, machine-readable reason for a rejected event.
 // Rule IDs deliberately name invariants rather than the reducer's implementation.
 type ControlRuleID string
@@ -55,8 +53,8 @@ type ControlEvent struct {
 	Kind          ControlEventKind
 	Action        string
 	Lease         string
-	Effect        string
-	Effects       []string
+	Declared      EffectDeclaration
+	Observed      ObservedEffect
 	Obligation    string
 	Identity      ReceiptIdentity
 	Receipt       VerificationReceipt
@@ -76,9 +74,9 @@ type ControlMonitorState struct {
 	LastSequence uint64
 	LastEvent    ControlEvent
 
-	ApprovedAction  string
-	ActiveLease     string
-	DeclaredEffects []string
+	ApprovedAction string
+	ActiveLease    string
+	Declared       EffectDeclaration
 
 	ReceiptObligation string
 	ReceiptTarget     ReceiptIdentity
@@ -166,24 +164,28 @@ func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMo
 			decision = RejectedControlDecision(ControlLeaseRequired)
 			break
 		}
-		if !validDeclaredEffects(event.Effects) {
+		if !event.Declared.Validate() {
 			decision = RejectedControlDecision(ControlEffectDeclarationInvalid)
 			break
 		}
-		next.DeclaredEffects = append([]string(nil), event.Effects...)
+		next.Declared = copyEffectDeclaration(event.Declared)
 	case ControlEffectObserved:
 		if event.Lease == "" || event.Lease != next.ActiveLease {
 			decision = RejectedControlDecision(ControlLeaseRequired)
 			break
 		}
-		if !slices.Contains(next.DeclaredEffects, event.Effect) {
+		if !next.Declared.Covers(event.Observed) {
 			decision = RejectedControlDecision(ControlEffectUndeclared)
 			break
 		}
-		// The monitor cannot tell whether an effect touched the verified
-		// scope, so any observed mutation fails closed: the receipt is no
-		// longer current and a fresh one must be recorded before a claim.
-		next.CurrentReceipt = VerificationReceipt{}
+		// The monitor cannot tell whether a mutating effect touched the
+		// verified scope, so an observed write, process, or unobservable
+		// effect fails closed: the receipt is no longer current and a fresh
+		// one must be recorded before a claim. A declared read within the
+		// lease does not clobber an already-recorded receipt.
+		if mutatingObserved(event.Observed) {
+			next.CurrentReceipt = VerificationReceipt{}
+		}
 	case ControlReceiptRecorded:
 		// A valid failed receipt is evidence too: it is retained so the
 		// failure stays auditable, and the lifecycle rule below refuses it.
@@ -223,7 +225,7 @@ func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMo
 			break
 		}
 		next.ActiveLease = ""
-		next.DeclaredEffects = nil
+		next.Declared = EffectDeclaration{}
 	case ControlCancelled:
 		if next.ActiveLease != "" && event.Lease != next.ActiveLease {
 			decision = RejectedControlDecision(ControlLeaseRequired)
@@ -231,7 +233,7 @@ func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMo
 		}
 		next.ApprovedAction = ""
 		next.ActiveLease = ""
-		next.DeclaredEffects = nil
+		next.Declared = EffectDeclaration{}
 		next.Cancelled = true
 	default:
 		decision = RejectedControlDecision(ControlEventSchemaUnsupported)
@@ -245,16 +247,12 @@ func ApplyControlEvent(state ControlMonitorState, event ControlEvent) (ControlMo
 	return next, decision
 }
 
-func validDeclaredEffects(effects []string) bool {
-	if len(effects) == 0 || len(effects) > maxDeclaredEffects {
-		return false
-	}
-	for index, effect := range effects {
-		if effect == "" || slices.Contains(effects[:index], effect) {
-			return false
-		}
-	}
-	return true
+// mutatingObserved reports whether an accepted observed effect can have
+// changed the verified scope: a write, a spawned process, or any effect the
+// harness could not observe.
+func mutatingObserved(observed ObservedEffect) bool {
+	return observed.Class == EffectClassWrite || observed.Class == EffectClassProcess ||
+		observed.Observation == ObservationUnobservable
 }
 
 func controlEventsEqual(left, right ControlEvent) bool {
@@ -263,15 +261,24 @@ func controlEventsEqual(left, right ControlEvent) bool {
 		left.Kind == right.Kind &&
 		left.Action == right.Action &&
 		left.Lease == right.Lease &&
-		left.Effect == right.Effect &&
+		left.Declared.Equal(right.Declared) &&
+		left.Observed == right.Observed &&
 		left.Obligation == right.Obligation &&
 		left.Identity.Equal(right.Identity) &&
 		left.Receipt == right.Receipt &&
-		left.Claim == right.Claim &&
-		slices.Equal(left.Effects, right.Effects)
+		left.Claim == right.Claim
 }
 
 func copyControlEvent(event ControlEvent) ControlEvent {
-	event.Effects = append([]string(nil), event.Effects...)
+	event.Declared = copyEffectDeclaration(event.Declared)
 	return event
+}
+
+func copyEffectDeclaration(declaration EffectDeclaration) EffectDeclaration {
+	declaration.Reads = append([]PathEffect(nil), declaration.Reads...)
+	declaration.Writes = append([]PathEffect(nil), declaration.Writes...)
+	declaration.Processes = append([]string(nil), declaration.Processes...)
+	declaration.Network = append([]string(nil), declaration.Network...)
+	declaration.Secrets = append([]string(nil), declaration.Secrets...)
+	return declaration
 }

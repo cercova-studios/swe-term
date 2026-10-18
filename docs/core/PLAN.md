@@ -104,6 +104,9 @@ Follow-on target, once obligations and receipts exist in core:
   contract with no `ReadOnly()` bool, and a durable JSONL `ControlJournal`
   feeding the existing monitor. No loop, `SessionStore`, or wire protocol
   in this slice; obsidian-agent OA-001/OA-002 stay deferred against it.
+  Landed 2026-10-18 in `internal/core/effect.go`, `tool.go`, and
+  `journal.go`, with the monitor migrated to typed effects and the
+  `temporal-journal-monitor` corpus revised to v4 for the new contract.
 
 ### Phase 3: Extensibility Path
 
