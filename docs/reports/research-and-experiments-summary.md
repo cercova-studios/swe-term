@@ -553,7 +553,7 @@ section with commit or path citations; the compressed verdicts live in
 
 | Harness | Validated at | Headline change | Verdict movement |
 |---|---|---|---|
-| pi | `earendil-works/pi` 1.1.0, `ea448f454` | Real `Provider` interface, injected `streamFn`, tool-call hooks, built-in MCP; `AgentSession` 3,060 → 4,398 ln | Old docs were already stale (0.65.2 vs upstream 0.78.1 at write time); token-count critique corrected |
+| pi (refreshed 2026-10-18) | `earendil-works/pi` 1.3.0, `1402973a9` (was 1.1.0, `ea448f454`) | Real `Provider` interface, injected `streamFn`, tool-call hooks, built-in MCP; `AgentSession` 3,060 → 4,428 ln; server/protocol/client stack deleted; pi-durable 1.3.0 (commit before show, per-tool replay policy, crash-loop guard) | Token-count critique corrected; pi-durable contracts adopted as port inputs, not as a runtime |
 | Codex | `cc7ba3360` (version `0.0.0` on main) | `mcp-server` removed, code mode moved out of process, Guardian split, 8 SQLite DBs | Protocol-seam port strengthened; out-of-process code runtime supports swe-term's subprocess plan |
 | Claude Code | v2.1.296 (public docs only) | Auto mode (classifier) is default; sandbox credential/egress settings | Lesson: deterministic policy enforces, classifier triages; snapshot-era claims tagged unverifiable |
 | DeepSeek Harness | 0.2.1-alpha.2, `d743267388` | Runtime invariant deleted; session format 0 → 4 with migrations; 226 → 340 packages | swe-term keeps the pre-`Provider.Stream` reconstruction check dsh dropped |
