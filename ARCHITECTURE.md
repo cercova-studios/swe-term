@@ -24,6 +24,14 @@ Comparative evidence lives in [`docs/core/FRAMEWORKS.md`](docs/core/FRAMEWORKS.m
 
 ## 2. Design Goals
 
+- A general-purpose, minimal agent harness that can extend and improve itself
+  under the harness's authority (see the
+  [agent-editable harness direction](docs/plans/2026-09-05-agent-editable-harness.md)).
+- One runtime behind three surfaces: the TUI, headless mode, and language SDKs
+  (Python and TypeScript for Node/Bun) that embed the agent in another
+  program, in the manner of the Claude Agent SDK and pi's
+  `@earendil-works/pi-coding-agent`. obsidian-agent is the first SDK
+  consumer and replaces LangGraph with it.
 - Minimal, stable Go core with explicit interface boundaries.
 - Single-binary, local-first operation with optional sidecars and services.
 - ACP-aligned protocol model at the frontend/core boundary.
@@ -53,7 +61,8 @@ Comparative evidence lives in [`docs/core/FRAMEWORKS.md`](docs/core/FRAMEWORKS.m
 
 ### Layers
 
-1. **Frontends** — TUI, headless/pipe mode, and future RPC/server mode.
+1. **Frontends** — TUI, headless/pipe mode, and SDK clients (target), all
+   over the same protocol.
 2. **Core (Go)** — provider event contracts today; target agent loop, state,
    approval, policy, journal, and verification control plane.
 3. **Extensions** — providers, tools, analyzers, and sidecar adapters.
@@ -182,6 +191,17 @@ may refine their representation without weakening Sections 6 or 10.
   rewriting the loop; hooks cannot bypass deterministic invariants.
 - **Frontend protocol — target beyond the TUI.** TUI, headless, and ACP clients
   consume the same versioned event/state model.
+- **SDK clients — target.** Thin Python and TypeScript libraries that start the
+  `st` binary and speak the frontend protocol; they hold no loop, policy, or
+  persistence of their own. A client may register tools implemented in its
+  own language: the core calls them back over the protocol and applies the
+  same effect, approval, journal, and receipt contracts as any tool adapter;
+  it never loads client code in process. A client may supply a JSON Schema for
+  the session result; the core validates it, providers declare support, and a
+  violation is a failure. Go programs may import the core packages directly.
+  The client-over-protocol shape keeps one implementation of the core across
+  languages. obsidian-agent's requests OA-001 to OA-003
+  ([ledger](docs/cross-project/obsidian-agent.md)) are its first contract.
 
 Capabilities have two lanes: runtime/ad-hoc for iteration and compiled for
 durable first-class support. Both emit the same versioned manifest and
@@ -268,7 +288,8 @@ These are accepted direction, not completed runtime claims:
    lease, receipt index, and durable control journal before production
    persistence.
 4. **Frontend protocol seam.** Keep TUI behavior on core events while defining a
-   versioned protocol usable by headless and ACP clients.
+   versioned protocol usable by headless, ACP, and SDK clients, including
+   client-hosted tool callbacks and schema-validated session results.
 5. **Architecture path migration.** Root `ARCHITECTURE.md` is now authoritative;
    the old `docs/core/ARCHITECTURE.md` path remains a temporary compatibility
    pointer.

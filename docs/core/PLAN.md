@@ -10,7 +10,15 @@ Framework synthesis lives in `FRAMEWORKS.md`.
 
 ## Scope
 
-- Build a Go-first agent harness with explicit interfaces and ACP-aligned protocol types.
+- Build a general-purpose, minimal, Go-first agent harness with explicit
+  interfaces and ACP-aligned protocol types.
+- Ship one runtime behind three surfaces: TUI, headless, and Python and
+  TypeScript (Node/Bun) SDKs, in the manner of the Claude Agent SDK and pi's
+  `@earendil-works/pi-coding-agent`. SDKs are thin clients of the `st`
+  binary over the protocol (ARCHITECTURE.md §9 "SDK clients").
+- obsidian-agent is the first SDK consumer and replaces LangGraph with it;
+  its convergence gates C1–C3 are the SDK's acceptance tests. Requests and
+  responses: [`../cross-project/obsidian-agent.md`](../cross-project/obsidian-agent.md).
 - Keep core minimal and stable; push specialized capabilities into extensions/adapters.
 - Preserve portability through narrow capability ports for providers, compute, and storage.
 - Grow with model capability through agent-editable extensions and evidence-based
@@ -40,11 +48,15 @@ Deliver:
 - ACP-aligned protocol types and JSON-RPC framing.
 - Baseline file/shell tools.
 - SQLite-backed session persistence.
+- Minimal Python SDK client: open a session, stream events, and register
+  client-hosted tools that the loop calls back over the protocol (OA-001).
 
 Done when:
 
 - Prompt -> tool call(s) -> final assistant response works end-to-end.
 - Integration tests pass with mock provider + real tool wiring.
+- obsidian-agent gate C1 passes: read-only vault Q&A runs through the loop
+  from the Python client with a mock provider.
 
 ### Phase 2: Safety, Hooks, and Context Budget
 
@@ -53,11 +65,15 @@ Deliver:
 - Pre/post tool and compaction hook lifecycle.
 - Token budget manager and compaction triggers.
 - Policy-gated approval path for risky/mutating actions.
+- SDK typed output: the session result is validated against a caller-supplied
+  JSON Schema; providers declare support; a violation is a failure (OA-002).
 
 Done when:
 
 - Long sessions compact predictably while preserving required task context.
 - Mutating operations are explicit, visible, and policy controlled.
+- obsidian-agent gate C2 passes: summarizer and Zettelkasten steps use SDK
+  typed output, and its crash/replay/cancel/budget checks pass on swe-term.
 
 Follow-on target, once obligations and receipts exist in core:
 
@@ -114,10 +130,13 @@ Deliver:
 - Stable headless/pipe mode.
 - TUI integration via protocol-backed event stream.
 - Session navigation and resume ergonomics.
+- TypeScript SDK client for Node and Bun with the same contract as the Python
+  client; a versioned, published SDK API.
 
 Done when:
 
-- Same core loop is operable from both TUI and headless modes.
+- Same core loop is operable from the TUI, headless mode, and both SDKs.
+- obsidian-agent gate C3 (parity with LangGraph) passes on the Python SDK.
 
 ### Phase 5: Hardening
 
